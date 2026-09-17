@@ -3,14 +3,14 @@ const rateLimit = require('express-rate-limit');
 const { protect } = require('../middleware/auth');
 const {
   register, login, adminLogin, getMe, updateProfile,
-  changePassword, forgotPassword, resetPassword, resetPasswordFromBody, switchWorkspace,
+  changePassword, switchWorkspace,
   verifyEmail, resendVerification,
   loginVerify2FA, resendLoginOTP,
   get2FAStatus, setup2FA, verify2FA, resendSetupOTP, disable2FA,
 } = require('../controllers/authController');
 
 const limitHandler = (req, res) =>
-  res.status(429).json({ success: false, code: 'LOGIN_BLOCKED', message: 'Too many failed attempts. For security your login is temporarily blocked. It will unlock automatically in about 5 minutes, or reset your password to unblock now.' });
+  res.status(429).json({ success: false, code: 'LOGIN_BLOCKED', message: 'Too many failed attempts. For security your login is temporarily blocked. It will unlock automatically in about 5 minutes.' });
 const otpLimitHandler = (req, res) =>
   res.status(429).json({ success: false, message: 'Too many requests. Please try again after some time.' });
 // IPv6-safe IP normaliser (express-rate-limit >=7 requires this for custom key
@@ -47,11 +47,8 @@ router.post('/admin-login', loginLimiter, adminLogin);
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.put('/change-password', protect, changePassword);
-router.post('/forgot-password', otpLimiter, forgotPassword);
 router.post('/verify-email', loginLimiter, verifyEmail);
 router.post('/resend-verification', otpLimiter, resendVerification);
-router.post('/reset-password', loginLimiter, resetPasswordFromBody);
-router.put('/reset-password/:token', loginLimiter, resetPassword);
 router.put('/switch-workspace/:workspaceId', protect, switchWorkspace);
 
 // 2FA — login challenge (public)

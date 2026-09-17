@@ -10,7 +10,7 @@ const getAppUrl = async (req) => {
   const settings = await SystemSettings.findOne().lean();
   if (settings?.appUrl) return settings.appUrl.replace(/\/$/, '');
   // White-label: build links to the panel's OWN domain (from the request) instead
-  // of a hardcoded wabapanel default, so reset/verify links open the right install.
+  // of a hardcoded wabapanel default, so verification links open the right install.
   try {
     if (req && req.get) {
       const origin = req.get('origin');
@@ -85,7 +85,12 @@ const buildLoginResponse = async (user) => {
 // @POST /api/auth/register
 const register = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { password, phone } = req.body;
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid email and a password of at least 6 characters' });
+    }
+    const name = (typeof req.body.name === 'string' && req.body.name.trim()) || email.split('@')[0];
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -447,89 +452,6 @@ const changePassword = async (req, res) => {
   }
 };
 
-// @POST /api/auth/forgot-password
-const forgotPassword = async (req, res) => {
-  try {
-    const user = await User.findOne({ email: req.body.email });
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'No user with that email' });
-    }
-
-    const resetToken = crypto.randomBytes(20).toString('hex');
-    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.resetPasswordExpire = Date.now() + 3600000; // 1 hour
-    await user.save();
-
-    const appUrl = await getAppUrl(req);
-    const sent = await sendTemplateEmail('passwordReset', user.email, {
-      userName: user.name,
-      resetLink: `${appUrl}/auth/reset-password?token=${resetToken}`,
-    }).catch((e) => { console.error('[Password Reset] Send failed:', e.message); return false; });
-    if (!sent) {
-      return res.status(500).json({ success: false, message: 'Could not send reset email. Please contact support.' });
-    }
-    res.json({ success: true, message: 'Password reset email sent' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// @PUT /api/auth/reset-password/:token
-const resetPassword = async (req, res) => {
-  try {
-    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
-
-    const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
-    }
-
-    user.password = req.body.password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-    await user.save();
-
-    res.json({ success: true, message: 'Password reset successful' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// @POST /api/auth/reset-password (token in body)
-const resetPasswordFromBody = async (req, res) => {
-  try {
-    const { token, password } = req.body;
-    if (!token || !password) {
-      return res.status(400).json({ success: false, message: 'Token and password are required' });
-    }
-
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-    const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
-    }
-
-    user.password = password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-    await user.save();
-
-    res.json({ success: true, message: 'Password reset successful' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 // @POST /api/auth/verify-email
 const verifyEmail = async (req, res) => {
   try {
@@ -688,7 +610,7 @@ const switchWorkspace = async (req, res) => {
 
 module.exports = {
   register, login, adminLogin, getMe, updateProfile,
-  changePassword, forgotPassword, resetPassword, resetPasswordFromBody, switchWorkspace,
+  changePassword, switchWorkspace,
   verifyEmail, resendVerification,
   loginVerify2FA, resendLoginOTP,
   get2FAStatus, setup2FA, verify2FA, resendSetupOTP, disable2FA,

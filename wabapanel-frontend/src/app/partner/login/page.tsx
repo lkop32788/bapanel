@@ -113,11 +113,7 @@ export default function PartnerLoginPage() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <div className="flex items-center justify-end">
-                  <Link href="/auth/forgot-password" className="text-sm text-emerald-600 hover:text-emerald-700">
-                    忘记密码？
-                  </Link>
-                </div>
+                
                 <Button type="submit" className="w-full" loading={loading}>登录</Button>
               </form>
               {signupOpen && (

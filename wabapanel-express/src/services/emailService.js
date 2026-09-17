@@ -90,19 +90,7 @@ class EmailService {
     });
   }
 
-  async sendPasswordResetEmail(user, resetToken) {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-    return this.sendEmail({
-      to: user.email,
-      subject: 'Password Reset Request',
-      html: `
-        <h2>Password Reset</h2>
-        <p>You requested a password reset. Click the link below:</p>
-        <a href="${resetUrl}">Reset Password</a>
-        <p>This link expires in 1 hour.</p>
-      `,
-    });
-  }
+
 }
 
 module.exports = new EmailService();

@@ -42,7 +42,6 @@ const defaultSettings: SystemSettings = {
 
 const EMAIL_TEMPLATE_DEFS: { key: string; label: string; description: string; variables: string[] }[] = [
   { key: 'welcome', label: "欢迎电子邮件", description: "新用户注册时发送", variables: ['userName', "应用程序名称", "应用程序网址"] },
-  { key: 'passwordReset', label: "密码重置", description: "当用户请求重置密码时发送", variables: ['userName', "应用程序名称", "重置链接"] },
   { key: 'emailVerification', label: "电子邮件验证", description: "已发送以验证电子邮件地址", variables: ['userName', "应用程序名称", "验证链接"] },
 
   { key: 'accountDeactivation', label: "账户停用", description: "账户停用时发送", variables: ['userName', "应用程序名称"] },

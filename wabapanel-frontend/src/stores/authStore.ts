@@ -15,7 +15,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<{ requires2FA?: boolean; method?: string; challengeToken?: string } | void>;
   complete2FALogin: (challengeToken: string, code: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<{ requires2FA?: boolean; method?: string; challengeToken?: string } | void>;
-  register: (name: string, email: string, password: string, phone?: string, ref?: string) => Promise<boolean>;
+  register: (email: string, password: string, ref?: string) => Promise<boolean>;
   logout: () => void;
   loadUser: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
@@ -91,8 +91,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  register: async (name, email, password, phone, ref) => {
-    const res = await authApi.register({ name, email, password, ...(phone ? { phone } : {}), ...(ref ? { ref } : {}) });
+  register: async (email, password, ref) => {
+    const res = await authApi.register({ email, password, ...(ref ? { ref } : {}) });
     if (res.data.requiresVerification) return true;
     const { token, user, workspace } = res.data.data;
     localStorage.setItem('token', token);

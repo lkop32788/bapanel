@@ -86,14 +86,12 @@ export const pushApi = {
 export const authApi = {
   login: (data: { email: string; password: string }) => api.post('/auth/login', data),
   adminLogin: (data: { email: string; password: string }) => api.post('/auth/admin/login', data),
-  register: (data: { name: string; email: string; password: string; phone?: string; ref?: string }) => api.post('/auth/register', data),
+  register: (data: { name?: string; email: string; password: string; phone?: string; ref?: string }) => api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
   updateProfile: (data: Partial<{ name: string; phone: string; avatar: string }>) => api.put('/auth/profile', data),
   changePassword: (data: { currentPassword: string; newPassword: string }) => api.put('/auth/change-password', data),
-  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
   verifyEmail: (token: string) => api.post('/auth/verify-email', { token }),
   resendVerification: (email: string) => api.post('/auth/resend-verification', { email }),
-  resetPassword: (data: { token: string; password: string }) => api.post('/auth/reset-password', data),
   switchWorkspace: (workspaceId: string) => api.put(`/auth/switch-workspace/${workspaceId}`),
   // 2FA
   twoFactorStatus: () => api.get('/auth/2fa/status'),

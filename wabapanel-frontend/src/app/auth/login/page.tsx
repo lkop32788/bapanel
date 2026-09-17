@@ -2,7 +2,6 @@
 import { translateApiMessage } from '@/lib/zhMessages';
 import useBranding from '@/lib/useBranding';
 import React, { useState, useEffect, Suspense } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import AuthSide from '@/components/auth/AuthSide';
@@ -86,7 +85,7 @@ function LoginForm() {
   const googleError = searchParams.get('google_error');
   const googleErrorText: Record<string, string> = {
     disabled: "尚未在此面板上配置 Google 登录。",
-    nouser: `No account found for ${searchParams.get('email') || 'this Google account'}. Please sign up first or use the email you registered with.`,
+    nouser: `未找到 ${searchParams.get('email') || '此 Google 账户'} 对应的账户，请使用已有账户登录或联系管理员。`,
     suspended: "该账户已被暂停。请联系支持人员。",
     twofa: "此账户已启用两步验证 - 请使用您的密码登录。",
     cancelled: "Google 登录已取消。",
@@ -169,8 +168,7 @@ function LoginForm() {
         <div data-ui-auth-card className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
         <div data-ui-auth-heading className="text-center mb-6">
           {brand.logo && <img src={brand.logo} alt={brand.name} className="h-12 mx-auto mb-3 lg:hidden" />}
-          <h1 className="text-2xl font-bold text-gray-900">欢迎回来</h1>
-          <p className="text-gray-500 mt-1 text-sm">登录您的 {brand.name} 账户</p>
+          <h1 className="text-2xl font-bold text-gray-900">{brand.name}</h1>
         </div>
           {twoFA ? (
           <form onSubmit={handle2FASubmit} className="space-y-4">
@@ -237,15 +235,11 @@ function LoginForm() {
                 <input type="checkbox" className="rounded border-gray-300 text-violet-600 focus:ring-violet-500" />
                 记住我
               </label>
-              <Link href="/auth/forgot-password" className="text-sm text-violet-600 hover:text-violet-700">
-                忘记密码？
-              </Link>
             </div>
             {blocked && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
                 <p className="font-medium">登录暂时被阻止</p>
                 <p className="mt-1">失败的尝试太多。它将自动解锁 <span className="font-semibold">{fmt(blockRemaining)}</span>.</p>
-                <Link href="/auth/forgot-password" className="mt-1 inline-block font-medium text-red-700 underline">重置密码以立即解锁</Link>
               </div>
             )}
             {googleError && (
@@ -278,14 +272,6 @@ function LoginForm() {
             )}
           </form>
           )}
-          <p className="text-center text-sm text-gray-500 mt-6">
-            还没有账户？{' '}
-            <Link href="/auth/register" className="text-violet-600 hover:text-violet-700 font-medium">
-              注册
-            </Link>
-          </p>
-          <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-          </div>
         </div>
         </div>
       </div>

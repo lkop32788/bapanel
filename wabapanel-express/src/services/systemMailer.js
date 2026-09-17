@@ -6,10 +6,6 @@ const render = (str, vars) => String(str || '').replace(/{{\s*(\w+)\s*}}/g, (_, 
 // Built-in fallbacks so critical emails still send on panels whose stored
 // SystemSettings pre-dates these template keys (older docs miss them entirely).
 const DEFAULT_TEMPLATES = {
-  passwordReset: {
-    subject: 'Password Reset - {{appName}}',
-    body: '<h2>Password Reset Request</h2><p>Hi {{userName}},</p><p>You requested a password reset. Click the link below to reset your password:</p><p><a href="{{resetLink}}" style="background:#10B981;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;">Reset Password</a></p><p>This link expires in 1 hour. If you did not request this, please ignore this email.</p>',
-  },
   emailVerification: {
     subject: 'Verify Your Email - {{appName}}',
     body: '<h2>Email Verification</h2><p>Hi {{userName}},</p><p>Please verify your email address by clicking the link below:</p><p><a href="{{verifyLink}}" style="background:#10B981;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;">Verify Email</a></p>',

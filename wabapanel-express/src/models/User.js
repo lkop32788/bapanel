@@ -25,8 +25,6 @@ const userSchema = new mongoose.Schema({
   emailVerified: { type: Boolean, default: true },
   emailVerifyToken: { type: String },
   emailVerifyExpire: { type: Date },
-  resetPasswordToken: { type: String },
-  resetPasswordExpire: { type: Date },
   // Vendor-specific fields
   companyName: { type: String, default: '' },
   website: { type: String, default: '' },

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import useBranding from '@/lib/useBranding';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Lock, MailCheck, Phone } from 'lucide-react';
+import { Mail, Lock, MailCheck } from 'lucide-react';
 import AuthSide from '@/components/auth/AuthSide';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
@@ -14,9 +14,7 @@ import toast from 'react-hot-toast';
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuthStore();
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,14 +43,9 @@ export default function RegisterPage() {
       toast.error(translateApiMessage("密码不匹配"));
       return;
     }
-    const phoneDigits = phone.replace(/\D/g, '');
-    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
-      toast.error(translateApiMessage("输入有效的手机号码"));
-      return;
-    }
     setLoading(true);
     try {
-      const needsVerification = await register(name, email, password, phone.trim(), referralCode);
+      const needsVerification = await register(email, password, referralCode);
       localStorage.removeItem('affiliateRef');
       if (needsVerification) {
         setVerificationSent(true);
@@ -95,9 +88,7 @@ export default function RegisterPage() {
                 由合作伙伴代码引用 <strong>{referralCode}</strong>
               </p>
             )}
-            <Input label={"全名"} placeholder={"输入您的姓名"} value={name} onChange={(e) => setName(e.target.value)} required icon={<User className="w-4 h-4" />} />
             <Input label={"邮箱"} type="email" placeholder={"请输入邮箱"} value={email} onChange={(e) => setEmail(e.target.value)} required icon={<Mail className="w-4 h-4" />} />
-            <Input label={"手机号码"} type="tel" inputMode="tel" placeholder="e.g. +91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} required icon={<Phone className="w-4 h-4" />} />
             <Input label={"密码"} type="password" placeholder={"创建密码"} value={password} onChange={(e) => setPassword(e.target.value)} required icon={<Lock className="w-4 h-4" />} />
             <Input label={"确认密码"} type="password" placeholder={"确认密码"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required icon={<Lock className="w-4 h-4" />} />
             <Button type="submit" className="w-full" loading={loading}>创建账户</Button>
