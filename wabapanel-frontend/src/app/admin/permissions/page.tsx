@@ -1,5 +1,6 @@
 'use client';
 import { translateApiMessage } from '@/lib/zhMessages';
+import { zhNavigation } from '@/lib/zhNavigation';
 import React, { useState, useEffect } from 'react';
 import { Save } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -9,6 +10,20 @@ import toast from 'react-hot-toast';
 import { PERMISSION_TREE } from '@/components/layout/ClientSidebar';
 
 const ROLES = ['admin', 'user', 'agent', 'super_admin'];
+const ROLE_LABELS: Record<string, string> = {
+  admin: '管理员', user: '用户', agent: '客服', super_admin: '超级管理员',
+};
+const ACTION_LABELS: Record<string, string> = {
+  view: '查看', create: '创建', edit: '编辑', delete: '删除',
+};
+const LEGACY_LABELS: Record<string, string> = {
+  dashboard: '仪表盘', chat: '聊天', analytics: '数据分析', contacts: '联系人',
+  segments: '联系人分组', tags: '标签', templates: '消息模板', broadcasts: '群发消息',
+  drips: '分阶段营销', automations: '自动化流程', whatsapp: 'WhatsApp 设置',
+  forms: '获客表单', shortLinks: '短链接', agents: '客服管理', teams: '团队管理',
+  settings: '设置', campaigns: 'BMS群发与普通群发',
+};
+
 
 // Legacy module keys that roles may already have stored against them.
 const LEGACY_MODULES = [
@@ -24,6 +39,7 @@ const MODULE_LABELS: Record<string, string> = Object.fromEntries(
 );
 const MODULES = Array.from(new Set([...PERMISSION_TREE.map(s => s.moduleKey), ...LEGACY_MODULES]));
 const ACTIONS = ['view', 'create', 'edit', 'delete'];
+const moduleLabel = (key: string) => LEGACY_LABELS[key] || zhNavigation[MODULE_LABELS[key]] || MODULE_LABELS[key] || key;
 
 type PermissionsData = Record<string, Record<string, Record<string, boolean>>>;
 
@@ -107,7 +123,7 @@ export default function PermissionsPage() {
   return (
     <div className="space-y-6">
       <div className="page-hero flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900">权限控制</h1><p className="text-gray-500 text-sm mt-1">管理基于角色的访问</p></div>
+        <div><h1 className="text-2xl font-bold text-gray-900">权限控制</h1><p className="text-gray-500 text-sm mt-1">按角色设置各功能的查看、创建、编辑和删除权限</p></div>
         <Button icon={<Save className="w-4 h-4" />} onClick={handleSave} loading={saving}>保存更改</Button>
       </div>
 
@@ -115,7 +131,7 @@ export default function PermissionsPage() {
         {ROLES.map(role => (
           <button key={role} onClick={() => setSelectedRole(role)}
             className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${selectedRole === role ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-200 text-gray-600'}`}>
-            {role.replace('_', ' ')}
+            {ROLE_LABELS[role]}
           </button>
         ))}
         {selectedRole !== 'super_admin' && (
@@ -137,8 +153,8 @@ export default function PermissionsPage() {
                   return (
                     <th key={act} className="text-center py-3 px-4 text-sm font-semibold text-gray-700 capitalize">
                       <div className="flex flex-col items-center gap-1">
-                        {act}
-                        <input type="checkbox" title={`全选 ${act}`} checked={allChecked} onChange={e => setAllForAction(act, e.target.checked)}
+                        {ACTION_LABELS[act]}
+                        <input type="checkbox" title={`全选${ACTION_LABELS[act]}权限`} aria-label={`全选${ACTION_LABELS[act]}权限`} checked={allChecked} onChange={e => setAllForAction(act, e.target.checked)}
                           className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" disabled={selectedRole === 'super_admin'} />
                       </div>
                     </th>
@@ -149,10 +165,10 @@ export default function PermissionsPage() {
             <tbody>
               {MODULES.map(mod => (
                 <tr key={mod} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm font-medium capitalize text-gray-800">{MODULE_LABELS[mod] || mod.replace(/([A-Z])/g, ' $1')}</td>
+                  <td className="py-3 px-4 text-sm font-medium capitalize text-gray-800">{moduleLabel(mod)}</td>
                   {ACTIONS.map(act => (
                     <td key={act} className="text-center py-3 px-4">
-                      <input type="checkbox" checked={permissions[selectedRole]?.[mod]?.[act] || false} onChange={() => togglePermission(mod, act)}
+                      <input type="checkbox" aria-label={`${moduleLabel(mod)}：${ACTION_LABELS[act]}`} checked={permissions[selectedRole]?.[mod]?.[act] || false} onChange={() => togglePermission(mod, act)}
                         className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                         disabled={selectedRole === 'super_admin'} />
                     </td>
