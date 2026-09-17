@@ -539,7 +539,8 @@ setInterval(async () => {
 }, 24 * 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+const HOST = process.env.HOST || '127.0.0.1';
+server.listen(PORT, HOST, () => {
   console.log(`Server running on port ${PORT}`);
 
   // Self-heal: the installer's nginx config historically missed client_max_body_size,
