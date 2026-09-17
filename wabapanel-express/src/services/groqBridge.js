@@ -207,7 +207,7 @@ class GroqBridge {
   async _getLLMResponse() {
     try {
       const messages = [
-        { role: 'system', content: (this.instructions || 'You are a helpful Hindi-speaking assistant on a phone call. Keep responses concise and natural. Respond in Hindi.') + '\n\nYou have these tools available: create_order, send_payment_reminder, qualify_lead, schedule_followup, collect_feedback, create_ticket. Use them when appropriate based on the conversation.' },
+        { role: 'system', content: (this.instructions || 'You are a helpful Hindi-speaking assistant on a phone call. Keep responses concise and natural. Respond in Hindi.') + '\n\nYou have these tools available: ' + GROQ_TOOLS.map(tool => tool.function.name).join(', ') + '. Use them when appropriate based on the conversation.' },
         ...this.conversation.slice(-20),
       ];
       const completion = await this.groq.chat.completions.create({

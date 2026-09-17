@@ -9,7 +9,7 @@ interface CardProps {
 
 export default function Card({ children, className = '', padding = true }: CardProps) {
   return (
-    <div className={`bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-md transition-shadow ${padding ? 'p-6' : ''} ${className}`}>
+    <div data-kkhs-card className={`bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-md transition-shadow ${padding ? 'p-6' : ''} ${className}`}>
       {children}
     </div>
   );
@@ -27,7 +27,7 @@ export function StatCard({ title, value, icon, change, color = 'emerald' }: {
     yellow: 'bg-yellow-50 text-yellow-600',
   };
   return (
-    <div className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 p-6">
+    <div data-kkhs-card="stat" className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 p-6">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-500">{title}</p>

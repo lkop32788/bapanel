@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
-import React, { useState, useEffect } from 'react';
+import { translateDisplay } from '@/lib/zhDisplay';
+import React, { useState, useEffect, useContext } from 'react';
+import { SiteSettingsContext } from '@/components/SiteContentProvider';
 import Link from 'next/link';
 import { MessageSquare, Menu, X, Globe, Mail } from 'lucide-react';
 
@@ -10,14 +12,14 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function TeamPage() {
   const c = useSiteContent();
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(useContext(SiteSettingsContext));
   const [mobileMenu, setMobileMenu] = useState(false);
 
   useEffect(() => {
     fetch(`${API}/public/site-settings`).then(r => r.json()).then(d => { if (d.success) setSettings(d.data); }).catch(() => {});
   }, []);
 
-  const biz = settings?.business || { name: 'KKHS Media' };
+  const biz = settings?.business || { name: '' };
   const logo = settings?.branding?.logo;
 
   const t = c.team;
@@ -26,23 +28,23 @@ export default function TeamPage() {
   return (
     <div className="min-h-screen bg-[#faf9fe] text-gray-900 overflow-x-hidden">
       {/* Navbar */}
-      <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[92%] max-w-5xl bg-white/80 backdrop-blur-2xl border border-gray-200/60 rounded-2xl shadow-lg shadow-purple-100/30 z-50 px-4 py-2.5">
-        <div className="flex items-center justify-between">
+      <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-6xl bg-white/80 backdrop-blur-2xl border border-gray-200/60 rounded-2xl shadow-lg shadow-purple-100/30 z-50 px-5 py-2.5">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             {logo ? <img src={logo} alt={biz.name} className="h-10 w-auto" /> : (
-              <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-violet-200">
+              <div className="w-9 h-9 bg-linear-to-br from-violet-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-violet-200">
                 <MessageSquare className="w-5 h-5 text-white" />
               </div>
             )}
           </Link>
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-1">
             {(c.nav.links || []).map((l: any, i: number) => (
-              <a key={i} href={l.href} className="text-sm font-bold text-gray-900 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-all">{l.label}</a>
+              <a key={i} href={l.href} className="px-3 py-1.5 text-sm font-bold text-gray-900 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-all">{l.label}</a>
             ))}
           </div>
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2">
             <Link href="/auth/login" className="px-4 py-2 text-sm font-bold text-gray-900 hover:text-violet-700 transition-all">{c.nav.loginText}</Link>
-            <Link href="/auth/register" className="px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-purple-600 rounded-lg shadow-md shadow-violet-200/40 hover:shadow-lg transition-all hover:-translate-y-0.5">{c.nav.registerText}</Link>
+            <Link href="/auth/register" className="px-4 py-2 text-sm font-bold text-white bg-linear-to-r from-violet-600 to-purple-600 rounded-lg shadow-md shadow-violet-200/40 hover:shadow-lg transition-all hover:-translate-y-0.5">{c.nav.registerText}</Link>
           </div>
           <button onClick={() => setMobileMenu(!mobileMenu)} className="md:hidden p-2 rounded-lg hover:bg-gray-100">
             {mobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -55,7 +57,7 @@ export default function TeamPage() {
             ))}
             <div className="flex gap-2 pt-2">
               <Link href="/auth/login" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold border border-gray-200 rounded-xl">{c.nav.loginText}</Link>
-              <Link href="/auth/register" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl">{c.nav.registerText}</Link>
+              <Link href="/auth/register" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-white bg-linear-to-r from-violet-600 to-purple-600 rounded-xl">{c.nav.registerText}</Link>
             </div>
           </div>
         )}
@@ -64,11 +66,11 @@ export default function TeamPage() {
       {/* Hero */}
       <section className="pt-32 md:pt-40 pb-16 px-4 relative">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 left-1/3 w-[500px] h-[500px] bg-gradient-to-br from-violet-200/30 to-purple-100/20 rounded-full blur-3xl" />
+          <div className="absolute top-20 left-1/3 w-[500px] h-[500px] bg-linear-to-br from-violet-200/30 to-purple-100/20 rounded-full blur-3xl" />
         </div>
         <div className="relative max-w-4xl mx-auto text-center">
           <span className="inline-flex items-center px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full mb-4">{t.badge}</span>
-          <h1 className="text-4xl md:text-6xl font-extrabold mb-6"><span className="text-gray-900">{t.title} </span><span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">{t.titleHighlight}</span></h1>
+          <h1 className="text-4xl md:text-6xl font-extrabold mb-6"><span className="text-gray-900">{t.title} </span><span className="bg-linear-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">{t.titleHighlight}</span></h1>
           <p className="text-lg text-gray-500 max-w-2xl mx-auto">{t.intro}</p>
         </div>
       </section>
@@ -79,11 +81,11 @@ export default function TeamPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {team.map((member: any, i: number) => (
               <div key={i} className="p-7 bg-white rounded-2xl border border-gray-100 hover:border-violet-200 hover:shadow-xl transition-all text-center group">
-                <div className="w-20 h-20 mx-auto mb-5 bg-gradient-to-br from-violet-100 to-purple-100 rounded-2xl flex items-center justify-center group-hover:from-violet-200 group-hover:to-purple-200 transition-all">
+                <div className="w-20 h-20 mx-auto mb-5 bg-linear-to-br from-violet-100 to-purple-100 rounded-2xl flex items-center justify-center group-hover:from-violet-200 group-hover:to-purple-200 transition-all">
                   <span className="text-xl font-bold text-violet-600">{member.initials}</span>
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-1">{member.name}</h3>
-                <p className="text-sm text-violet-600 font-medium mb-3">{member.role}</p>
+                <p className="text-sm text-violet-600 font-medium mb-3">{translateDisplay(member.role)}</p>
                 <p className="text-sm text-gray-500 leading-relaxed mb-4">{member.desc}</p>
                 <div className="flex items-center justify-center gap-3">
                   <a href="#" className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-violet-100 flex items-center justify-center text-gray-400 hover:text-violet-600 transition-colors"><Globe className="w-4 h-4" /></a>
@@ -97,7 +99,7 @@ export default function TeamPage() {
 
       {/* Join Us CTA */}
       <section className="py-16 px-4">
-        <div className="max-w-4xl mx-auto relative overflow-hidden bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 rounded-3xl p-10 md:p-14 text-center shadow-2xl shadow-violet-200/50">
+        <div className="max-w-4xl mx-auto relative overflow-hidden bg-linear-to-r from-violet-600 via-purple-600 to-fuchsia-600 rounded-3xl p-10 md:p-14 text-center shadow-2xl shadow-violet-200/50">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.1),transparent)] pointer-events-none" />
           <h2 className="relative text-3xl md:text-4xl font-extrabold text-white mb-4">{t.cta.title}</h2>
           <p className="relative text-violet-100 text-lg mb-8">{t.cta.subtitle}</p>
@@ -113,10 +115,10 @@ export default function TeamPage() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} {biz.name}. {c.footer.copyrightText}</p>
           <div className="flex items-center gap-4 text-sm text-gray-400">
-            <Link href="/privacy" className="hover:text-violet-600">Privacy</Link>
-            <Link href="/terms" className="hover:text-violet-600">Terms</Link>
-            <Link href="/about" className="hover:text-violet-600">About</Link>
-            <Link href="/contact" className="hover:text-violet-600">Contact</Link>
+            <Link href="/privacy" className="hover:text-violet-600">隐私政策</Link>
+            <Link href="/terms" className="hover:text-violet-600">服务条款</Link>
+            <Link href="/about" className="hover:text-violet-600">关于</Link>
+            <Link href="/contact" className="hover:text-violet-600">联系方式</Link>
           </div>
         </div>
       </footer>

@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { Plus, Play, Pause, Trash2, Droplets, Edit, Clock, Users, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -55,7 +56,7 @@ export default function DripsPage() {
   const fetchAll = async () => {
     try {
       const [dripRes, tmpRes, segRes, tagRes] = await Promise.allSettled([
-        dripApi.list(), templateApi.list(), segmentApi.list(), tagApi.list(),
+        dripApi.list(), templateApi.list({ limit: 500 }), segmentApi.list(), tagApi.list(),
       ]);
       if (dripRes.status === 'fulfilled') setDrips(dripRes.value.data.data || []);
       if (tmpRes.status === 'fulfilled') setTemplates(tmpRes.value.data.data || []);
@@ -114,8 +115,8 @@ export default function DripsPage() {
 
   const handleSave = async () => {
     if (submitting) return;
-    if (!form.name.trim()) { toast.error('Campaign name is required'); return; }
-    if (form.steps.every(s => !s.message.trim() && !s.template)) { toast.error('At least one step needs a message or template'); return; }
+    if (!form.name.trim()) { toast.error(translateApiMessage("活动名称为必填项")); return; }
+    if (form.steps.every(s => !s.message.trim() && !s.template)) { toast.error(translateApiMessage("至少有一个步骤需要消息或模板")); return; }
     setSubmitting(true);
     try {
       const payload = {
@@ -133,16 +134,16 @@ export default function DripsPage() {
       };
       if (editDrip) {
         await dripApi.update(editDrip._id, payload);
-        toast.success('Drip campaign updated');
+        toast.success(translateApiMessage("水滴活动已更新"));
       } else {
         await dripApi.create(payload);
-        toast.success('Drip campaign created');
+        toast.success(translateApiMessage("已创建水滴营销活动"));
       }
       setShowModal(false);
       fetchAll();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to save');
+      toast.error(translateApiMessage(error.response?.data?.message || "保存失败"));
     } finally {
       setSubmitting(false);
     }
@@ -151,10 +152,10 @@ export default function DripsPage() {
   const handleStart = async (id: string) => {
     if (submitting) return;
     setSubmitting(true);
-    try { await dripApi.start(id); toast.success('Drip started'); fetchAll(); }
+    try { await dripApi.start(id); toast.success(translateApiMessage("滴水开始")); fetchAll(); }
     catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to start');
+      toast.error(translateApiMessage(error.response?.data?.message || "启动失败"));
     } finally {
       setSubmitting(false);
     }
@@ -164,15 +165,15 @@ export default function DripsPage() {
     if (submitting) return;
     setSubmitting(true);
 
-    try { await dripApi.pause(id); toast.success('Drip paused'); fetchAll(); } catch { toast.error('Failed'); } finally { setSubmitting(false); }
+    try { await dripApi.pause(id); toast.success(translateApiMessage("滴水暂停")); fetchAll(); } catch { toast.error(translateApiMessage("操作失败")); } finally { setSubmitting(false); }
   };
 
   const handleDelete = async (id: string) => {
     if (submitting) return;
     setSubmitting(true);
 
-    if (!confirm('Delete this drip campaign?')) return;
-    try { await dripApi.delete(id); toast.success('Deleted'); fetchAll(); } catch { toast.error('Failed'); } finally { setSubmitting(false); }
+    if (!confirm("删除此滴灌活动？")) return;
+    try { await dripApi.delete(id); toast.success(translateApiMessage("已删除")); fetchAll(); } catch { toast.error(translateApiMessage("操作失败")); } finally { setSubmitting(false); }
   };
 
   const statusColor = (s: string) => {
@@ -192,50 +193,50 @@ export default function DripsPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm('Delete ' + selectedIds.length + ' selected items?')) return;
+    if (!confirm("删除" + selectedIds.length + "选择的项目？")) return;
     if (submitting) return;
     setSubmitting(true);
     try {
       await Promise.all(selectedIds.map(id => dripApi.delete(id)));
-      toast.success(selectedIds.length + ' items deleted');
+      toast.success(translateApiMessage(selectedIds.length + "项目已删除"));
       setSelectedIds([]);
       fetchAll();
-    } catch { toast.error('Failed to delete some items'); } finally { setSubmitting(false); }
+    } catch { toast.error(translateApiMessage("删除某些项目失败")); } finally { setSubmitting(false); }
   };
 
   return (
     <div className="space-y-6">
       <div className="page-hero flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Drip Campaigns</h1>
-          <p className="text-gray-500 text-sm mt-1">Automated sequential message flows with delays</p>
+          <h1 className="text-2xl font-bold text-gray-900">分阶段营销</h1>
+          <p className="text-gray-500 text-sm mt-1">有延迟的自动顺序消息流</p>
         </div>
-        <Button icon={<Plus className="w-4 h-4" />} onClick={() => openModal()}>New Drip Campaign</Button>
+        <Button icon={<Plus className="w-4 h-4" />} onClick={() => openModal()}>新的滴水活动</Button>
       </div>
 
       {!loading && drips.length > 0 && (
         <div className={`flex items-center justify-between rounded-lg px-4 py-2.5 border ${selectedIds.length ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
             <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="w-4 h-4 accent-red-500 cursor-pointer" />
-            Select all{selectedIds.length > 0 && <span className="text-red-700"> · {selectedIds.length} selected</span>}
+            全选{selectedIds.length > 0 && <span className="text-red-700"> · {selectedIds.length} 已选择</span>}
           </label>
           {selectedIds.length > 0 && (
             <div className="flex gap-2">
-              <Button size="sm" variant="secondary" onClick={() => setSelectedIds([])}>Clear</Button>
-              <Button size="sm" variant="danger" icon={<Trash2 className="w-4 h-4" />} onClick={handleBulkDelete} disabled={submitting}>Delete selected</Button>
+              <Button size="sm" variant="secondary" onClick={() => setSelectedIds([])}>清除</Button>
+              <Button size="sm" variant="danger" icon={<Trash2 className="w-4 h-4" />} onClick={handleBulkDelete} disabled={submitting}>删除所选内容</Button>
             </div>
           )}
         </div>
       )}
 
       {loading ? (
-        <div className="text-center py-8 text-gray-400">Loading...</div>
+        <div className="text-center py-8 text-gray-400">加载中…</div>
       ) : drips.length === 0 ? (
         <Card className="text-center py-12">
           <Droplets className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 mb-2">No drip campaigns yet</p>
-          <p className="text-sm text-gray-400 mb-4">Create automated message sequences with custom delays between each step</p>
-          <Button onClick={() => openModal()}>Create Your First Drip</Button>
+          <p className="text-gray-500 mb-2">还没有滴灌活动</p>
+          <p className="text-sm text-gray-400 mb-4">创建自动消息序列，并在每个步骤之间自定义延迟</p>
+          <Button onClick={() => openModal()}>创建你的第一个点滴</Button>
         </Card>
       ) : (
         <div className="space-y-4">
@@ -250,8 +251,8 @@ export default function DripsPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900">{drip.name}</h3>
                     <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                      <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" /> {drip.dripSteps?.length || 0} steps</span>
-                      <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {drip.stats?.totalRecipients || 0} recipients</span>
+                      <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" /> {drip.dripSteps?.length || 0} 步骤</span>
+                      <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {drip.stats?.totalRecipients || 0} 收件人</span>
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(drip.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
@@ -260,12 +261,12 @@ export default function DripsPage() {
                   <Badge variant={statusColor(drip.status)}>{drip.status}</Badge>
                   <div className="flex gap-1">
                     {drip.status === 'draft' || drip.status === 'paused' ? (
-                      <button onClick={() => handleStart(drip._id)} className="p-1.5 hover:bg-emerald-50 rounded-lg" title="Start"><Play className="w-4 h-4 text-emerald-500" /></button>
+                      <button onClick={() => handleStart(drip._id)} className="p-1.5 hover:bg-emerald-50 rounded-lg" title={"开始"}><Play className="w-4 h-4 text-emerald-500" /></button>
                     ) : drip.status === 'running' ? (
-                      <button onClick={() => handlePause(drip._id)} className="p-1.5 hover:bg-yellow-50 rounded-lg" title="Pause"><Pause className="w-4 h-4 text-yellow-500" /></button>
+                      <button onClick={() => handlePause(drip._id)} className="p-1.5 hover:bg-yellow-50 rounded-lg" title={"暂停"}><Pause className="w-4 h-4 text-yellow-500" /></button>
                     ) : null}
-                    <button onClick={() => openModal(drip)} className="p-1.5 hover:bg-gray-100 rounded-lg" title="Edit"><Edit className="w-4 h-4 text-gray-400" /></button>
-                    <button onClick={() => handleDelete(drip._id)} className="p-1.5 hover:bg-red-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                    <button onClick={() => openModal(drip)} className="p-1.5 hover:bg-gray-100 rounded-lg" title={"编辑"}><Edit className="w-4 h-4 text-gray-400" /></button>
+                    <button onClick={() => handleDelete(drip._id)} className="p-1.5 hover:bg-red-50 rounded-lg" title={"删除"}><Trash2 className="w-4 h-4 text-red-400" /></button>
                     <button onClick={() => setExpandedId(expandedId === drip._id ? null : drip._id)} className="p-1.5 hover:bg-gray-100 rounded-lg">
                       {expandedId === drip._id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                     </button>
@@ -275,10 +276,10 @@ export default function DripsPage() {
               {expandedId === drip._id && drip.dripSteps?.length > 0 && (
                 <div className="border-t border-gray-100 bg-gray-50 p-4">
                   <div className="flex items-center gap-3 mb-3 text-sm text-gray-600">
-                    <span>Sent: <strong>{drip.stats?.sent || 0}</strong></span>
-                    <span>Delivered: <strong>{drip.stats?.delivered || 0}</strong></span>
-                    <span>Read: <strong>{drip.stats?.read || 0}</strong></span>
-                    <span>Failed: <strong>{drip.stats?.failed || 0}</strong></span>
+                    <span>发送： <strong>{drip.stats?.sent || 0}</strong></span>
+                    <span>已交付： <strong>{drip.stats?.delivered || 0}</strong></span>
+                    <span>读： <strong>{drip.stats?.read || 0}</strong></span>
+                    <span>失败： <strong>{drip.stats?.failed || 0}</strong></span>
                   </div>
                   <div className="space-y-3">
                     {drip.dripSteps.map((step, idx) => (
@@ -291,12 +292,12 @@ export default function DripsPage() {
                           <div className="flex items-center gap-2 mb-1">
                             {step.delayValue > 0 && (
                               <Badge variant="warning">
-                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Wait {step.delayValue} {step.delayType}</span>
+                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> 等待 {step.delayValue} {step.delayType}</span>
                               </Badge>
                             )}
-                            {idx === 0 && step.delayValue === 0 && <Badge variant="info">Immediately</Badge>}
+                            {idx === 0 && step.delayValue === 0 && <Badge variant="info">立即</Badge>}
                           </div>
-                          <p className="text-sm text-gray-700">{step.message || `Send template`}</p>
+                          <p className="text-sm text-gray-700">{step.message || "发送模板"}</p>
                         </div>
                       </div>
                     ))}
@@ -308,17 +309,17 @@ export default function DripsPage() {
         </div>
       )}
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editDrip ? 'Edit Drip Campaign' : 'Create Drip Campaign'} size="xl">
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editDrip ? "编辑水滴营销活动" : "创建水滴营销活动"} size="xl">
         <div className="space-y-6">
-          <Input label="Campaign Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. 7-Day Onboarding Series" required />
+          <Input label={"活动名称"} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={"例如7 天入职系列"} required />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Target Audience</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">目标受众</label>
             <Select value={form.targetType} onChange={(e) => setForm({ ...form, targetType: e.target.value })}
               options={[
-                { value: 'all', label: 'All Contacts' },
-                { value: 'segment', label: 'Specific Segment' },
-                { value: 'tag', label: 'Contacts with Tag' },
+                { value: 'all', label: "所有联系人" },
+                { value: 'segment', label: "特定部分" },
+                { value: 'tag', label: "带标签的联系人" },
               ]} />
             {form.targetType === 'segment' && segments.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
@@ -348,14 +349,14 @@ export default function DripsPage() {
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="block text-sm font-semibold text-gray-700">Drip Steps</label>
-              <Button variant="ghost" size="sm" onClick={addStep} icon={<Plus className="w-3 h-3" />}>Add Step</Button>
+              <label className="block text-sm font-semibold text-gray-700">滴水步骤</label>
+              <Button variant="ghost" size="sm" onClick={addStep} icon={<Plus className="w-3 h-3" />}>添加步骤</Button>
             </div>
             <div className="space-y-4">
               {form.steps.map((step, idx) => (
                 <div key={idx} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-semibold text-gray-700">Step {idx + 1}</span>
+                    <span className="text-sm font-semibold text-gray-700">步骤 {idx + 1}</span>
                     {form.steps.length > 1 && (
                       <button onClick={() => removeStep(idx)} className="text-red-400 hover:text-red-600">
                         <Trash2 className="w-4 h-4" />
@@ -363,16 +364,16 @@ export default function DripsPage() {
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-3 mb-3">
-                    <Input label="Delay" type="number" value={String(step.delayValue)}
+                    <Input label={"延迟"} type="number" value={String(step.delayValue)}
                       onChange={(e) => updateStep(idx, { delayValue: parseInt(e.target.value) || 0 })} min="0" />
-                    <Select label="Unit" value={step.delayType} onChange={(e) => updateStep(idx, { delayType: e.target.value })}
-                      options={[{ value: 'minutes', label: 'Minutes' }, { value: 'hours', label: 'Hours' }, { value: 'days', label: 'Days' }]} />
+                    <Select label={"单位"} value={step.delayType} onChange={(e) => updateStep(idx, { delayType: e.target.value })}
+                      options={[{ value: 'minutes', label: "分钟" }, { value: 'hours', label: "小时" }, { value: 'days', label: "天" }]} />
                   </div>
-                  <Textarea label="Message" value={step.message} onChange={(e) => updateStep(idx, { message: e.target.value })}
-                    placeholder="Type the message for this step..." rows={2} />
+                  <Textarea label={"留言"} value={step.message} onChange={(e) => updateStep(idx, { message: e.target.value })}
+                    placeholder={"键入此步骤的消息..."} rows={2} />
                   {templates.length > 0 && (
-                    <Select label="Or use Template" value={step.template || ''} onChange={(e) => updateStep(idx, { template: e.target.value })}
-                      options={[{ value: '', label: '-- No template --' }, ...templates.map(t => ({ value: t._id, label: t.name }))]} />
+                    <Select label={"或使用模板"} value={step.template || ''} onChange={(e) => updateStep(idx, { template: e.target.value })}
+                      options={[{ value: '', label: "-- 没有模板 --" }, ...templates.map(t => ({ value: t._id, label: t.name }))]} />
                   )}
                 </div>
               ))}
@@ -380,8 +381,8 @@ export default function DripsPage() {
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button onClick={handleSave}>{editDrip ? 'Update' : 'Create'}</Button>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>取消</Button>
+            <Button onClick={handleSave}>{editDrip ? "更新" : "创建"}</Button>
           </div>
         </div>
       </Modal>

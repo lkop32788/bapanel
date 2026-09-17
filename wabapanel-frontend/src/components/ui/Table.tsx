@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -21,7 +22,7 @@ interface TableProps<T> {
 }
 
 export default function Table<T extends { _id?: string }>({
-  columns, data, loading, pagination, onRowClick, emptyText = 'No data found', onBulkDelete,
+  columns, data, loading, pagination, onRowClick, emptyText = "暂无数据", onBulkDelete,
 }: TableProps<T>) {
   const [selected, setSelected] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -39,11 +40,11 @@ export default function Table<T extends { _id?: string }>({
 
   const handleBulkDelete = async () => {
     if (!onBulkDelete || !selected.length || deleting) return;
-    if (!confirm(`Delete ${selected.length} selected item(s)?`)) return;
+    if (!confirm(`删除 ${selected.length} 已选择项目？`)) return;
     setDeleting(true);
     const n = selected.length;
-    try { await onBulkDelete(selected); setSelected([]); toast.success(`${n} item(s) deleted`); }
-    catch { toast.error('Delete failed'); }
+    try { await onBulkDelete(selected); setSelected([]); toast.success(translateApiMessage(`${n} 项已删除`)); }
+    catch { toast.error(translateApiMessage("删除失败")); }
     finally { setDeleting(false); }
   };
 
@@ -51,7 +52,7 @@ export default function Table<T extends { _id?: string }>({
     return (
       <div className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm p-8 text-center">
         <div className="animate-spin w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full mx-auto" />
-        <p className="text-gray-500 mt-2">Loading...</p>
+        <p className="text-gray-500 mt-2">加载中…</p>
       </div>
     );
   }
@@ -59,17 +60,17 @@ export default function Table<T extends { _id?: string }>({
   const selectable = !!onBulkDelete;
 
   return (
-    <div className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm overflow-hidden">
+    <div data-kkhs-table className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm overflow-hidden">
       {selectable && selected.length > 0 && (
         <div className="flex items-center justify-between px-4 py-2 bg-emerald-50 border-b border-emerald-200">
-          <span className="text-sm text-emerald-800 font-medium">{selected.length} selected</span>
+          <span className="text-sm text-emerald-800 font-medium">{selected.length} 已选择</span>
           <div className="flex items-center gap-3">
             <button onClick={toggleAll} className="text-sm text-emerald-700 font-medium hover:underline">
-              {allSelected ? 'Clear All' : 'Select All'}
+              {allSelected ? "全部清除" : "全选"}
             </button>
             <button onClick={handleBulkDelete} disabled={deleting}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50">
-              <Trash2 className="w-4 h-4" /> {deleting ? 'Deleting...' : 'Delete Selected'}
+              <Trash2 className="w-4 h-4" /> {deleting ? "正在删除..." : "删除所选内容"}
             </button>
           </div>
         </div>
@@ -123,7 +124,7 @@ export default function Table<T extends { _id?: string }>({
       {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
           <p className="text-sm text-gray-500">
-            Page {pagination.page} of {pagination.totalPages} ({pagination.total} items)
+            页 {pagination.page} of {pagination.totalPages} ({pagination.total} 项）
           </p>
           <div className="flex gap-2">
             <button

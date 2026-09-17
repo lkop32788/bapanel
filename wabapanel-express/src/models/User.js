@@ -16,24 +16,8 @@ const userSchema = new mongoose.Schema({
   status: { type: String, enum: ['active', 'inactive', 'suspended'], default: 'active' },
   isEmailVerified: { type: Boolean, default: false },
   currentWorkspace: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace' },
-  plan: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan' },
-  planExpiry: { type: Date },
   // Admin-controlled per-client feature switches (featureKey -> false disables the module)
   featureOverrides: { type: mongoose.Schema.Types.Mixed, default: {} },
-  trialUsed: { type: Boolean, default: false },
-  walletBalance: { type: Number, default: 0 },
-  walletAutoTopup: {
-    active: { type: Boolean, default: false },
-    amount: { type: Number, default: 0 },
-    gatewaySubscriptionId: { type: String, default: '' },
-  },
-  walletBillingExempt: { type: Boolean, default: false },
-  showRateCard: { type: Boolean, default: true },
-  walletTemplateRates: {
-    marketing: { type: Number, default: null },
-    utility: { type: Number, default: null },
-    authentication: { type: Number, default: null },
-  },
   permissions: [{ type: String }],
   allowedChannels: [{ type: String }],
   inboxScope: { type: String, enum: ['all', 'assigned'], default: 'all' },
@@ -50,6 +34,10 @@ const userSchema = new mongoose.Schema({
   gstNumber: { type: String, default: '' },
   vendorNotes: { type: String, default: '' },
 }, { timestamps: true });
+
+// Serialize only current schema fields, including when historical documents contain retired data.
+userSchema.set('toJSON', { schemaFieldsOnly: true });
+userSchema.set('toObject', { schemaFieldsOnly: true });
 
 userSchema.pre('save', async function() {
   if (!this.isModified('password')) return;

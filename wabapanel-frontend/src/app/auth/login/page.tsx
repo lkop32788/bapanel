@@ -1,9 +1,11 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import useBranding from '@/lib/useBranding';
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import AuthSide from '@/components/auth/AuthSide';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/authStore';
@@ -34,17 +36,25 @@ function LoginForm() {
   };
 
   // Auto-login with token from admin "Login as Vendor" button
+  // ADM-14: the token is handed over in a one-time localStorage key (?impersonate=1), never
+  // in the URL. A legacy ?token= link is still accepted, but removed from the URL/history.
   useEffect(() => {
-    const token = searchParams.get('token');
+    let token = searchParams.get('token');
+    if (searchParams.get('impersonate') === '1') {
+      token = localStorage.getItem('impersonateToken');
+      localStorage.removeItem('impersonateToken');
+    }
+    if (searchParams.get('token') || searchParams.get('impersonate')) router.replace('/auth/login');
     if (token) {
-      // Save current admin token so we can switch back
+      // Save current admin token so we can switch back (keep an existing one: never
+      // overwrite the real admin token with a vendor token from an earlier login-as)
       const currentToken = localStorage.getItem('token');
-      if (currentToken && currentToken !== token) {
+      if (currentToken && currentToken !== token && !localStorage.getItem('adminToken')) {
         localStorage.setItem('adminToken', currentToken);
       }
       localStorage.setItem('token', token);
       loadUser().then(() => {
-        toast.success('Logged in successfully');
+        toast.success(translateApiMessage("登录成功"));
         const u = useAuthStore.getState().user;
         (() => {
         let saved = '';
@@ -54,7 +64,7 @@ function LoginForm() {
         else router.push(isAdmin ? '/admin/dashboard' : '/client/dashboard');
       })();
       }).catch(() => {
-        toast.error('Token expired or invalid');
+        toast.error(translateApiMessage("令牌已过期或无效"));
         localStorage.removeItem('token');
       });
     }
@@ -73,6 +83,20 @@ function LoginForm() {
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
+  const googleError = searchParams.get('google_error');
+  const googleErrorText: Record<string, string> = {
+    disabled: "尚未在此面板上配置 Google 登录。",
+    nouser: `No account found for ${searchParams.get('email') || 'this Google account'}. Please sign up first or use the email you registered with.`,
+    suspended: "该账户已被暂停。请联系支持人员。",
+    twofa: "此账户已启用两步验证 - 请使用您的密码登录。",
+    cancelled: "Google 登录已取消。",
+  };
+
+  const startGoogleLogin = () => {
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'https://api.wabapanel.com/api').replace(/\/$/, '');
+    window.location.href = `${apiBase}/auth/google`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -80,20 +104,20 @@ function LoginForm() {
       const result = await login(email, password);
       if (result && result.requires2FA) {
         setTwoFA({ method: result.method || 'app', challengeToken: result.challengeToken || '' });
-        toast.success(result.method === 'email' ? 'Code sent to your email' : 'Enter your authenticator code');
+        toast.success(translateApiMessage(result.method === 'email' ? "代码已发送至您的电子邮件" : "输入您的验证码"));
         return;
       }
-      toast.success('Login successful!');
+      toast.success(translateApiMessage("登录成功！"));
       redirectAfterLogin();
     } catch (err: unknown) {
       const error = err as { response?: { status?: number; data?: { message?: string; code?: string } } };
       if (error.response?.status === 429 || error.response?.data?.code === 'LOGIN_BLOCKED') {
         setBlocked(true);
         setBlockRemaining(5 * 60);
-        toast.error(error.response?.data?.message || 'Too many attempts. Login temporarily blocked.');
+        toast.error(translateApiMessage(error.response?.data?.message || "尝试次数过多。登录暂时被阻止。"));
       } else {
         if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') setNeedsVerification(true);
-        toast.error(error.response?.data?.message || 'Login failed');
+        toast.error(translateApiMessage(error.response?.data?.message || "登录失败"));
       }
     } finally {
       setLoading(false);
@@ -106,11 +130,11 @@ function LoginForm() {
     setLoading(true);
     try {
       await useAuthStore.getState().complete2FALogin(twoFA.challengeToken, code.trim());
-      toast.success('Login successful!');
+      toast.success(translateApiMessage("登录成功！"));
       redirectAfterLogin();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Invalid code');
+      toast.error(translateApiMessage(error.response?.data?.message || "代码无效"));
     } finally {
       setLoading(false);
     }
@@ -120,46 +144,49 @@ function LoginForm() {
     if (!twoFA) return;
     try {
       await authApi.twoFactorLoginResend(twoFA.challengeToken);
-      toast.success('New code sent to your email');
+      toast.success(translateApiMessage("新代码已发送至您的电子邮件"));
     } catch {
-      toast.error('Could not resend code');
+      toast.error(translateApiMessage("无法重新发送代码"));
     }
   };
 
   const handleResend = async () => {
     try {
       await authApi.resendVerification(email);
-      toast.success('Verification email sent. Please check your inbox.');
+      toast.success(translateApiMessage("验证电子邮件已发送。请检查您的收件箱。"));
     } catch {
-      toast.error('Could not send verification email');
+      toast.error(translateApiMessage("无法发送验证电子邮件"));
     }
   };
 
   const brand = useBranding();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="text-center">{brand.logo && <img src={brand.logo} alt={brand.name} className="h-14 mx-auto mb-2" />}</div>
-          <p className="text-gray-500 mt-2">Sign in to your account</p>
+    <div data-ui-auth className="min-h-screen flex">
+      <AuthSide />
+      <div className="flex-1 flex items-center justify-center bg-gray-50 px-4 py-10 sm:px-8">
+        <div className="w-full max-w-md">
+        <div data-ui-auth-card className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
+        <div data-ui-auth-heading className="text-center mb-6">
+          {brand.logo && <img src={brand.logo} alt={brand.name} className="h-12 mx-auto mb-3 lg:hidden" />}
+          <h1 className="text-2xl font-bold text-gray-900">欢迎回来</h1>
+          <p className="text-gray-500 mt-1 text-sm">登录您的 {brand.name} 账户</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
           {twoFA ? (
           <form onSubmit={handle2FASubmit} className="space-y-4">
             <div className="text-center mb-2">
               <div className="w-12 h-12 mx-auto bg-violet-100 rounded-full flex items-center justify-center mb-3">
                 <Lock className="w-6 h-6 text-violet-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">Two-Step Verification</h3>
+              <h3 className="font-semibold text-gray-900">两步验证</h3>
               <p className="text-sm text-gray-500 mt-1">
                 {twoFA.method === 'email'
-                  ? 'Enter the 6-digit code sent to your email.'
-                  : 'Enter the 6-digit code from your authenticator app.'}
+                  ? "请输入发送到邮箱的 6 位验证码。"
+                  : "请输入身份验证器中的 6 位验证码。"}
               </p>
             </div>
             <Input
-              label="Verification Code"
+              label={"验证码"}
               type="text"
               inputMode="numeric"
               placeholder="123456"
@@ -168,20 +195,20 @@ function LoginForm() {
               required
               autoFocus
             />
-            <Button type="submit" className="w-full" loading={loading}>Verify & Sign In</Button>
+            <Button type="submit" className="w-full" loading={loading}>验证并登录</Button>
             <div className="flex items-center justify-between text-sm">
-              <button type="button" onClick={() => { setTwoFA(null); setCode(''); }} className="text-gray-500 hover:text-gray-700">Back to login</button>
+              <button type="button" onClick={() => { setTwoFA(null); setCode(''); }} className="text-gray-500 hover:text-gray-700">返回登录</button>
               {twoFA.method === 'email' && (
-                <button type="button" onClick={handle2FAResend} className="text-violet-600 hover:text-violet-700 font-medium">Resend code</button>
+                <button type="button" onClick={handle2FAResend} className="text-violet-600 hover:text-violet-700 font-medium">重新发送验证码</button>
               )}
             </div>
           </form>
           ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
-              label="Email"
+              label={"邮箱"}
               type="email"
-              placeholder="Enter your email"
+              placeholder={"请输入邮箱"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -189,9 +216,9 @@ function LoginForm() {
             />
             <div className="relative">
               <Input
-                label="Password"
+                label={"密码"}
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password"
+                placeholder={"请输入密码"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -208,38 +235,58 @@ function LoginForm() {
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" className="rounded border-gray-300 text-violet-600 focus:ring-violet-500" />
-                Remember me
+                记住我
               </label>
               <Link href="/auth/forgot-password" className="text-sm text-violet-600 hover:text-violet-700">
-                Forgot password?
+                忘记密码？
               </Link>
             </div>
             {blocked && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
-                <p className="font-medium">Login temporarily blocked</p>
-                <p className="mt-1">Too many failed attempts. It will unlock automatically in <span className="font-semibold">{fmt(blockRemaining)}</span>.</p>
-                <Link href="/auth/forgot-password" className="mt-1 inline-block font-medium text-red-700 underline">Reset password to unblock now</Link>
+                <p className="font-medium">登录暂时被阻止</p>
+                <p className="mt-1">失败的尝试太多。它将自动解锁 <span className="font-semibold">{fmt(blockRemaining)}</span>.</p>
+                <Link href="/auth/forgot-password" className="mt-1 inline-block font-medium text-red-700 underline">重置密码以立即解锁</Link>
+              </div>
+            )}
+            {googleError && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                {googleErrorText[googleError] || "Google 登录失败。请重试或使用您的密码。"}
               </div>
             )}
             {needsVerification && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                Your email is not verified yet.{' '}
-                <button type="button" onClick={handleResend} className="font-medium text-violet-600 hover:text-violet-700 underline">Resend verification email</button>
+                您的电子邮件尚未验证。{' '}
+                <button type="button" onClick={handleResend} className="font-medium text-violet-600 hover:text-violet-700 underline">重新发送验证电子邮件</button>
               </div>
             )}
             <Button type="submit" className="w-full" loading={loading} disabled={blocked}>
-              {blocked ? `Blocked (${fmt(blockRemaining)})` : 'Sign In'}
+              {blocked ? `被阻止（${fmt(blockRemaining)})` : "登录"}
             </Button>
+            {brand.googleLogin && (
+              <>
+                <div className="flex items-center gap-3 pt-1">
+                  <span className="h-px flex-1 bg-gray-200" />
+                  <span className="text-xs text-gray-400">or</span>
+                  <span className="h-px flex-1 bg-gray-200" />
+                </div>
+                <button type="button" onClick={startGoogleLogin}
+                  className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  <img src="https://www.google.com/favicon.ico" alt="" className="w-4 h-4" />
+                  继续使用 Google
+                </button>
+              </>
+            )}
           </form>
           )}
           <p className="text-center text-sm text-gray-500 mt-6">
-            Don&apos;t have an account?{' '}
+            还没有账户？{' '}
             <Link href="/auth/register" className="text-violet-600 hover:text-violet-700 font-medium">
-              Sign up
+              注册
             </Link>
           </p>
           <div className="mt-4 pt-4 border-t border-gray-100 text-center">
           </div>
+        </div>
         </div>
       </div>
     </div>
@@ -248,7 +295,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400">Loading...</p></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400">加载中…</p></div>}>
       <LoginForm />
     </Suspense>
   );

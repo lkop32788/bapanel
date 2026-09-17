@@ -1,10 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const PANEL_PREFIXES = ['/admin', '/client', '/auth', '/install'];
 
 export default function SeoHead() {
+  const pathname = usePathname();
+  const onPanel = PANEL_PREFIXES.some((p) => (pathname || '').startsWith(p));
+
   useEffect(() => {
     fetch(`${API}/public/site-content?t=${Date.now()}`, { cache: 'no-store' })
       .then(r => r.json())
@@ -44,7 +49,7 @@ export default function SeoHead() {
           s.textContent = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${seo.facebookPixelId}');fbq('track','PageView');`;
           document.head.appendChild(s);
         }
-        if (seo.customHeadCode && !document.getElementById('custom-head-code')) {
+        if (seo.customHeadCode && !onPanel && !document.getElementById('custom-head-code')) {
           const div = document.createElement('div');
           div.innerHTML = seo.customHeadCode;
           const holder = document.createElement('div');
@@ -63,6 +68,6 @@ export default function SeoHead() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [onPanel]);
   return null;
 }

@@ -1,0 +1,21 @@
+{
+  "version": "frontend-v224",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/components/kkhs/KkhsNav.tsx",
+    "src/components/kkhs/VoiceShell.tsx",
+    "src/styles/kkhs-2026/index.css",
+    "src/styles/kkhs-2026/voice/auth.css",
+    "src/styles/kkhs-2026/voice/fonts.css",
+    "src/styles/kkhs-2026/voice/index.css",
+    "src/styles/kkhs-2026/voice/pages.css",
+    "src/styles/kkhs-2026/voice/shell.css",
+    "src/styles/kkhs-2026/voice/tokens.css"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v224.zip",
+  "zip_sha256": "b41a4f6f6b8807d7ba4cccc595f9eb91ff7d3c2eec70de901dfa52f88a1f0c6c",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

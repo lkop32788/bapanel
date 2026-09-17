@@ -1,4 +1,5 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import toast from 'react-hot-toast';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
@@ -26,12 +27,52 @@ api.interceptors.response.use(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('workspaceId');
+        localStorage.removeItem('adminToken'); // ADM-23: never keep an impersonation switch-back token
         window.location.href = '/auth/login';
       }
+    }
+    // SEC-31: an agent without this module's permission gets 403 from requireModule — say so
+    // (no redirect/logout; exact requireModule message only; one toast id so repeats don't stack)
+    const msg = error.response?.data?.message;
+    if (error.response?.status === 403 && msg === 'You do not have access to this module'
+        && typeof window !== 'undefined') {
+      toast.error(msg, { id: 'module-permission-403' });
     }
     return Promise.reject(error);
   }
 );
+
+// PERF-13: identical GETs that are in flight at the same time (same URL + params + token +
+// workspace) share one network request; cachedGet() adds an opt-in short TTL cache. Any
+// non-GET request through `api` clears the TTL cache. /auth/ calls are never deduped or
+// cached. Store/licence status calls use fetch(), not this axios instance, so never pass here.
+const NO_CACHE_RE = /\/auth\//;
+const baseAdapter = axios.getAdapter(axios.defaults.adapter);
+const inflight = new Map<string, Promise<AxiosResponse>>();
+const ttlCache = new Map<string, { exp: number; res: AxiosResponse }>();
+
+api.defaults.adapter = (config) => {
+  if ((config.method || 'get').toLowerCase() !== 'get') { ttlCache.clear(); return baseAdapter(config); }
+  if (NO_CACHE_RE.test(config.url || '') || config.signal || config.cancelToken ||
+      (config.responseType && config.responseType !== 'json') || config.onDownloadProgress) return baseAdapter(config);
+  const h = config.headers || {};
+  const key = [api.getUri(config), h.Authorization || '', h['x-workspace-id'] || ''].join('|');
+  const ttl = (config as { cacheTtl?: number }).cacheTtl || 0;
+  const hit = ttl ? ttlCache.get(key) : undefined;
+  if (hit && hit.exp > Date.now()) return Promise.resolve({ ...hit.res, config });
+  let p = inflight.get(key);
+  if (!p) {
+    p = baseAdapter(config)
+      .then((res) => { if (ttl) ttlCache.set(key, { exp: Date.now() + ttl, res }); return res; })
+      .finally(() => inflight.delete(key));
+    inflight.set(key, p);
+  }
+  // each caller gets its own response object (raw body), so transforms/mutations never leak
+  return p.then((res) => ({ ...res, config }));
+};
+
+export const cachedGet = (url: string, ttlMs = 30000, config: AxiosRequestConfig = {}) =>
+  api.get(url, { ...config, cacheTtl: ttlMs } as AxiosRequestConfig);
 
 export default api;
 
@@ -45,7 +86,7 @@ export const pushApi = {
 export const authApi = {
   login: (data: { email: string; password: string }) => api.post('/auth/login', data),
   adminLogin: (data: { email: string; password: string }) => api.post('/auth/admin/login', data),
-  register: (data: { name: string; email: string; password: string }) => api.post('/auth/register', data),
+  register: (data: { name: string; email: string; password: string; phone?: string; ref?: string }) => api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
   updateProfile: (data: Partial<{ name: string; phone: string; avatar: string }>) => api.put('/auth/profile', data),
   changePassword: (data: { currentPassword: string; newPassword: string }) => api.put('/auth/change-password', data),
@@ -95,11 +136,13 @@ export const workspaceApi = {
   getWhatsAppSignupConfig: (id: string) => api.get(`/workspaces/${id}/whatsapp/embedded-signup/config`),
   refreshWhatsAppDetails: (id: string) => api.post(`/workspaces/${id}/whatsapp/refresh`),
   getWhatsAppHealth: (id: string) => api.get(`/workspaces/${id}/whatsapp/health`),
+  diagnoseWhatsApp: (id: string, fix = false) => api.get(`/workspaces/${id}/whatsapp/diagnose${fix ? '?fix=1' : ''}`),
+  getSendingLimits: (id: string) => api.get(`/workspaces/${id}/whatsapp/sending-limits`),
+  updateSendingLimits: (id: string, data: object) => api.put(`/workspaces/${id}/whatsapp/sending-limits`, data),
   embeddedSignup: (id: string, data: object) => api.post(`/workspaces/${id}/whatsapp/embedded-signup`, data),
-  generateApiKey: (id: string) => api.post(`/workspaces/${id}/api-key`),
-  listApiWebhooks: (id: string) => api.get(`/workspaces/${id}/api-webhooks`),
-  addApiWebhook: (id: string, data: { url: string; events: string[] }) => api.post(`/workspaces/${id}/api-webhooks`, data),
-  deleteApiWebhook: (id: string, hookId: string) => api.delete(`/workspaces/${id}/api-webhooks/${hookId}`),
+  // ADM-21: full disconnect (unsubscribes the app from the WABA + local reset), owner only
+  disconnectWhatsApp: (id: string) => api.post(`/workspaces/${id}/whatsapp/disconnect`),
+  coexistenceSync: (id: string) => api.post(`/workspaces/${id}/whatsapp/coexistence-sync`),
 };
 
 // Contacts
@@ -112,6 +155,8 @@ export const contactApi = {
   import: (formData: FormData) => api.post('/contacts/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   export: () => api.get('/contacts/export', { responseType: 'blob' }),
   bulkDelete: (ids: string[]) => api.post('/contacts/bulk-delete', { ids }),
+  bulkAssign: (data: { ids: string[]; tags?: string[]; segments?: string[]; mode?: 'add' | 'remove' }) =>
+    api.post('/contacts/bulk-assign', data),
 };
 
 // Segments
@@ -140,6 +185,9 @@ export const templateApi = {
   update: (id: string, data: object) => api.put(`/templates/${id}`, data),
   delete: (id: string) => api.delete(`/templates/${id}`),
   syncFromWhatsApp: () => api.post('/templates/sync'),
+  library: (params?: Record<string, unknown>) => api.get('/templates/library', { params }),
+  useFromLibrary: (presetId: string) => api.post(`/templates/library/${presetId}`, {}),
+  flagForReview: (id: string, body?: { category?: string; createCopy?: boolean; copyName?: string }) => api.post(`/templates/${id}/flag-review`, body || {}),
 };
 
 // Campaigns
@@ -205,58 +253,18 @@ export const conversationApi = {
   assign: (id: string, agentId: string) => api.patch(`/conversations/${id}/assign`, { agentId }),
   resolve: (id: string) => api.patch(`/conversations/${id}/resolve`),
   aiSummary: (id: string) => api.post(`/conversations/${id}/ai-summary`),
-  sendInvoice: (id: string, data: Record<string, unknown>) => api.post(`/conversations/${id}/send-invoice`, data),
   startNew: (data: { contactId: string }) => api.post('/conversations', data),
   toggleAI: (id: string, enabled: boolean, mode?: 'chat' | 'call') => api.patch(`/conversations/${id}/ai-toggle`, { enabled, mode }),
   pin: (id: string, pinned: boolean) => api.patch(`/conversations/${id}/pin`, { pinned }),
   stickerLibrary: () => api.get('/conversations/stickers/library'),
 };
 
-export const paymentLinkApi = {
-  list: (conversationId: string) => api.get('/payment-links', { params: { conversation: conversationId } }),
-  create: (data: { conversationId: string; amount: number; description?: string; method: string; upiId?: string; currency?: string; onSuccessText?: string; onSuccessFileUrl?: string; onFailureText?: string }) => api.post('/payment-links', data),
-  markPaid: (id: string) => api.put(`/payment-links/${id}/mark-paid`),
-  cancel: (id: string) => api.delete(`/payment-links/${id}`),
-};
 
 export const followupApi = {
   list: () => api.get('/followups'),
   draft: (conversationId: string) => api.post(`/followups/${conversationId}/draft`),
 };
 
-export const crmApi = {
-  summary: () => api.get('/crm/summary'),
-  contacts: (params?: { search?: string; page?: number }) => api.get('/crm/contacts', { params }),
-  timeline: (contactId: string, msgBefore?: string) => api.get(`/crm/timeline/${contactId}`, { params: msgBefore ? { msgBefore } : {} }),
-  followups: () => api.get('/crm/followups'),
-  calls: (params?: { search?: string; status?: string; disposition?: string; direction?: string; from?: string; to?: string; page?: number }) => api.get('/crm/calls', { params }),
-  leads: (params?: { search?: string; page?: number; dir?: string; from?: string; to?: string; tag?: string; stage?: string; closed?: string; valueMin?: string; valueMax?: string; reminder?: string; agent?: string; sort?: string; sortBy?: string; sortDir?: string; callStatus?: string; aging?: string }) => api.get('/crm/leads', { params }),
-  updateFollowup: (id: string, data: { contactedRemark?: string; contacted?: boolean }) => api.patch(`/crm/followups/${id}`, data),
-  leadStats: () => api.get('/crm/leads/stats'),
-  leadAgents: () => api.get('/crm/lead-agents'),
-  updateLeadComment: (contactId: string, comment: string) => api.patch(`/crm/leads/${contactId}/comment`, { comment }),
-  closeLead: (contactId: string, reason: string) => api.patch(`/crm/leads/${contactId}/close`, { reason }),
-  reopenLead: (contactId: string) => api.patch(`/crm/leads/${contactId}/reopen`),
-  logCall: (contactId: string, body: { status: string; disposition?: string; note?: string; callbackAt?: string }) => api.patch(`/crm/leads/${contactId}/call`, body),
-  aiAssist: (data: { instruction: string; contactIds?: string[]; dryRun: boolean; allowSend: boolean; plan?: unknown[] }) => api.post('/crm/leads/ai-assist', data),
-  aiHistory: () => api.get('/crm/ai-assist/history'),
-  aiSchedules: () => api.get('/crm/ai-assist/schedules'),
-  createAiSchedule: (data: { name?: string; instruction: string; allowSend?: boolean; scope?: string; mode?: string; intervalMinutes?: number; dailyTime?: string; active?: boolean }) => api.post('/crm/ai-assist/schedules', data),
-  updateAiSchedule: (id: string, data: Record<string, unknown>) => api.put(`/crm/ai-assist/schedules/${id}`, data),
-  deleteAiSchedule: (id: string) => api.delete(`/crm/ai-assist/schedules/${id}`),
-  runAiSchedule: (id: string) => api.post(`/crm/ai-assist/schedules/${id}/run`, {}),
-  dashboard: (params?: { from?: string; to?: string }) => api.get('/crm/dashboard', { params }),
-  stages: () => api.get('/crm/stages'),
-  createStage: (data: { name: string; color?: string }) => api.post('/crm/stages', data),
-  updateStage: (id: string, data: { name?: string; color?: string; order?: number }) => api.put(`/crm/stages/${id}`, data),
-  deleteStage: (id: string) => api.delete(`/crm/stages/${id}`),
-  setLeadStage: (contactId: string, stage: string | null) => api.patch(`/crm/leads/${contactId}/stage`, { stage }),
-  setLeadStages: (contactId: string, stages: string[]) => api.patch(`/crm/leads/${contactId}/stage`, { stages }),
-  setLeadValue: (contactId: string, data: { value?: number | null; items?: number | null }) => api.patch(`/crm/leads/${contactId}/value`, data),
-  leadSummary: (contactId: string, force?: boolean) => api.post(`/crm/leads/${contactId}/summary`, { force: !!force }),
-  callStats: () => api.get('/crm/calls/stats'),
-  updateCall: (id: string, data: { disposition?: string; note?: string; followUpAt?: string | null }, source?: string) => api.patch(`/crm/calls/${id}`, data, { params: source ? { source } : {} }),
-};
 
 export const noteApi = {
   list: (contactId: string) => api.get('/contact-notes', { params: { contact: contactId } }),
@@ -272,16 +280,6 @@ export const dashboardApi = {
 };
 
 // Pipelines
-export const pipelineApi = {
-  list: () => api.get('/pipelines'),
-  get: (id: string) => api.get(`/pipelines/${id}`),
-  create: (data: object) => api.post('/pipelines', data),
-  update: (id: string, data: object) => api.put(`/pipelines/${id}`, data),
-  delete: (id: string) => api.delete(`/pipelines/${id}`),
-  addDeal: (id: string, data: object) => api.post(`/pipelines/${id}/deals`, data),
-  updateDeal: (id: string, dealId: string, data: object) => api.put(`/pipelines/${id}/deals/${dealId}`, data),
-  deleteDeal: (id: string, dealId: string) => api.delete(`/pipelines/${id}/deals/${dealId}`),
-};
 
 // Forms
 export const formApi = {
@@ -292,6 +290,8 @@ export const formApi = {
   delete: (id: string) => api.delete(`/forms/${id}`),
   publishFlow: (id: string) => api.post(`/forms/${id}/publish-flow`),
   sendFlow: (id: string, conversationId: string) => api.post(`/forms/${id}/send-flow`, { conversationId }),
+  library: () => api.get('/forms/library'),
+  useTemplate: (templateId: string, data?: { name?: string }) => api.post(`/forms/library/${templateId}/use`, data || {}),
 };
 
 // Short Links
@@ -300,22 +300,20 @@ export const shortLinkApi = {
   create: (data: object) => api.post('/short-links', data),
   update: (id: string, data: object) => api.put(`/short-links/${id}`, data),
   delete: (id: string) => api.delete(`/short-links/${id}`),
+  stats: (id: string) => api.get(`/short-links/${id}/stats`),
+  qrUrl: (id: string) => `${(process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/$/, '')}/short-links/${id}/qr`,
+};
+
+// Lead source tracking links / QR codes
+export const trackedLinkApi = {
+  list: () => api.get('/tracked-links'),
+  create: (data: object) => api.post('/tracked-links', data),
+  qr: (id: string) => api.get(`/tracked-links/${id}/qr`),
+  update: (id: string, data: object) => api.put(`/tracked-links/${id}`, data),
+  delete: (id: string) => api.delete(`/tracked-links/${id}`),
 };
 
 // Appointments
-export const appointmentApi = {
-  list: (params?: Record<string, unknown>) => api.get('/appointments', { params }),
-  get: (id: string) => api.get(`/appointments/${id}`),
-  create: (data: object) => api.post('/appointments', data),
-  update: (id: string, data: object) => api.put(`/appointments/${id}`, data),
-  delete: (id: string) => api.delete(`/appointments/${id}`),
-  sendReminder: (id: string) => api.post(`/appointments/${id}/reminder`),
-  reschedule: (id: string, data: object) => api.post(`/appointments/${id}/reschedule`, data),
-  cancel: (id: string) => api.post(`/appointments/${id}/cancel`),
-  getAvailability: () => api.get('/appointments/availability'),
-  updateAvailability: (data: object) => api.put('/appointments/availability', data),
-  getSlots: (date: string) => api.get('/appointments/slots', { params: { date } }),
-};
 
 // Integrations
 export const integrationApi = {
@@ -345,11 +343,6 @@ export const aiSettingsApi = {
 };
 
 // Chat Appearance
-export const chatAppearanceApi = {
-  get: () => api.get('/chat-appearance'),
-  update: (data: object) => api.put('/chat-appearance', data),
-  getEmbedCode: () => api.get('/chat-appearance/embed-code'),
-};
 
 // Teams
 export const teamApi = {
@@ -367,43 +360,10 @@ export const teamApi = {
 };
 
 // Payments
-export const paymentApi = {
-  subscribe: (planId: string, gateway: string, extra?: { reference?: string; proofUrl?: string; description?: string; couponCode?: string; autoRenew?: boolean; cycle?: 'monthly' | 'quarterly' | 'yearly'; currency?: string }) => api.post('/payments/subscribe', { planId, gateway, ...(extra || {}) }),
-  startTrial: (planId: string) => api.post('/payments/start-trial', { planId }),
-  verifyPayment: (data: object) => api.post('/payments/verify', data),
-  verifyHostedPayment: (paymentId: string) => api.post('/payments/hosted/verify', { paymentId }),
-  topUpWallet: (data: { amount: number; gateway: string; reference?: string; proofUrl?: string; description?: string; autoRenew?: boolean }) => api.post('/payments/wallet/topup', data),
-  verifyWalletTopup: (data: object) => api.post('/payments/wallet/verify', data),
-  getAutoRenewStatus: () => api.get('/payments/auto-renew'),
-  cancelAutoRenew: (type: 'plan' | 'wallet') => api.post('/payments/auto-renew/cancel', { type }),
-  getHistory: () => api.get('/payments/history'),
-  deleteHistory: (id: string) => api.delete(`/payments/history/${id}`),
-  getWalletHistory: () => api.get('/payments/wallet/history'),
-  getPlans: () => api.get('/payments/plans'),
-  getGateways: (currency?: string) => api.get('/payments/gateways', { params: currency ? { currency } : {} }),
-  getCurrencies: () => api.get('/payments/currencies'),
-  createOrder: (data: object) => api.post('/payments/order', data),
-  downloadInvoice: (id: string) => api.get(`/payments/invoice/${id}`, { responseType: 'blob' }),
-};
 
 // Catalogs
-export const catalogApi = {
-  getProducts: () => api.get('/catalogs'),
-  getProduct: (id: string) => api.get(`/catalogs/${id}`),
-  createProduct: (data: object) => api.post('/catalogs', data),
-  updateProduct: (id: string, data: object) => api.put(`/catalogs/${id}`, data),
-  deleteProduct: (id: string) => api.delete(`/catalogs/${id}`),
-  share: (data: { contactId: string; productId?: string }) => api.post('/catalogs/share', data),
-  sync: () => api.post('/catalogs/sync', {}),
-};
 
 // Orders
-export const orderApi = {
-  getOrders: (params?: Record<string, unknown>) => api.get('/orders', { params }),
-  getOrder: (id: string) => api.get(`/orders/${id}`),
-  updateOrder: (id: string, data: object) => api.put(`/orders/${id}`, data),
-  deleteOrder: (id: string) => api.delete(`/orders/${id}`),
-};
 
 // Facebook Leads
 export const facebookLeadApi = {
@@ -422,7 +382,16 @@ export const botFlowApi = {
   preset: (preset: string) => api.post('/bot-flows/preset', { preset }),
   update: (id: string, data: object) => api.put(`/bot-flows/${id}`, data),
   delete: (id: string) => api.delete(`/bot-flows/${id}`),
+  export: (id: string) => api.get(`/bot-flows/${id}/export`),
+  import: (flow: object) => api.post('/bot-flows/import', { flow }),
+  report: (params: Record<string, unknown>) => api.get('/bot-flows/report', { params }),
+  reportFile: (params: Record<string, unknown>) => api.get('/bot-flows/report', { params, responseType: 'blob' }),
+  marketplace: () => api.get('/bot-flows/marketplace'),
+  marketplaceItem: (id: string) => api.get(`/bot-flows/marketplace/${id}`),
+  marketplaceInstall: (id: string, data: { name?: string }) => api.post(`/bot-flows/marketplace/${id}/install`, data),
 };
+
+// Which existing items the current plan still allows to be used.
 
 export const keywordApi = {
   getKeywords: () => api.get('/keywords'),
@@ -442,6 +411,8 @@ export const eventApi = {
 };
 
 // AI Calling
+
+
 export const aiCallingApi = {
   getAgents: () => api.get('/ai-calling'),
   getAgent: (id: string) => api.get('/ai-calling/' + id),
@@ -482,6 +453,18 @@ export const dripApi = {
   pause: (id: string) => api.post(`/drips/${id}/pause`),
 };
 
+export const sequenceApi = {
+  list: (params?: object) => api.get('/sequences', { params }),
+  get: (id: string) => api.get(`/sequences/${id}`),
+  create: (data: object) => api.post('/sequences', data),
+  update: (id: string, data: object) => api.put(`/sequences/${id}`, data),
+  delete: (id: string) => api.delete(`/sequences/${id}`),
+  start: (id: string) => api.post(`/sequences/${id}/start`),
+  pause: (id: string) => api.post(`/sequences/${id}/pause`),
+  stop: (id: string, contactId?: string) => api.post(`/sequences/${id}/stop`, contactId ? { contactId } : {}),
+  enrollments: (id: string, params?: object) => api.get(`/sequences/${id}/enrollments`, { params }),
+};
+
 // Admin APIs
 export const adminApi = {
   // Dashboard
@@ -492,20 +475,6 @@ export const adminApi = {
   createUser: (data: object) => api.post('/admin/users', data),
   updateUser: (id: string, data: object) => api.put(`/admin/users/${id}`, data),
   deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
-  // Plans
-  getPlans: () => api.get('/admin/plans'),
-  createPlan: (data: object) => api.post('/admin/plans', data),
-  updatePlan: (id: string, data: object) => api.put(`/admin/plans/${id}`, data),
-  deletePlan: (id: string) => api.delete(`/admin/plans/${id}`),
-  // Payments
-  getPayments: (params?: Record<string, unknown>) => api.get('/admin/payments', { params }),
-  getPaymentInvoice: (id: string) => api.get(`/admin/payments/${id}/invoice`, { responseType: 'blob' }),
-  emailPaymentInvoices: (ids: string[]) => api.post('/admin/payments/email-invoices', { ids }),
-  approvePayment: (id: string) => api.post(`/admin/payments/${id}/approve`, {}),
-  rejectPayment: (id: string, reason?: string) => api.post(`/admin/payments/${id}/reject`, { reason }),
-  // Wallet
-  getWalletLedger: (params?: Record<string, unknown>) => api.get('/admin/wallet/ledger', { params }),
-  adjustWallet: (data: object) => api.post('/admin/wallet/adjust', data),
   // Meta Pricing
   getMetaPricing: () => api.get('/admin/meta-pricing'),
   updateMetaPricing: (data: object) => api.post('/admin/meta-pricing', data),
@@ -516,10 +485,6 @@ export const adminApi = {
   getSettings: () => api.get('/admin/settings'),
   updateSettings: (data: object) => api.put('/admin/settings', data),
   sendTestEmail: (data: object) => api.post('/admin/settings/test-email', data),
-  // Gateways
-  getGateways: () => api.get('/admin/gateways'),
-  updateGateway: (id: string, data: object) => api.put(`/admin/gateways/${id}`, data),
-  testGateway: (id: string, data: object) => api.post(`/admin/gateways/${id}/test`, data),
   // Landing Page
   getLandingPage: () => api.get('/admin/landing-page'),
   updateLandingPage: (data: object) => api.put('/admin/landing-page', data),
@@ -528,11 +493,6 @@ export const adminApi = {
   createTemplate: (data: object) => api.post('/admin/templates', data),
   updateTemplate: (id: string, data: object) => api.put(`/admin/templates/${id}`, data),
   deleteTemplate: (id: string) => api.delete(`/admin/templates/${id}`),
-  // Inquiries
-  getInquiries: () => api.get('/admin/inquiries'),
-  updateInquiry: (id: string, data: object) => api.put(`/admin/inquiries/${id}`, data),
-  replyInquiry: (id: string, data: object) => api.post(`/admin/inquiries/${id}/reply`, data),
-  deleteInquiry: (id: string) => api.delete(`/admin/inquiries/${id}`),
   // Quick Replies
   getQuickReplies: () => api.get('/admin/quick-replies'),
   createQuickReply: (data: object) => api.post('/admin/quick-replies', data),
@@ -544,16 +504,6 @@ export const adminApi = {
   updateLanguage: (id: string, data: object) => api.put(`/admin/languages/${id}`, data),
   seedLanguages: () => api.post('/admin/languages/seed', {}),
   deleteLanguage: (id: string) => api.delete(`/admin/languages/${id}`),
-  // Currencies
-  getCurrencies: () => api.get('/admin/currencies'),
-  createCurrency: (data: object) => api.post('/admin/currencies', data),
-  updateCurrency: (id: string, data: object) => api.put(`/admin/currencies/${id}`, data),
-  seedCurrencies: () => api.post('/admin/currencies/seed', {}),
-  deleteCurrency: (id: string) => api.delete(`/admin/currencies/${id}`),
-  // Taxes
-  getTaxes: () => api.get('/admin/taxes'),
-  createTax: (data: object) => api.post('/admin/taxes', data),
-  deleteTax: (id: string) => api.delete(`/admin/taxes/${id}`),
   // FAQ
   getFAQs: () => api.get('/admin/faqs'),
   createFAQ: (data: object) => api.post('/admin/faqs', data),
@@ -584,10 +534,8 @@ export const adminApi = {
   deleteVendor: (id: string) => api.delete(`/admin/vendors/${id}`),
   loginAsVendor: (id: string) => api.post(`/admin/vendors/${id}/login-as`),
   getVendorDetail: (id: string) => api.get(`/admin/vendors/${id}/detail`),
-  // Subscriptions
-  getSubscriptions: (params?: Record<string, unknown>) => api.get('/admin/subscriptions', { params }),
-  createSubscription: (data: object) => api.post('/admin/subscriptions', data),
-  updateSubscription: (id: string, data: object) => api.put(`/admin/subscriptions/${id}`, data),
+  // Feature controls and vendor administration
+  getFeatureCatalog: () => api.get('/admin/feature-catalog'),
   getFeatureControls: () => api.get('/admin/feature-controls'),
   updateFeatureControls: (vendorId: string, features: Record<string, boolean>) => api.put(`/admin/feature-controls/${vendorId}`, { features }),
   getVendorAiAssignments: () => api.get('/admin/vendor-ai'),
@@ -596,24 +544,6 @@ export const adminApi = {
   getDataCleanup: (workspace?: string) => api.get('/admin/data-cleanup', { params: workspace ? { workspace } : undefined }),
   updateDataCleanup: (data: object) => api.put('/admin/data-cleanup', data),
   runDataCleanup: (workspace?: string) => api.post('/admin/data-cleanup/run', workspace ? { workspace } : {}),
-  deleteSubscription: (id: string) => api.delete(`/admin/subscriptions/${id}`),
-  // Invoices
-  getInvoices: (params?: Record<string, unknown>) => api.get('/admin/invoices', { params }),
-  createInvoice: (data: object) => api.post('/admin/invoices', data),
-  updateInvoice: (id: string, data: object) => api.put(`/admin/invoices/${id}`, data),
-  deleteInvoice: (id: string) => api.delete(`/admin/invoices/${id}`),
-  getInvoicePdf: (id: string) => api.get(`/admin/invoices/${id}/pdf`, { responseType: 'text' }),
-  // Blog
-  getBlogPosts: (params?: Record<string, unknown>) => api.get('/admin/blog', { params }),
-  createBlogPost: (data: object) => api.post('/admin/blog', data),
-  updateBlogPost: (id: string, data: object) => api.put(`/admin/blog/${id}`, data),
-  deleteBlogPost: (id: string) => api.delete(`/admin/blog/${id}`),
-  // Plan Reminders
-  checkExpiringPlans: (params?: Record<string, unknown>) => api.get('/admin/plan-reminders', { params }),
-  sendPlanReminder: (data: object) => api.post("/admin/plan-reminders/send", data),
-  getAutoReminderSettings: () => api.get("/admin/plan-reminders/auto-settings"),
-  updateAutoReminderSettings: (data: object) => api.put("/admin/plan-reminders/auto-settings", data),
-  runAutoReminder: () => api.post("/admin/plan-reminders/run-auto"),
 };
 
 // Data Fields
@@ -655,12 +585,6 @@ export const mediaApi = {
 };
 
 // CTWA Ads
-export const ctwaAdApi = {
-  list: () => api.get("/ctwa-ads"),
-  create: (data: object) => api.post("/ctwa-ads", data),
-  update: (id: string, data: object) => api.put(`/ctwa-ads/${id}`, data),
-  delete: (id: string) => api.delete(`/ctwa-ads/${id}`),
-};
 
 // Predefined Actions
 export const predefinedActionApi = {
@@ -694,46 +618,76 @@ export const auditLogApi = {
 };
 
 // Invoices
-export const invoiceApi = {
-  list: () => api.get('/invoices'),
-  createFromOrder: (orderId: string) => api.post('/invoices/from-order/' + orderId),
-  update: (id: string, data: object) => api.put('/invoices/' + id, data),
-  downloadPdf: (id: string) => api.get('/invoices/' + id + '/pdf', { responseType: 'blob' }),
-  email: (id: string, to?: string) => api.post('/invoices/' + id + '/email', to ? { to } : {}),
-  emailBulk: (ids: string[]) => api.post('/invoices/email', { ids }),
-  emailSubBulk: (ids: string[]) => api.post('/invoices/sub/email', { ids }),
-  delete: (id: string) => api.delete('/invoices/' + id),
-};
 
 // Platform (coupons, announcements, support tickets, system admin)
 export const platformApi = {
-  publicBranding: () => api.get('/public/branding'),
+  publicBranding: () => cachedGet('/public/branding', 60000),
   activeAnnouncements: () => api.get('/platform/announcements/active'),
-  validateCoupon: (code: string, amount: number, planId?: string) => api.post('/platform/coupons/validate', { code, amount, planId }),
   // Support tickets (vendor)
   myTickets: () => api.get('/platform/support'),
-  createTicket: (data: { subject: string; category?: string; priority?: string; message: string }) => api.post('/platform/support', data),
-  replyTicket: (id: string, message: string) => api.post(`/platform/support/${id}/reply`, { message }),
-  closeTicket: (id: string) => api.put(`/platform/support/${id}/close`),
-  reopenTicket: (id: string) => api.put(`/platform/support/${id}/reopen`),
   // Admin
-  adminCoupons: () => api.get('/platform/admin/coupons'),
-  adminCreateCoupon: (data: object) => api.post('/platform/admin/coupons', data),
-  adminUpdateCoupon: (id: string, data: object) => api.put(`/platform/admin/coupons/${id}`, data),
-  adminDeleteCoupon: (id: string) => api.delete(`/platform/admin/coupons/${id}`),
-  adminAnnouncements: () => api.get('/platform/admin/announcements'),
-  adminCreateAnnouncement: (data: object) => api.post('/platform/admin/announcements', data),
-  adminUpdateAnnouncement: (id: string, data: object) => api.put(`/platform/admin/announcements/${id}`, data),
-  adminDeleteAnnouncement: (id: string) => api.delete(`/platform/admin/announcements/${id}`),
-  adminTickets: (status?: string) => api.get('/platform/admin/support', { params: status ? { status } : {} }),
-  adminReplyTicket: (id: string, message: string) => api.post(`/platform/admin/support/${id}/reply`, { message }),
-  adminTicketStatus: (id: string, status: string) => api.put(`/platform/admin/support/${id}/status`, { status }),
   adminBackups: () => api.get('/platform/admin/backups'),
   adminRunBackup: () => api.post('/platform/admin/backups'),
   adminDownloadBackup: (name: string) => api.get(`/platform/admin/backups/${name}/download`, { responseType: 'blob' }),
   adminDeleteBackup: (name: string) => api.delete(`/platform/admin/backups/${name}`),
   adminHealth: () => api.get('/platform/admin/health'),
   adminHealthReport: (force?: boolean) => api.get('/platform/admin/health-report', { params: force ? { force: 1 } : {}, timeout: 120000 }),
-  adminMaintenance: () => api.get('/platform/admin/maintenance'),
-  adminSetMaintenance: (data: { isEnabled: boolean; message?: string }) => api.put('/platform/admin/maintenance', data),
+};
+
+// Affiliate Partners add-on -------------------------------------------------
+// Public state (used by the partner login/signup pages before any session)
+export const affiliatePublicApi = {
+  state: () => api.get('/public/affiliate'),
+  register: (data: { name: string; email: string; password: string; phone?: string; company?: string }) =>
+    api.post('/auth/partner-register', data),
+};
+
+// Partner Portal (/partner/*) — partner-only endpoints
+export const partnerApi = {
+  me: () => api.get('/partners/me'),
+  dashboard: (params?: { from?: string; to?: string }) => api.get('/partners/dashboard', { params }),
+  customers: (params?: { status?: string; from?: string; to?: string }) => api.get('/partners/customers', { params }),
+  conversions: (params?: { from?: string; to?: string }) => api.get('/partners/conversions', { params }),
+  commissions: (params?: { status?: string; type?: string; page?: number; limit?: number; from?: string; to?: string }) => api.get('/partners/commissions', { params }),
+  wallet: () => api.get('/partners/wallet'),
+  withdrawals: () => api.get('/partners/withdraw'),
+  requestWithdrawal: (amount: number) => api.post('/partners/withdraw', { amount }),
+  savePayoutDetails: (data: object) => api.put('/partners/payout-details', data),
+  kyc: () => api.get('/partners/kyc'),
+  submitKyc: (data: object) => api.post('/partners/kyc', data),
+  announcements: () => api.get('/partners/announcements'),
+  markAnnouncementsRead: (ids: string[]) => api.post('/partners/announcements/read', { ids }),
+  updateProfile: (data: { name?: string; phone?: string; avatar?: string }) => api.put('/partners/profile', data),
+};
+
+// Admin → Affiliate Partners
+export const adminPartnersApi = {
+  module: () => api.get('/admin/partners/module'),
+  settings: () => api.get('/admin/partners/settings'),
+  saveSettings: (data: object) => api.put('/admin/partners/settings', data),
+  list: (status?: string) => api.get('/admin/partners', { params: status ? { status } : {} }),
+  create: (data: { name: string; email: string; password: string; phone?: string; commissionRate?: number | null }) =>
+    api.post('/admin/partners', data),
+  summary: () => api.get('/admin/partners/summary'),
+  trends: (months?: number) => api.get('/admin/partners/trends', { params: months ? { months } : {} }),
+  referrals: (params?: { status?: string; partner?: string; page?: number; limit?: number }) =>
+    api.get('/admin/partners/referrals', { params }),
+  commissions: (params?: { status?: string; partner?: string; page?: number; limit?: number }) =>
+    api.get('/admin/partners/commissions', { params }),
+  reverseCommission: (id: string, note?: string) => api.post(`/admin/partners/commissions/${id}/reverse`, { note }),
+  withdrawals: (status?: string) => api.get('/admin/partners/withdrawals', { params: status ? { status } : {} }),
+  processWithdrawal: (id: string, data: { status: 'paid' | 'rejected'; reference?: string; adminNote?: string }) =>
+    api.put(`/admin/partners/withdrawals/${id}`, data),
+  kycQueue: (status?: string) => api.get('/admin/partners/kyc', { params: status ? { status } : {} }),
+  reviewKyc: (id: string, data: { status: 'approved' | 'rejected'; rejectionReason?: string }) =>
+    api.put(`/admin/partners/${id}/kyc`, data),
+  announcements: (params?: { type?: string; status?: string }) => api.get('/admin/partners/announcements', { params }),
+  createAnnouncement: (data: object) => api.post('/admin/partners/announcements', data),
+  updateAnnouncement: (id: string, data: object) => api.put(`/admin/partners/announcements/${id}`, data),
+  deleteAnnouncement: (id: string) => api.delete(`/admin/partners/announcements/${id}`),
+  get: (id: string) => api.get(`/admin/partners/${id}`),
+  update: (id: string, data: object) => api.put(`/admin/partners/${id}`, data),
+  walletAdjust: (id: string, data: { amount: number; description?: string }) =>
+    api.post(`/admin/partners/${id}/wallet-adjust`, data),
+  loginAsPartner: (id: string) => api.post(`/admin/partners/${id}/login-as`),
 };

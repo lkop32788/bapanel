@@ -4,7 +4,6 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const util = require('util');
-const walletBilling = require('./walletBilling');
 
 const execFileAsync = util.promisify(execFile);
 
@@ -147,45 +146,6 @@ class WhatsAppService {
       [mediaType]: mediaObj,
     };
     if (contextMessageId) data.context = { message_id: contextMessageId };
-    return this._makeRequest(url, data);
-  }
-
-  // WhatsApp Pay (India): in-chat order_details message — customer pays via UPI
-  // without leaving WhatsApp. Requires a payment configuration set up in
-  // WhatsApp Manager (Razorpay / PayU / UPI VPA).
-  async sendOrderDetails(to, { referenceId, amount, description, paymentConfiguration, itemName }) {
-    const url = `${this.baseUrl}/${this.phoneNumberId}/messages`;
-    const value = Math.round(amount * 100);
-    const data = {
-      messaging_product: 'whatsapp',
-      to,
-      type: 'interactive',
-      interactive: {
-        type: 'order_details',
-        body: { text: description || `Payment request of ₹${amount}` },
-        action: {
-          name: 'review_and_pay',
-          parameters: {
-            reference_id: referenceId,
-            type: 'digital-goods',
-            payment_type: 'upi',
-            payment_configuration: paymentConfiguration,
-            currency: 'INR',
-            total_amount: { value, offset: 100 },
-            order: {
-              status: 'pending',
-              items: [{
-                retailer_id: referenceId,
-                name: itemName || description || 'Payment',
-                amount: { value, offset: 100 },
-                quantity: 1,
-              }],
-              subtotal: { value, offset: 100 },
-            },
-          },
-        },
-      },
-    };
     return this._makeRequest(url, data);
   }
 
@@ -397,22 +357,8 @@ class WhatsAppService {
   }
 
   async _makeRequest(url, data) {
-    const templateName = data && data.type === 'template' && data.template ? data.template.name : null;
     try {
-      if (templateName) {
-        try {
-          await walletBilling.assertCanSendTemplate(this.phoneNumberId, templateName);
-        } catch (billErr) {
-          if (billErr.code === 'INSUFFICIENT_WALLET') {
-            return { success: false, error: { message: 'Insufficient wallet balance. Please top up to send template messages.', code: 'INSUFFICIENT_WALLET' } };
-          }
-          throw billErr;
-        }
-      }
       const response = await axios.post(url, data, { headers: this.getHeaders() });
-      if (templateName) {
-        try { await walletBilling.chargeForTemplate(this.phoneNumberId, templateName); } catch (e) { console.error('Wallet charge failed:', e.message); }
-      }
       return { success: true, data: response.data };
     } catch (error) {
       const errorData = error.response?.data?.error || { message: error.message };

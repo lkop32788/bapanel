@@ -1,5 +1,7 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect, useCallback } from 'react';
+
 import WaTextarea from '@/components/ui/WaTextarea';
 import { Plus, Search, Eye, Trash2, Edit, Image as ImageIcon, Video, File, CheckCircle, X, PiggyBank } from 'lucide-react';
 import Input from '@/components/ui/Input';
@@ -7,7 +9,7 @@ import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import Badge from '@/components/ui/Badge';
 import WhatsAppPhonePreview from '@/components/WhatsAppPhonePreview';
-import { presetMessageApi, mediaApi, catalogApi } from '@/lib/api';
+import { presetMessageApi, mediaApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 interface PresetButton { text: string; type?: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'; url?: string; phone?: string; value?: string; }
@@ -17,14 +19,14 @@ interface Preset {
   headerType?: string; headerText?: string; footer?: string;
   buttons?: PresetButton[]; listButtonText?: string; listItems?: PresetListItem[]; createdAt?: string;
   carouselTemplate?: string;
-  productIds?: string[];
+  
   cards?: Array<{ mediaUrl?: string; body?: string; buttons?: Array<{ text: string }> }>;
 }
 
 const emptyForm = {
   name: '', headerType: 'none' as 'none' | 'text' | 'image' | 'video' | 'document',
   headerText: '', mediaUrl: '', body: '', footer: '', buttons: [] as PresetButton[],
-  listButtonText: '', listItems: [] as PresetListItem[], carouselTemplate: '', productIds: [] as string[],
+  listButtonText: '', listItems: [] as PresetListItem[], carouselTemplate: '', 
   cards: [] as Array<{ mediaUrl: string; body: string; buttons: Array<{ text: string }> }>,
 };
 
@@ -49,8 +51,6 @@ export default function PresetTemplatesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showBtnMenu, setShowBtnMenu] = useState(false);
   const [cardUploading, setCardUploading] = useState(-1);
-  const [products, setProducts] = useState<Array<{ _id: string; name: string; price?: number; currency?: string }>>([]);
-  useEffect(() => { catalogApi.getProducts().then(r => setProducts((r.data.data || []) as Array<{ _id: string; name: string; price?: number; currency?: string }>)).catch(() => {}); }, []);
 
   const uploadCardMedia = async (i: number, file?: File) => {
     if (!file) return;
@@ -63,8 +63,8 @@ export default function PresetTemplatesPage() {
       const url = res.data?.data?.url || res.data?.url || '';
       const full = url.startsWith('http') ? url : `${(process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/api$/, '')}${url}`;
       setForm(f => ({ ...f, cards: f.cards.map((x, idx) => idx === i ? { ...x, mediaUrl: full } : x) }));
-      toast.success('Image uploaded');
-    } catch { toast.error('Upload failed'); }
+      toast.success(translateApiMessage("图片已上传"));
+    } catch { toast.error(translateApiMessage("上传失败")); }
     setCardUploading(-1);
   };
 
@@ -89,14 +89,14 @@ export default function PresetTemplatesPage() {
       const res = await mediaApi.upload(formData);
       const url = res.data?.data?.url || res.data?.url || '';
       setForm(f => ({ ...f, mediaUrl: url.startsWith('http') ? url : `${(process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/api$/, '')}${url}` }));
-      toast.success('File uploaded!');
-    } catch { toast.error('Upload failed'); }
+      toast.success(translateApiMessage("文件已上传！"));
+    } catch { toast.error(translateApiMessage("上传失败")); }
     setUploading(false);
   };
 
   const handleSave = async () => {
     if (submitting) return;
-    if (!form.name || (!form.body && form.cards.length === 0 && form.productIds.length === 0)) { toast.error('Name and body are required'); return; }
+    if (!form.name || (!form.body && form.cards.length === 0)) { toast.error(translateApiMessage("姓名和正文为必填项")); return; }
     setSubmitting(true);
     try {
       const payload = {
@@ -104,17 +104,17 @@ export default function PresetTemplatesPage() {
         headerType: form.headerType, headerText: form.headerText,
         footer: form.footer, buttons: form.buttons.filter(b => b.text.trim()),
         listButtonText: form.listButtonText, listItems: form.listItems.filter(it => it.title.trim()),
-        carouselTemplate: form.carouselTemplate, productIds: form.productIds,
+        carouselTemplate: form.carouselTemplate, 
         cards: form.cards.filter(c => c.mediaUrl.trim() || c.body.trim()).map(c => ({ ...c, buttons: c.buttons.filter(b => b.text.trim()) })),
       };
       if (editId) await presetMessageApi.update(editId, payload);
       else await presetMessageApi.create(payload);
-      toast.success(editId ? 'Preset template updated' : 'Preset template created — ready to use (no Meta approval needed)');
+      toast.success(translateApiMessage(editId ? "预设模板已更新" : "预设模板已创建 — 可供使用（无需元批准）"));
       setView('list'); setEditId(null); setForm(emptyForm);
       fetchPresets();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "操作失败"));
     }
     setSubmitting(false);
   };
@@ -127,19 +127,19 @@ export default function PresetTemplatesPage() {
       headerText: p.headerText || '', footer: p.footer || '',
       buttons: (p.buttons || []).map(b => ({ text: b.text, type: b.type || 'QUICK_REPLY', url: b.url || '', phone: b.phone || '', value: b.value || '' })),
       listButtonText: p.listButtonText || '', listItems: (p.listItems || []).map(it => ({ title: it.title, description: it.description || '', value: it.value || '' })),
-      carouselTemplate: p.carouselTemplate || '', productIds: p.productIds || [],
+      carouselTemplate: p.carouselTemplate || '', 
       cards: (p.cards || []).map(c => ({ mediaUrl: c.mediaUrl || '', body: c.body || '', buttons: (c.buttons || []).map(b => ({ text: b.text })) })),
     });
     setView('create');
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this preset template?')) return;
-    try { await presetMessageApi.delete(id); toast.success('Deleted'); fetchPresets(); } catch { toast.error('Failed'); }
+    if (!confirm("删除此预设模板？")) return;
+    try { await presetMessageApi.delete(id); toast.success(translateApiMessage("已删除")); fetchPresets(); } catch { toast.error(translateApiMessage("操作失败")); }
   };
 
   const addButton = (type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER') => {
-    if (form.buttons.length >= 3) { toast.error('Maximum 3 buttons allowed'); return; }
+    if (form.buttons.length >= 3) { toast.error(translateApiMessage("最多允许 3 个按钮")); return; }
     setForm({ ...form, buttons: [...form.buttons, { text: '', type, url: '', phone: '', value: '' }] });
     setShowBtnMenu(false);
   };
@@ -147,18 +147,18 @@ export default function PresetTemplatesPage() {
   const filtered = presets.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.body.toLowerCase().includes(search.toLowerCase()));
 
   const columns = [
-    { key: 'sr', title: 'Sr', render: (p: Preset) => <span className="text-gray-500">{filtered.indexOf(p) + 1}</span> },
-    { key: 'createdAt', title: 'Created Date', render: (p: Preset) => (
+    { key: 'sr', title: "先生", render: (p: Preset) => <span className="text-gray-500">{filtered.indexOf(p) + 1}</span> },
+    { key: 'createdAt', title: "创建日期", render: (p: Preset) => (
       <span className="text-gray-500 text-sm">{p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
     )},
-    { key: 'name', title: 'Template Name', render: (p: Preset) => <span className="font-medium text-gray-900">{p.name}</span> },
-    { key: 'preview', title: 'Preview', render: (p: Preset) => (
-      <button onClick={() => setShowPreview(p)} className="p-1.5 hover:bg-emerald-50 rounded-lg" title="Preview"><Eye className="w-4 h-4 text-emerald-600" /></button>
+    { key: 'name', title: "模板名称", render: (p: Preset) => <span className="font-medium text-gray-900">{p.name}</span> },
+    { key: 'preview', title: "预览", render: (p: Preset) => (
+      <button onClick={() => setShowPreview(p)} className="p-1.5 hover:bg-emerald-50 rounded-lg" title={"预览"}><Eye className="w-4 h-4 text-emerald-600" /></button>
     )},
-    { key: 'header', title: 'Header', render: (p: Preset) => <Badge variant="info">{p.headerType && p.headerType !== 'none' ? p.headerType : '—'}</Badge> },
-    { key: 'buttons', title: 'Buttons', render: (p: Preset) => (p.buttons || []).filter(b => b.text).length || '—' },
-    { key: 'status', title: 'Status', render: () => <Badge variant="success"><CheckCircle className="w-3 h-3 mr-1" />Ready</Badge> },
-    { key: 'actions', title: 'Action', render: (p: Preset) => (
+    { key: 'header', title: "标头", render: (p: Preset) => <Badge variant="info">{p.headerType && p.headerType !== 'none' ? p.headerType : '—'}</Badge> },
+    { key: 'buttons', title: "按钮", render: (p: Preset) => (p.buttons || []).filter(b => b.text).length || '—' },
+    { key: 'status', title: "状态", render: () => <Badge variant="success"><CheckCircle className="w-3 h-3 mr-1" />准备好</Badge> },
+    { key: 'actions', title: "行动", render: (p: Preset) => (
       <div className="flex gap-1">
         <button onClick={() => handleEdit(p)} className="p-1.5 hover:bg-blue-50 rounded-lg"><Edit className="w-4 h-4 text-blue-400" /></button>
         <button onClick={() => handleDelete(p._id)} className="p-1.5 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4 text-red-400" /></button>
@@ -171,100 +171,84 @@ export default function PresetTemplatesPage() {
       <div className="space-y-6">
         <div className="page-hero flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">{editId ? 'Edit Preset Template' : 'Create Preset Template'}</h1>
-            <p className="text-emerald-50 text-sm mt-1">No Meta approval needed — instantly ready to send</p>
+            <h1 className="text-2xl font-bold">{editId ? "编辑预设模板" : "创建预设模板"}</h1>
+            <p className="text-emerald-50 text-sm mt-1">无需元批准 - 立即准备发送</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setView('list'); setEditId(null); setForm(emptyForm); }} className="px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-semibold backdrop-blur transition-colors">Cancel</button>
-            <button onClick={handleSave} disabled={submitting} className="px-6 py-2.5 rounded-xl bg-white text-emerald-700 hover:bg-emerald-50 text-sm font-bold shadow disabled:opacity-60 transition-colors">{submitting ? 'Saving…' : editId ? 'Update' : 'Submit'}</button>
+            <button onClick={() => { setView('list'); setEditId(null); setForm(emptyForm); }} className="px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-semibold backdrop-blur transition-colors">取消</button>
+            <button onClick={handleSave} disabled={submitting} className="px-6 py-2.5 rounded-xl bg-white text-emerald-700 hover:bg-emerald-50 text-sm font-bold shadow disabled:opacity-60 transition-colors">{submitting ? "正在保存..." : editId ? "更新" : "提交"}</button>
           </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           <div className="flex-1 space-y-5 w-full">
             <div className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-md transition-shadow p-5">
-              <Input label="Template Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Diwali Offer" required />
+              <Input label={"模板名称"} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={"例如排灯节优惠"} required />
             </div>
 
             <div className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-md transition-shadow p-5">
               <div className="flex items-start justify-between mb-3 gap-3">
                 <div>
-                  <label className="text-sm font-semibold text-gray-800">Free Card Carousel <span className="font-normal text-emerald-600">(FREE — no template charges)</span></label>
-                  <p className="text-xs text-gray-400">2-10 cards (image + text + buttons) are sent as separate messages one after another — completely free within the 24hr window. (The swipeable carousel is only available via a Meta-approved template — see the Templates page.)</p>
+                  <label className="text-sm font-semibold text-gray-800">免费卡轮播 <span className="font-normal text-emerald-600">（免费 — 无模板费用）</span></label>
+                  <p className="text-xs text-gray-400">2-10 张卡片（图像 + 文本 + 按钮）作为单独的消息依次发送 - 在 24 小时窗口内完全免费。 （可滑动轮播只能通过元批准的模板使用 - 请参阅模板页面。）</p>
                 </div>
-                <button onClick={() => { if (form.cards.length >= 10) { toast.error('Maximum 10 cards'); return; } setForm({ ...form, cards: [...form.cards, { mediaUrl: '', body: '', buttons: [] }] }); }}
+                <button onClick={() => { if (form.cards.length >= 10) { toast.error(translateApiMessage("最多 10 张卡")); return; } setForm({ ...form, cards: [...form.cards, { mediaUrl: '', body: '', buttons: [] }] }); }}
                   className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:border-emerald-300 hover:text-emerald-700 text-gray-700 font-semibold whitespace-nowrap transition-colors">
-                  <Plus className="w-4 h-4" /> Add Card
+                  <Plus className="w-4 h-4" /> 添加卡
                 </button>
               </div>
               {form.cards.map((c, i) => (
                 <div key={i} className="mb-3 p-4 bg-gray-50/80 rounded-xl ring-1 ring-gray-100 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-600">Card {i + 1}</span>
+                    <span className="text-xs font-semibold text-gray-600">卡 {i + 1}</span>
                     <button onClick={() => setForm({ ...form, cards: form.cards.filter((_, idx) => idx !== i) })} className="p-1 hover:bg-red-50 rounded"><X className="w-4 h-4 text-red-400" /></button>
                   </div>
                   <div className="flex gap-2 items-center">
                     {c.mediaUrl ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={c.mediaUrl} alt={'card ' + (i + 1)} className="w-10 h-10 rounded object-cover border border-gray-200" />
+                      <img src={c.mediaUrl} alt={"卡" + (i + 1)} className="w-10 h-10 rounded object-cover border border-gray-200" />
                     ) : null}
                     <input value={c.mediaUrl} onChange={(e) => setForm({ ...form, cards: form.cards.map((x, idx) => idx === i ? { ...x, mediaUrl: e.target.value } : x) })}
-                      placeholder="Image URL (optional)" className="flex-1 text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+                      placeholder={"图像 URL（可选）"} className="flex-1 text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
                     <label className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg cursor-pointer bg-white hover:bg-gray-100 font-medium text-gray-600 whitespace-nowrap">
-                      {cardUploading === i ? 'Uploading…' : 'Upload'}
+                      {cardUploading === i ? "正在上传..." : "上传"}
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadCardMedia(i, e.target.files?.[0])} disabled={cardUploading !== -1} />
                     </label>
                   </div>
                   <textarea value={c.body} onChange={(e) => setForm({ ...form, cards: form.cards.map((x, idx) => idx === i ? { ...x, body: e.target.value } : x) })}
-                    rows={2} placeholder={'Card ' + (i + 1) + ' text ({{name}} supported)'} className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
+                    rows={2} placeholder={"卡" + (i + 1) + "文本（支持 {{name}}）"} className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
                   {(c.buttons || []).map((b, bi) => (
                     <div key={bi} className="flex gap-2 items-center">
                       <input value={b.text} onChange={(e) => setForm({ ...form, cards: form.cards.map((x, idx) => idx === i ? { ...x, buttons: x.buttons.map((y, yi) => yi === bi ? { text: e.target.value } : y) } : x) })}
-                        placeholder={'Button ' + (bi + 1) + ' text (max 20 chars)'} maxLength={20}
+                        placeholder={"按钮" + (bi + 1) + "文本（最多 20 个字符）"} maxLength={20}
                         className="flex-1 text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
                       <button onClick={() => setForm({ ...form, cards: form.cards.map((x, idx) => idx === i ? { ...x, buttons: x.buttons.filter((_, yi) => yi !== bi) } : x) })} className="p-1 hover:bg-red-50 rounded"><X className="w-4 h-4 text-red-400" /></button>
                     </div>
                   ))}
                   {(c.buttons || []).length < 3 && (
                     <button onClick={() => setForm({ ...form, cards: form.cards.map((x, idx) => idx === i ? { ...x, buttons: [...x.buttons, { text: '' }] } : x) })}
-                      className="text-xs text-emerald-600 font-medium hover:text-emerald-700">+ Add button</button>
+                      className="text-xs text-emerald-600 font-medium hover:text-emerald-700">+ 添加按钮</button>
                   )}
                 </div>
               ))}
             </div>
 
             <div className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-md transition-shadow p-5">
-              <label className="text-sm font-semibold text-gray-800">Catalog / Products <span className="font-normal text-gray-400">(optional, max 10)</span></label>
-              <p className="text-xs text-gray-400 mb-3">Selected products are sent as a tappable list — the customer taps one to get its photo, price and details. Products come from your Catalog page.</p>
-              {products.length === 0 ? (
-                <p className="text-xs text-gray-400">No products yet — add products in Catalog first.</p>
-              ) : (
-                <div className="grid sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                  {products.map((p) => (
-                    <label key={p._id} className="flex items-center gap-2 text-sm p-2 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer">
-                      <input type="checkbox" checked={form.productIds.includes(p._id)}
-                        onChange={(e) => {
-                          const cur = form.productIds;
-                          setForm({ ...form, productIds: e.target.checked ? [...cur, p._id].slice(0, 10) : cur.filter(x => x !== p._id) });
-                        }} />
-                      <span className="truncate">{p.name}{p.price ? ` — ${p.currency === 'INR' ? '₹' : ''}${p.price}` : ''}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-              {form.productIds.length > 0 && <p className="text-xs text-emerald-600 mt-2 font-medium">{form.productIds.length} product(s) selected — this preset will send a product list</p>}
+              <label className="text-sm font-semibold text-gray-800">目录/产品 <span className="font-normal text-gray-400">（可选，最多 10 个）</span></label>
+              <p className="text-xs text-gray-400 mb-3">选定的产品作为可点击列表发送 - 客户点击其中一个即可获取其照片、价格和详细信息。产品来自您的目录页面。</p>
+
             </div>
 
             <div className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-md transition-shadow p-5">
-              <label className="block text-sm font-semibold text-gray-800">Header <span className="font-normal text-gray-400">(optional)</span></label>
-              <p className="text-xs text-gray-400 mb-3">Add a title or choose which type of media you&apos;ll use for this header.</p>
+              <label className="block text-sm font-semibold text-gray-800">标头 <span className="font-normal text-gray-400">（可选）</span></label>
+              <p className="text-xs text-gray-400 mb-3">添加标题或选择为此标题使用的媒体类型。</p>
               <div className="flex gap-2 mb-3 flex-wrap">
                 {[
-                  { value: 'none', label: 'None', icon: null },
-                  { value: 'text', label: 'Text', icon: null },
-                  { value: 'image', label: 'Image', icon: <ImageIcon className="w-4 h-4" /> },
-                  { value: 'video', label: 'Video', icon: <Video className="w-4 h-4" /> },
-                  { value: 'document', label: 'Document', icon: <File className="w-4 h-4" /> },
+                  { value: 'none', label: "无", icon: null },
+                  { value: 'text', label: "文本", icon: null },
+                  { value: 'image', label: "图片", icon: <ImageIcon className="w-4 h-4" /> },
+                  { value: 'video', label: "视频", icon: <Video className="w-4 h-4" /> },
+                  { value: 'document', label: "文件", icon: <File className="w-4 h-4" /> },
                 ].map((opt) => (
                   <button key={opt.value} onClick={() => setForm({ ...form, headerType: opt.value as typeof form.headerType })}
                     className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg border font-medium ${form.headerType === opt.value ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100'}`}>
@@ -273,7 +257,7 @@ export default function PresetTemplatesPage() {
                 ))}
               </div>
               {form.headerType === 'text' && (
-                <Input label="" value={form.headerText} onChange={(e) => setForm({ ...form, headerText: e.target.value })} placeholder="Header text (max 60 chars)" />
+                <Input label="" value={form.headerText} onChange={(e) => setForm({ ...form, headerText: e.target.value })} placeholder={"标题文本（最多 60 个字符）"} />
               )}
               {['image', 'video', 'document'].includes(form.headerType) && (
                 <div className="mt-2">
@@ -291,33 +275,33 @@ export default function PresetTemplatesPage() {
                         ) : (
                           <>
                             <Plus className="w-6 h-6 text-gray-400 mb-1" />
-                            <span className="text-sm text-gray-500">Click to upload {form.headerType}</span>
+                            <span className="text-sm text-gray-500">点击上传 {form.headerType}</span>
                           </>
                         )}
                       </div>
                       <input type="file" className="hidden" accept={form.headerType === 'image' ? 'image/*' : form.headerType === 'video' ? 'video/*' : '.pdf,.doc,.docx'} onChange={handleMediaUpload} disabled={uploading} />
                     </label>
                   )}
-                  <input className="mt-2 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg" value={form.mediaUrl} onChange={(e) => setForm({ ...form, mediaUrl: e.target.value })} placeholder="Or paste URL directly" />
+                  <input className="mt-2 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg" value={form.mediaUrl} onChange={(e) => setForm({ ...form, mediaUrl: e.target.value })} placeholder={"或直接粘贴网址"} />
                 </div>
               )}
             </div>
 
             <div className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-md transition-shadow p-5">
               <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-semibold text-gray-800">Body <span className="text-red-500">*</span></label>
+                <label className="text-sm font-semibold text-gray-800">身体 <span className="text-red-500">*</span></label>
                 <span className="text-xs text-gray-400">{form.body.length} / 1024</span>
               </div>
               <WaTextarea value={form.body} onChange={(v) => setForm({ ...form, body: v })} maxLength={1024}
-                placeholder="Message body... (use {{name}} to insert the customer's name)" rows={5}
+                placeholder={"消息正文...（使用 {{name}} 插入客户姓名）"} rows={5}
                 className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500/60" />
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-semibold text-gray-800">Footer <span className="font-normal text-gray-400">(optional)</span></label>
+                  <label className="text-sm font-semibold text-gray-800">页脚 <span className="font-normal text-gray-400">（可选）</span></label>
                   <span className="text-xs text-gray-400">{form.footer.length} / 60</span>
                 </div>
                 <input value={form.footer} onChange={(e) => setForm({ ...form, footer: e.target.value })} maxLength={60}
-                  placeholder="Add a short line of text to the bottom of your message."
+                  placeholder={"在消息底部添加一小行文本。"}
                   className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500/60" />
               </div>
             </div>
@@ -325,18 +309,18 @@ export default function PresetTemplatesPage() {
             <div className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-md transition-shadow p-5">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <label className="text-sm font-semibold text-gray-800">Buttons <span className="font-normal text-gray-400">(optional, max 3)</span></label>
-                  <p className="text-xs text-gray-400">Add Quick Reply buttons or a website link button.</p>
+                  <label className="text-sm font-semibold text-gray-800">按钮 <span className="font-normal text-gray-400">（可选，最多 3 个）</span></label>
+                  <p className="text-xs text-gray-400">添加快速回复按钮或网站链接按钮。</p>
                 </div>
                 <div className="relative">
                   <button onClick={() => setShowBtnMenu(v => !v)} className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:border-emerald-300 hover:text-emerald-700 text-gray-700 font-semibold transition-colors">
-                    <Plus className="w-4 h-4" /> Add Button
+                    <Plus className="w-4 h-4" /> 添加按钮
                   </button>
                   {showBtnMenu && (
                     <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
-                      <button onClick={() => addButton('QUICK_REPLY')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">Quick Reply</button>
-                      <button onClick={() => addButton('URL')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">Visit Website (URL)</button>
-                      <button onClick={() => addButton('PHONE_NUMBER')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">Call (Phone Number)</button>
+                      <button onClick={() => addButton('QUICK_REPLY')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">快速回复</button>
+                      <button onClick={() => addButton('URL')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">访问网站 (URL)</button>
+                      <button onClick={() => addButton('PHONE_NUMBER')} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50">呼叫（电话号码）</button>
                     </div>
                   )}
                 </div>
@@ -344,9 +328,9 @@ export default function PresetTemplatesPage() {
               {form.buttons.map((btn, i) => (
                 <div key={i} className="mb-2 p-3 bg-gray-50/80 rounded-xl ring-1 ring-gray-100">
                   <div className="flex gap-2 items-center">
-                    <span className="text-[11px] font-medium text-gray-500 bg-white border border-gray-200 rounded px-2 py-1 whitespace-nowrap">{btn.type === 'URL' ? 'URL Button' : btn.type === 'PHONE_NUMBER' ? 'Call Button' : 'Quick Reply'}</span>
+                    <span className="text-[11px] font-medium text-gray-500 bg-white border border-gray-200 rounded px-2 py-1 whitespace-nowrap">{btn.type === 'URL' ? "URL 按钮" : btn.type === 'PHONE_NUMBER' ? "呼叫按钮" : "快速回复"}</span>
                     <input value={btn.text} onChange={(e) => setForm({ ...form, buttons: form.buttons.map((b, idx) => idx === i ? { ...b, text: e.target.value } : b) })}
-                      placeholder={`Button ${i + 1} text (max 20 chars)`} maxLength={20}
+                      placeholder={`按钮 ${i + 1} 文本（最多 20 个字符）`} maxLength={20}
                       className="flex-1 text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
                     <button onClick={() => setForm({ ...form, buttons: form.buttons.filter((_, idx) => idx !== i) })} className="p-1 hover:bg-red-50 rounded"><X className="w-4 h-4 text-red-400" /></button>
                   </div>
@@ -357,7 +341,7 @@ export default function PresetTemplatesPage() {
                   )}
                   {(!btn.type || btn.type === 'QUICK_REPLY') && (
                     <input value={btn.value || ''} onChange={(e) => setForm({ ...form, buttons: form.buttons.map((b, idx) => idx === i ? { ...b, value: e.target.value } : b) })}
-                      placeholder="Value (optional) — auto-reply sent when the customer taps this button"
+                      placeholder={"值（可选）- 当客户点击此按钮时发送的自动回复"}
                       className="mt-2 w-full text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
                   )}
                   {btn.type === 'PHONE_NUMBER' && (
@@ -372,31 +356,31 @@ export default function PresetTemplatesPage() {
             <div className="bg-white rounded-2xl ring-1 ring-gray-100 shadow-sm hover:shadow-md transition-shadow p-5">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <label className="text-sm font-semibold text-gray-800">List Menu <span className="font-normal text-gray-400">(optional, max 10 options)</span></label>
-                  <p className="text-xs text-gray-400">A button that opens a list of options when tapped. Selecting an option auto-replies with its value. Note: if you use a List, Quick Reply/Call buttons cannot go in the same message (WhatsApp limit).</p>
+                  <label className="text-sm font-semibold text-gray-800">列表菜单 <span className="font-normal text-gray-400">（可选，最多 10 个选项）</span></label>
+                  <p className="text-xs text-gray-400">点击时打开选项列表的按钮。选择一个选项会自动回复其值。注意：如果您使用列表，快速回复/呼叫按钮不能出现在同一条消息中（WhatsApp 限制）。</p>
                 </div>
-                <button onClick={() => { if (form.listItems.length >= 10) { toast.error('Maximum 10 options'); return; } setForm({ ...form, listItems: [...form.listItems, { title: '', description: '', value: '' }] }); }} className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:border-emerald-300 hover:text-emerald-700 text-gray-700 font-semibold transition-colors">
-                  <Plus className="w-4 h-4" /> Add Option
+                <button onClick={() => { if (form.listItems.length >= 10) { toast.error(translateApiMessage("最多 10 个选项")); return; } setForm({ ...form, listItems: [...form.listItems, { title: '', description: '', value: '' }] }); }} className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:border-emerald-300 hover:text-emerald-700 text-gray-700 font-semibold transition-colors">
+                  <Plus className="w-4 h-4" /> 添加选项
                 </button>
               </div>
               {form.listItems.length > 0 && (
                 <input value={form.listButtonText} onChange={(e) => setForm({ ...form, listButtonText: e.target.value })} maxLength={20}
-                  placeholder="List button text (e.g. Menu / Options)"
+                  placeholder={"列表按钮文本（例如菜单/选项）"}
                   className="mb-3 w-full text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
               )}
               {form.listItems.map((it, i) => (
                 <div key={i} className="mb-2 p-3 bg-gray-50/80 rounded-xl ring-1 ring-gray-100">
                   <div className="flex gap-2 items-center">
                     <input value={it.title} onChange={(e) => setForm({ ...form, listItems: form.listItems.map((x, idx) => idx === i ? { ...x, title: e.target.value } : x) })}
-                      placeholder={'Option ' + (i + 1) + ' title (max 24 chars)'} maxLength={24}
+                      placeholder={"选项" + (i + 1) + "标题（最多 24 个字符）"} maxLength={24}
                       className="flex-1 text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
                     <button onClick={() => setForm({ ...form, listItems: form.listItems.filter((_, idx) => idx !== i) })} className="p-1 hover:bg-red-50 rounded"><X className="w-4 h-4 text-red-400" /></button>
                   </div>
                   <input value={it.description || ''} onChange={(e) => setForm({ ...form, listItems: form.listItems.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x) })}
-                    placeholder="Description (optional, max 72 chars)" maxLength={72}
+                    placeholder={"描述（可选，最多 72 个字符）"} maxLength={72}
                     className="mt-2 w-full text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
                   <input value={it.value || ''} onChange={(e) => setForm({ ...form, listItems: form.listItems.map((x, idx) => idx === i ? { ...x, value: e.target.value } : x) })}
-                    placeholder="Value (optional) — auto-reply sent when the customer selects this option"
+                    placeholder={"值（可选）- 当客户选择此选项时发送的自动回复"}
                     className="mt-2 w-full text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
                 </div>
               ))}
@@ -415,26 +399,26 @@ export default function PresetTemplatesPage() {
     <div className="space-y-6">
       <div className="page-hero flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><PiggyBank className="w-7 h-7" /> Preset Templates</h1>
-          <p className="text-emerald-50 text-sm mt-1">No Meta approval needed — send free messages to customers with an open 24-hr window (no template charge)</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><PiggyBank className="w-7 h-7" /> 预设模板</h1>
+          <p className="text-emerald-50 text-sm mt-1">无需元批准 - 通过 24 小时开放窗口向客户发送免费消息（无模板费用）</p>
           <div className="flex flex-wrap gap-2 mt-3">
-            <span className="text-xs font-semibold bg-white/15 backdrop-blur px-3 py-1 rounded-full">{presets.length} templates</span>
-            <span className="text-xs font-semibold bg-white/15 backdrop-blur px-3 py-1 rounded-full">⚡ Instant — no approval</span>
-            <span className="text-xs font-semibold bg-white/15 backdrop-blur px-3 py-1 rounded-full">₹0 per message</span>
+            <span className="text-xs font-semibold bg-white/15 backdrop-blur px-3 py-1 rounded-full">{presets.length} 模板</span>
+            <span className="text-xs font-semibold bg-white/15 backdrop-blur px-3 py-1 rounded-full">⚡ 即时 — 未经批准</span>
+            
           </div>
         </div>
-        <button onClick={() => { setEditId(null); setForm(emptyForm); setView('create'); }} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-emerald-700 hover:bg-emerald-50 text-sm font-bold shadow whitespace-nowrap transition-colors"><Plus className="w-4 h-4" /> Add Preset Template</button>
+        <button onClick={() => { setEditId(null); setForm(emptyForm); setView('create'); }} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-emerald-700 hover:bg-emerald-50 text-sm font-bold shadow whitespace-nowrap transition-colors"><Plus className="w-4 h-4" /> 添加预设模板</button>
       </div>
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input type="text" placeholder="Search preset templates..." value={search} onChange={(e) => setSearch(e.target.value)}
+        <input type="text" placeholder={"搜索预设模板..."} value={search} onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-10 pr-4 py-2.5 rounded-full border border-gray-200 bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
       </div>
 
-      <Table columns={columns} data={filtered} loading={loading} emptyText="No preset templates yet — create your first with Add Preset Template" onBulkDelete={async (ids) => { await Promise.all(ids.map((id) => presetMessageApi.delete(id).catch(() => null))); fetchPresets(); }} />
+      <Table columns={columns} data={filtered} loading={loading} emptyText={"尚无预设模板 — 使用“添加预设模板”创建您的第一个模板"} onBulkDelete={async (ids) => { await Promise.all(ids.map((id) => presetMessageApi.delete(id).catch(() => null))); fetchPresets(); }} />
 
-      <Modal isOpen={!!showPreview} onClose={() => setShowPreview(null)} title={showPreview?.name || 'Preview'} size="md">
+      <Modal isOpen={!!showPreview} onClose={() => setShowPreview(null)} title={showPreview?.name || "预览"} size="md">
         {showPreview && (
           <div className="flex justify-center">
             <WhatsAppPhonePreview data={presetToPreview(showPreview)} />

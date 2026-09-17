@@ -3,6 +3,16 @@ import React from 'react';
 import { Image as ImageIcon, Video, File, Phone, ExternalLink, Reply, ChevronLeft, Smile, Send } from 'lucide-react';
 
 export interface PreviewButton { type?: string; text: string; }
+// A document sent without a filename shows as "Untitled" in WhatsApp; the panel
+// preview mirrors the readable name derived from the media URL.
+const docName = (url?: string) => {
+  const base = (url || '').split('?')[0].split('/').pop() || '';
+  if (!base) return 'Document';
+  let name = base;
+  try { name = decodeURIComponent(base); } catch { name = base; }
+  return name.replace(/^\d{10,}-/, '').replace(/_/g, ' ') || 'Document';
+};
+
 export interface PreviewData {
   headerType?: string;
   headerText?: string;
@@ -28,7 +38,7 @@ export default function WhatsAppPhonePreview({ data, title }: { data: PreviewDat
       <div className="bg-[#075e54] text-white flex items-center gap-2 px-3 py-2.5">
         <ChevronLeft className="w-4 h-4 opacity-80" />
         <div className="w-7 h-7 rounded-full bg-white/25 flex items-center justify-center text-xs font-semibold">B</div>
-        <span className="text-sm font-medium truncate">{title || 'Business'}</span>
+        <span className="text-sm font-medium truncate">{title || "业务"}</span>
       </div>
       {/* chat area */}
       <div className="min-h-[380px] px-3 py-4 flex flex-col justify-end" style={{ backgroundColor: '#efe7dd', backgroundImage: DOODLE_BG }}>
@@ -44,13 +54,13 @@ export default function WhatsAppPhonePreview({ data, title }: { data: PreviewDat
           {data.headerType === 'document' && (
             <div className="w-full p-2.5 bg-gray-100 rounded-md mb-1.5 flex items-center gap-2">
               <File className="w-5 h-5 text-red-500 shrink-0" />
-              <span className="text-xs text-gray-600 truncate">{url ? url.split('/').pop() : 'Document'}</span>
+              <span className="text-xs text-gray-600 truncate">{docName(url)}</span>
             </div>
           )}
           {data.headerType === 'text' && data.headerText && (
             <p className="font-bold text-gray-900 text-sm px-1 pt-0.5">{data.headerText}</p>
           )}
-          <p className="text-sm text-gray-800 whitespace-pre-wrap px-1 py-0.5">{data.body || 'Your message will appear here...'}</p>
+          <p className="text-sm text-gray-800 whitespace-pre-wrap px-1 py-0.5">{data.body || "您的消息将出现在这里..."}</p>
           {data.footer && <p className="text-[11px] text-gray-400 px-1">{data.footer}</p>}
           <p className="text-[10px] text-gray-400 text-right px-1 pb-0.5">{now}</p>
           {btns.length > 0 && (

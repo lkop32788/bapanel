@@ -1,6 +1,5 @@
 const Workspace = require('../models/Workspace');
 const User = require('../models/User');
-const crypto = require('crypto');
 const WhatsAppService = require('../services/whatsappService');
 const axios = require('axios');
 const SystemSettings = require('../models/SystemSettings');
@@ -222,82 +221,6 @@ const deleteWorkspace = async (req, res) => {
   }
 };
 
-// @POST /api/workspaces/:id/api-key
-const generateApiKey = async (req, res) => {
-  try {
-    const workspace = await Workspace.findById(req.params.id);
-    if (!workspace) {
-      return res.status(404).json({ success: false, message: 'Workspace not found' });
-    }
-
-    if (workspace.owner.toString() !== req.user._id.toString() && req.user.role !== 'super_admin') {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-
-    workspace.apiKey = crypto.randomBytes(32).toString('hex');
-    await workspace.save();
-
-    res.json({ success: true, data: { apiKey: workspace.apiKey } });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// @GET /api/workspaces/:id/api-webhooks — list developer webhook subscriptions
-const listApiWebhooks = async (req, res) => {
-  try {
-    const workspace = await Workspace.findById(req.params.id).select('owner members apiWebhooks');
-    if (!workspace) return res.status(404).json({ success: false, message: 'Workspace not found' });
-    const isMember = workspace.owner.toString() === req.user._id.toString()
-      || (workspace.members || []).some(m => m.user.toString() === req.user._id.toString());
-    if (!isMember && req.user.role !== 'super_admin') {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-    res.json({ success: true, data: workspace.apiWebhooks || [] });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// @POST /api/workspaces/:id/api-webhooks { url, events } — add a webhook subscription
-const addApiWebhook = async (req, res) => {
-  try {
-    const { url, events } = req.body;
-    if (!url || !/^https?:\/\//.test(url)) {
-      return res.status(400).json({ success: false, message: 'A valid http(s) URL is required' });
-    }
-    const allowed = ['message.received', 'contact.created', 'message.status'];
-    const evs = (Array.isArray(events) ? events : []).filter(e => allowed.includes(e));
-    if (!evs.length) return res.status(400).json({ success: false, message: 'Select at least one event' });
-    const workspace = await Workspace.findById(req.params.id);
-    if (!workspace) return res.status(404).json({ success: false, message: 'Workspace not found' });
-    if (workspace.owner.toString() !== req.user._id.toString() && req.user.role !== 'super_admin') {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-    workspace.apiWebhooks.push({ url, events: evs });
-    await workspace.save();
-    res.json({ success: true, data: workspace.apiWebhooks[workspace.apiWebhooks.length - 1] });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// @DELETE /api/workspaces/:id/api-webhooks/:hookId — remove a webhook subscription
-const deleteApiWebhook = async (req, res) => {
-  try {
-    const workspace = await Workspace.findById(req.params.id);
-    if (!workspace) return res.status(404).json({ success: false, message: 'Workspace not found' });
-    if (workspace.owner.toString() !== req.user._id.toString() && req.user.role !== 'super_admin') {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-    workspace.apiWebhooks = (workspace.apiWebhooks || []).filter(h => h._id.toString() !== req.params.hookId);
-    await workspace.save();
-    res.json({ success: true, message: 'Webhook removed' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 // @PUT /api/workspaces/:id/whatsapp
 const updateWhatsAppConfig = async (req, res) => {
   try {
@@ -482,8 +405,7 @@ const getWhatsAppHealth = async (req, res) => {
 
 module.exports = {
   getWorkspaces, createWorkspace, getWorkspace, updateWorkspace,
-  deleteWorkspace, generateApiKey, addMember, removeMember, updateWhatsAppConfig, refreshWhatsAppDetails, getWhatsAppHealth,
-  listApiWebhooks, addApiWebhook, deleteApiWebhook,
+  deleteWorkspace, addMember, removeMember, updateWhatsAppConfig, refreshWhatsAppDetails, getWhatsAppHealth,
 };
 
 

@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit, Users } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -49,19 +50,19 @@ export default function TeamsPage() {
       } else {
         await api.post('/teams', form);
       }
-      toast.success(editItem ? 'Updated' : 'Created');
+      toast.success(translateApiMessage(editItem ? "已更新" : "已创建"));
       setShowModal(false);
       setEditItem(null);
       fetchTeams();
     } catch {
-      toast.error('Failed');
+      toast.error(translateApiMessage("操作失败"));
     } finally { setSubmitting(false); }
   };
 
   const columns = [
     {
       key: 'name',
-      title: 'Team Name',
+      title: "团队名称",
       render: (t: Team) => (
         <div>
           <span className="font-medium">{t.name}</span>
@@ -73,7 +74,7 @@ export default function TeamsPage() {
     },
     {
       key: 'members',
-      title: 'Members',
+      title: "成员",
       render: (t: Team) => (
         <div className="flex items-center gap-1">
           <Users className="w-4 h-4 text-gray-400" />
@@ -83,7 +84,7 @@ export default function TeamsPage() {
     },
     {
       key: 'created',
-      title: 'Created',
+      title: "已创建",
       render: (t: Team) => (
         <span className="text-sm text-gray-500">
           {new Date(t.createdAt).toLocaleDateString()}
@@ -107,8 +108,8 @@ export default function TeamsPage() {
           </button>
           <button
             onClick={() => {
-              if (confirm('Delete this team?'))
-                api.delete(`/teams/${t._id}`).then(() => { fetchTeams(); toast.success('Team deleted'); }).catch(() => toast.error('Delete failed'));
+              if (confirm("删除该团队？"))
+                api.delete(`/teams/${t._id}`).then(() => { fetchTeams(); toast.success(translateApiMessage("团队已删除")); }).catch(() => toast.error(translateApiMessage("删除失败")));
             }}
             className="p-1 hover:bg-red-50 rounded"
           >
@@ -123,9 +124,9 @@ export default function TeamsPage() {
     <div className="space-y-6">
       <div className="page-hero flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Teams</h1>
+          <h1 className="text-2xl font-bold text-gray-900">团队</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage your teams and members
+            管理您的团队和成员
           </p>
         </div>
         <Button
@@ -136,7 +137,7 @@ export default function TeamsPage() {
             setShowModal(true);
           }}
         >
-          Create Team
+          创建团队
         </Button>
       </div>
 
@@ -148,24 +149,24 @@ export default function TeamsPage() {
           setShowModal(false);
           setEditItem(null);
         }}
-        title={editItem ? 'Edit Team' : 'Create Team'}
+        title={editItem ? "编辑团队" : "创建团队"}
       >
         <div className="space-y-4">
           <Input
-            label="Team Name"
+            label={"团队名称"}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
           />
           <Input
-            label="Description"
+            label={"说明"}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Optional description"
+            placeholder={"可选描述"}
           />
           <div className="flex gap-2 pt-2">
             <Button onClick={handleSave}>
-              {editItem ? 'Update' : 'Create'}
+              {editItem ? "更新" : "创建"}
             </Button>
             <Button
               variant="secondary"
@@ -174,7 +175,7 @@ export default function TeamsPage() {
                 setEditItem(null);
               }}
             >
-              Cancel
+              取消
             </Button>
           </div>
         </div>

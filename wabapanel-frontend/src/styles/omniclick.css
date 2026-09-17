@@ -1,0 +1,197 @@
+/* OmniClick reference: AppShell 56/200px slate rail, blue-600 actions,
+   system font, gray-50 work area, 24px content gutters, compact controls. */
+html[data-ui="omniclick"] {
+  --background: #f9fafb;
+  --foreground: #111827;
+  --brand: #2563eb !important;
+  --app-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  accent-color: #2563eb;
+}
+html[data-ui="omniclick"] body {
+  font-family: var(--app-font);
+  background: #f9fafb;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.5;
+}
+html[data-ui="omniclick"] button { transition: background-color 150ms, color 150ms, border-color 150ms; }
+html[data-ui="omniclick"] button:active { transform: none; }
+
+/* Wide screens show labels; smaller desktop screens use a compact icon rail. */
+html[data-ui="omniclick"] [data-kkhs-aside] {
+  width: 200px !important;
+  flex: none;
+  background: #111827 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #d1d5db;
+  overflow: hidden;
+  transition: width 200ms, transform 200ms;
+}
+html[data-ui="omniclick"] [data-kkhs-side] { padding: 12px 0; }
+html[data-ui="omniclick"] [data-ui-side-brand] { padding: 0 12px; margin-bottom: 12px; }
+html[data-ui="omniclick"] [data-ui-side-name] {
+  display: block; color: #fff; font-size: 20px; font-weight: 900;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-height: 28px;
+}
+html[data-ui="omniclick"] [data-ui-side-mark] {
+  display: none; width: 40px; height: 40px; border-radius: 8px;
+  align-items: center; justify-content: center; background: #2563eb;
+  color: #fff; font-size: 16px; font-weight: 700;
+}
+html[data-ui="omniclick"] [data-ui-side-mark] img { width: 28px; height: 28px; object-fit: contain; }
+html[data-ui="omniclick"] [data-kkhs-nav] { padding: 0; scrollbar-width: thin; scrollbar-color: #374151 transparent; }
+html[data-ui="omniclick"] [data-kkhs-nav] > div { margin-bottom: 4px; }
+html[data-ui="omniclick"] [data-kkhs-ghead] {
+  width: calc(100% - 16px); margin: 0 8px; padding: 8px;
+  height: 40px; gap: 8px; border-radius: 8px !important;
+  color: #d1d5db !important; font-size: 14px !important;
+  font-weight: 400 !important; letter-spacing: normal !important;
+  background: transparent !important; box-shadow: none !important;
+  white-space: nowrap;
+}
+html[data-ui="omniclick"] [data-ui-nav-icon] {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; flex: none; font-size: 18px; line-height: 24px;
+}
+html[data-ui="omniclick"] [data-ui-nav-icon] svg { width: 18px; height: 18px; color: #9ca3af !important; }
+html[data-ui="omniclick"] [data-kkhs-ghead]:hover,
+html[data-ui="omniclick"] [data-kkhs-ni]:hover { background: #374151 !important; color: #fff !important; }
+html[data-ui="omniclick"] [data-kkhs-ghead="on"],
+html[data-ui="omniclick"] [data-kkhs-ni="on"] {
+  background: #2563eb !important; color: #fff !important;
+  border-color: transparent !important; box-shadow: none !important;
+}
+html[data-ui="omniclick"] [data-kkhs-ghead="on"] svg,
+html[data-ui="omniclick"] [data-kkhs-ni="on"] svg { color: #fff !important; }
+html[data-ui="omniclick"] [data-kkhs-cv] { color: #9ca3af; }
+html[data-ui="omniclick"] [data-kkhs-gkids] { margin: 4px 8px 0 24px; padding-left: 8px; border-left: 1px solid #374151; }
+html[data-ui="omniclick"] [data-kkhs-ni] {
+  margin: 4px 0 0 !important; padding: 6px 8px !important;
+  border: 0 !important; border-radius: 8px !important;
+  font-size: 13px; font-weight: 400; color: #d1d5db !important;
+  gap: 8px; box-shadow: none !important;
+}
+html[data-ui="omniclick"] [data-kkhs-userfoot] { padding: 8px; border-color: #1f2937; margin-top: 8px; }
+html[data-ui="omniclick"] [data-kkhs-userfoot] > div { gap: 8px; }
+html[data-ui="omniclick"] [data-kkhs-userfoot] a { margin: 0; padding: 0; gap: 8px; }
+html[data-ui="omniclick"] [data-kkhs-userfoot] a:hover { background: transparent; }
+html[data-ui="omniclick"] [data-kkhs-userfoot] .rounded-full { background: #374151 !important; color: #d1d5db !important; flex: none; }
+html[data-ui="omniclick"] [data-kkhs-userfoot] .text-gray-900 { color: #fff; }
+html[data-ui="omniclick"] [data-kkhs-userfoot] .text-gray-500 { color: #9ca3af; }
+html[data-ui="omniclick"] [data-kkhs-userfoot] button { color: #9ca3af; padding: 4px; border-radius: 4px; }
+html[data-ui="omniclick"] [data-kkhs-userfoot] button:hover { background: #374151; color: #fff; }
+@media (min-width: 1024px) and (max-width: 1279px) {
+  html[data-ui="omniclick"] [data-kkhs-aside] { width: 56px !important; }
+  html[data-ui="omniclick"] [data-kkhs-aside]:is(:hover, :focus-within) { width: 200px !important; }
+  html[data-ui="omniclick"] [data-kkhs-aside]:not(:hover):not(:focus-within) [data-ui-side-brand] { padding: 0 8px; }
+  html[data-ui="omniclick"] [data-kkhs-aside]:not(:hover):not(:focus-within) [data-ui-side-name],
+  html[data-ui="omniclick"] [data-kkhs-aside]:not(:hover):not(:focus-within) [data-ui-nav-label],
+  html[data-ui="omniclick"] [data-kkhs-aside]:not(:hover):not(:focus-within) [data-kkhs-gkids],
+  html[data-ui="omniclick"] [data-kkhs-aside]:not(:hover):not(:focus-within) [data-kkhs-cv],
+  html[data-ui="omniclick"] [data-kkhs-aside]:not(:hover):not(:focus-within) [data-kkhs-userfoot] a { display: none; }
+  html[data-ui="omniclick"] [data-kkhs-aside]:not(:hover):not(:focus-within) [data-ui-side-mark] { display: flex; }
+  html[data-ui="omniclick"] [data-kkhs-aside]:not(:hover):not(:focus-within) [data-kkhs-userfoot] button { width: 40px; display: flex; justify-content: center; }
+}
+
+/* Content uses the reference's 24px gutters and understated page titles. */
+html[data-ui="omniclick"] [data-kkhs-top] {
+  height: 44px; min-height: 44px; padding: 0 24px;
+  background: #fff !important; border-color: #e5e7eb !important;
+  box-shadow: none; backdrop-filter: none;
+}
+html[data-ui="omniclick"] [data-kkhs-top] input { font-size: 12px; border-radius: 4px; height: 28px; max-width: 240px; }
+html[data-ui="omniclick"] [data-kkhs-top] button { box-shadow: none; font-size: 12px; }
+html[data-ui="omniclick"] main { background: #fff; padding: 24px !important; }
+html[data-ui="omniclick"] main > .space-y-6 { max-width: 1152px; margin-left: auto; margin-right: auto; }
+html[data-ui="omniclick"] .page-hero {
+  background: transparent !important; background-image: none !important;
+  border: 0; border-radius: 0; padding: 0; box-shadow: none !important;
+  color: #111827;
+}
+html[data-ui="omniclick"] .page-hero h1 { color: #111827 !important; font-size: 20px; font-weight: 700; line-height: 28px; }
+html[data-ui="omniclick"] .page-hero h1 svg { color: #6b7280 !important; width: 20px; height: 20px; }
+html[data-ui="omniclick"] .page-hero > p,
+html[data-ui="omniclick"] .page-hero > div > p,
+html[data-ui="omniclick"] .page-hero > p *,
+html[data-ui="omniclick"] .page-hero > div > p * { color: #9ca3af !important; }
+html[data-ui="omniclick"] .page-hero .bg-white\/20 { background: #eff6ff; color: #2563eb; backdrop-filter: none; }
+html[data-ui="omniclick"] [data-ui-section-title] > div { display: none; }
+html[data-ui="omniclick"] [data-ui-section-title] h2 { font-size: 14px; line-height: 20px; font-weight: 600; color: #4b5563; }
+html[data-ui="omniclick"] main .bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl),
+html[data-ui="omniclick"] [data-kkhs-card],
+html[data-ui="omniclick"] [data-kkhs-table] {
+  border-radius: 12px !important; border: 1px solid #e5e7eb !important;
+  box-shadow: none !important;
+}
+html[data-ui="omniclick"] [data-kkhs-card="stat"] { padding: 16px; transform: none !important; }
+html[data-ui="omniclick"] [data-kkhs-card="stat"] .w-12 { display: none; }
+html[data-ui="omniclick"] [data-kkhs-card="stat"] > div > div:first-child { display: flex; flex-direction: column; }
+html[data-ui="omniclick"] [data-kkhs-card="stat"] .text-2xl { order: -1; margin-top: 0; margin-bottom: 2px; font-size: 24px; }
+html[data-ui="omniclick"] main a:hover { transform: none; }
+
+/* Controls use the exact 4px radius and 14px type from the reference. */
+html[data-ui="omniclick"] main :is(input, select, textarea),
+html[data-ui="omniclick"] [data-kkhs-inp] { border-radius: 4px !important; background-color: #fff; }
+html[data-ui="omniclick"] :is(input, select, textarea):focus { border-color: #3b82f6 !important; --tw-ring-color: #3b82f6 !important; }
+html[data-ui="omniclick"] [data-kkhs-inp]:not(:focus):not(.border-red-500) { border-color: #d1d5db; }
+html[data-ui="omniclick"] [data-kkhs-btn] { border-radius: 4px !important; font-weight: 500; box-shadow: none !important; }
+html[data-ui="omniclick"] [data-kkhs-btn="primary"],
+html[data-ui="omniclick"] main button:is(.bg-emerald-500, .bg-emerald-600, .bg-emerald-700),
+html[data-ui="omniclick"] .page-hero [data-kkhs-btn="primary"] {
+  background: #2563eb !important; color: #fff !important;
+  border-color: #2563eb !important; box-shadow: none !important;
+}
+html[data-ui="omniclick"] [data-kkhs-btn="primary"] svg,
+html[data-ui="omniclick"] .page-hero [data-kkhs-btn="primary"] svg { color: #fff !important; }
+html[data-ui="omniclick"] [data-kkhs-btn="primary"]:hover,
+html[data-ui="omniclick"] main button.bg-emerald-600:hover { background: #1d4ed8 !important; }
+html[data-ui="omniclick"] :is(a.text-violet-600, button.text-violet-600) { color: #2563eb !important; }
+html[data-ui="omniclick"] [data-kkhs-table] thead { background: #f9fafb; }
+html[data-ui="omniclick"] [data-kkhs-table] th { font-size: 12px; color: #6b7280; font-weight: 500; padding-top: 12px; padding-bottom: 12px; }
+html[data-ui="omniclick"] [data-kkhs-table] td { font-size: 14px; padding-top: 12px; padding-bottom: 12px; border-color: #f3f4f6; }
+
+/* Compact centred authentication card, no advertising panel. */
+html[data-ui="omniclick"] [data-ui-auth] { background: #f9fafb; }
+html[data-ui="omniclick"] [data-ui-auth-side] { display: none !important; }
+html[data-ui="omniclick"] [data-ui-auth] .max-w-md { max-width: 384px; }
+html[data-ui="omniclick"] [data-ui-auth-card] { border-radius: 8px !important; border: 0; padding: 32px; box-shadow: 0 1px 3px rgb(0 0 0 / .1) !important; }
+html[data-ui="omniclick"] [data-ui-auth-heading] { text-align: left; margin-bottom: 24px; }
+html[data-ui="omniclick"] [data-ui-auth-heading] h1 { font-size: 24px; }
+html[data-ui="omniclick"] [data-ui-auth-heading] img { display: block; }
+html[data-ui="omniclick"] [data-ui-auth-card] [data-kkhs-inp] { padding: 8px 12px; border-radius: 4px !important; background: #fff; font-size: 14px; }
+html[data-ui="omniclick"] [data-ui-auth-card] .pointer-events-none { display: none; }
+
+/* Inbox: 320px list, edge-to-edge panes, 12px/14px text and blue bubbles. */
+html[data-ui="omniclick"] main:has([data-ui-inbox]) { padding: 0 !important; overflow: hidden; }
+html[data-ui="omniclick"] [data-ui-inbox] { height: calc(100dvh - 44px); margin: 0; border: 0 !important; border-radius: 0 !important; }
+html[data-ui="omniclick"] [data-ui-inbox] [data-kkhs-list] { width: 320px; flex: none; }
+html[data-ui="omniclick"] [data-ui-message-list] { background: #f3f4f6; }
+html[data-ui="omniclick"] [data-kkhs-msg] { border-radius: 16px; padding: 8px 12px; box-shadow: none; font-size: 14px; }
+html[data-ui="omniclick"] [data-kkhs-msg="out"] { background: #2563eb; color: #fff; border-bottom-right-radius: 4px; }
+html[data-ui="omniclick"] [data-kkhs-msg="out"] > .text-gray-500,
+html[data-ui="omniclick"] [data-kkhs-msg="out"] > .text-emerald-800,
+html[data-ui="omniclick"] [data-kkhs-msg="out"] > .text-emerald-700 { color: #dbeafe; }
+html[data-ui="omniclick"] [data-kkhs-msg="in"] { background: #fff; color: #1f2937; border: 1px solid #e5e7eb; border-bottom-left-radius: 4px; }
+@media (max-width: 1023px) {
+  html[data-ui="omniclick"] [data-kkhs-top] { padding-left: 56px; padding-right: 12px; }
+}
+@media (max-width: 640px) {
+  html[data-ui="omniclick"] main { padding: 16px !important; }
+  html[data-ui="omniclick"] [data-ui-auth-card] { padding: 24px; }
+  html[data-ui="omniclick"] [data-ui-inbox] [data-kkhs-list] { width: 100%; }
+}
+
+html[data-ui="omniclick"] [data-ui-inbox-tabs] { border-bottom: 1px solid #f3f4f6; gap: 0; }
+html[data-ui="omniclick"] main [data-ui-inbox-tabs] button {
+  flex: 1; background: transparent !important; border-radius: 0;
+  padding: 8px 4px; font-size: 12px; font-weight: 500;
+  color: #6b7280 !important; border-bottom: 2px solid transparent;
+}
+html[data-ui="omniclick"] main [data-ui-inbox-tabs] button[aria-pressed="true"] { color: #2563eb !important; border-bottom-color: #2563eb; }
+html[data-ui="omniclick"] [data-kkhs-conv] > button { padding: 12px 16px; }
+html[data-ui="omniclick"] [data-kkhs-conv][aria-selected="true"] > button { background: #eff6ff; border-left: 4px solid #3b82f6; padding-left: 12px; }
+html[data-ui="omniclick"] [data-ui-inbox] input[placeholder="搜索会话..."] { background: #fff; padding-left: 12px; font-size: 14px; }
+html[data-ui="omniclick"] [data-ui-inbox] .relative:has(> input[placeholder="搜索会话..."]) > svg { display: none; }
+html[data-ui="omniclick"] [data-ui-nav-toggle] { top: 6px; left: 12px; padding: 6px; border-radius: 4px; box-shadow: none; }

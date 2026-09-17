@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import { translateDisplay } from '@/lib/zhDisplay';
 
 export interface BadgeProps {
   children: React.ReactNode;
@@ -18,8 +19,8 @@ const variantStyles = {
 
 export default function Badge({ children, variant = 'default', size = 'sm', className = '' }: BadgeProps) {
   return (
-    <span className={`inline-flex items-center rounded-full font-medium ${variantStyles[variant]} ${size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'} ${className}`}>
-      {children}
+    <span data-kkhs-pill={variant} className={`inline-flex items-center rounded-full font-medium ${variantStyles[variant]} ${size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-sm'} ${className}`}>
+      {translateDisplay(children)}
     </span>
   );
 }

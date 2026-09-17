@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2, Edit, Tags, Hash } from 'lucide-react';
@@ -33,12 +34,12 @@ export default function TagsPage() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      if (editTag) { await tagApi.update(editTag._id, form); toast.success('Label updated'); }
-      else { await tagApi.create(form); toast.success('Label created'); }
+      if (editTag) { await tagApi.update(editTag._id, form); toast.success(translateApiMessage("标签已更新")); }
+      else { await tagApi.create(form); toast.success(translateApiMessage("标签已创建")); }
       setShowModal(false); setEditTag(null); setForm({ name: '', color: '#10B981' }); fetchTags();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "操作失败"));
     } finally {
       setSubmitting(false);
     }
@@ -48,8 +49,8 @@ export default function TagsPage() {
     if (submitting) return;
     setSubmitting(true);
 
-    if (!confirm('Delete this label?')) return;
-    try { await tagApi.delete(id); toast.success('Deleted'); fetchTags(); } catch { toast.error('Failed'); } finally { setSubmitting(false); }
+    if (!confirm("删除这个标签？")) return;
+    try { await tagApi.delete(id); toast.success(translateApiMessage("已删除")); fetchTags(); } catch { toast.error(translateApiMessage("操作失败")); } finally { setSubmitting(false); }
   };
 
   const toggleSelect = (id: string) => {
@@ -61,26 +62,26 @@ export default function TagsPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm('Delete ' + selectedIds.length + ' selected items?')) return;
+    if (!confirm("删除" + selectedIds.length + "选择的项目？")) return;
     if (submitting) return;
     setSubmitting(true);
     try {
       await Promise.all(selectedIds.map(id => tagApi.delete(id)));
-      toast.success(selectedIds.length + ' items deleted');
+      toast.success(translateApiMessage(selectedIds.length + "项目已删除"));
       setSelectedIds([]);
       fetchTags();
-    } catch { toast.error('Failed to delete some items'); } finally { setSubmitting(false); }
+    } catch { toast.error(translateApiMessage("删除某些项目失败")); } finally { setSubmitting(false); }
   };
 
   return (
     <div className="space-y-6">
       <div className="page-hero flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Labels</h1>
-          <p className="text-gray-500 text-sm mt-1">Label and organize contacts (products / services)</p>
+          <h1 className="text-2xl font-bold text-gray-900">标签</h1>
+          <p className="text-gray-500 text-sm mt-1">标记和组织联系人（产品/服务）</p>
         </div>
         <Button icon={<Plus className="w-4 h-4" />} onClick={() => { setEditTag(null); setForm({ name: '', color: '#10B981' }); setShowModal(true); }}>
-          Create Label
+          创建标签
         </Button>
       </div>
 
@@ -88,23 +89,23 @@ export default function TagsPage() {
         <div className={`flex items-center justify-between rounded-lg px-4 py-2.5 border ${selectedIds.length ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
             <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="w-4 h-4 accent-red-500 cursor-pointer" />
-            Select all{selectedIds.length > 0 && <span className="text-red-700"> · {selectedIds.length} selected</span>}
+            全选{selectedIds.length > 0 && <span className="text-red-700"> · {selectedIds.length} 已选择</span>}
           </label>
           {selectedIds.length > 0 && (
             <div className="flex gap-2">
-              <Button size="sm" variant="secondary" onClick={() => setSelectedIds([])}>Clear</Button>
-              <Button size="sm" variant="danger" icon={<Trash2 className="w-4 h-4" />} onClick={handleBulkDelete} disabled={submitting}>Delete selected</Button>
+              <Button size="sm" variant="secondary" onClick={() => setSelectedIds([])}>清除</Button>
+              <Button size="sm" variant="danger" icon={<Trash2 className="w-4 h-4" />} onClick={handleBulkDelete} disabled={submitting}>删除所选内容</Button>
             </div>
           )}
         </div>
       )}
 
       {loading ? (
-        <div className="text-center py-8 text-gray-400">Loading...</div>
+        <div className="text-center py-8 text-gray-400">加载中…</div>
       ) : tags.length === 0 ? (
         <Card className="text-center py-12">
           <Tags className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No labels created yet</p>
+          <p className="text-gray-500">尚未创建标签</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -116,14 +117,14 @@ export default function TagsPage() {
                   type="button"
                   onClick={() => router.push(`/client/contacts?tag=${tag._id}`)}
                   className="flex items-center gap-3 text-left flex-1 min-w-0 group"
-                  title="View contacts with this label"
+                  title={"查看具有此标签的联系人"}
                 >
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: (tag.color || '#10B981') + '20' }}>
                     <Hash className="w-4 h-4" style={{ color: tag.color || '#10B981' }} />
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium text-gray-900 truncate group-hover:text-emerald-600">{tag.name}</p>
-                    <p className="text-xs text-gray-500">{tag.contactCount || 0} contacts</p>
+                    <p className="text-xs text-gray-500">{tag.contactCount || 0} 联系人</p>
                   </div>
                 </button>
                 <div className="flex gap-1 shrink-0">
@@ -136,11 +137,11 @@ export default function TagsPage() {
         </div>
       )}
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editTag ? 'Edit Label' : 'Create Label'} size="sm">
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editTag ? "编辑标签" : "创建标签"} size="sm">
         <div className="space-y-4">
-          <Input label="Label Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <Input label={"标签名称"} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">颜色</label>
             <div className="flex gap-2 flex-wrap">
               {COLORS.map((c) => (
                 <button key={c} onClick={() => setForm({ ...form, color: c })}
@@ -148,12 +149,12 @@ export default function TagsPage() {
                   style={{ backgroundColor: c }} />
               ))}
               <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}
-                title="Custom colour" className="w-8 h-8 p-0 border border-gray-200 rounded cursor-pointer" />
+                title={"自定义颜色"} className="w-8 h-8 p-0 border border-gray-200 rounded cursor-pointer" />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button onClick={handleSave}>{editTag ? 'Update' : 'Create'}</Button>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>取消</Button>
+            <Button onClick={handleSave}>{editTag ? "更新" : "创建"}</Button>
           </div>
         </div>
       </Modal>

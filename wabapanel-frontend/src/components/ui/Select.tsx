@@ -1,4 +1,5 @@
 'use client';
+import { translateDisplay } from '@/lib/zhDisplay';
 import React from 'react';
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
@@ -16,7 +17,7 @@ export default function Select({ label, error, options, className = '', ...props
         {...props}
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
+          <option key={opt.value} value={opt.value}>{translateDisplay(opt.label)}</option>
         ))}
       </select>
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}

@@ -1,4 +1,4 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 
 # Build
@@ -34,3 +34,8 @@ Thumbs.db
 # Temporary
 *.tmp
 *.temp
+
+# Local runtime state
+.next/
+.site-cache/
+installed.lock

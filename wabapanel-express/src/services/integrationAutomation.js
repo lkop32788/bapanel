@@ -32,8 +32,7 @@ const SOURCE_LABELS = {
   'landing-pages': 'Landing Page', flexifunnels: 'FlexiFunnels', website: 'Website',
   'linkedin-ads': 'LinkedIn Lead Gen', 'twitter-ads': 'X (Twitter) Ads',
   leadsquared: 'LeadSquared', gohighlevel: 'GoHighLevel',
-  'facebook-leads': 'Facebook Lead Ads', shopify: 'Shopify', shiprocket: 'Shiprocket',
-  woocommerce: 'WooCommerce',
+  'facebook-leads': 'Facebook Lead Ads',
 };
 
 const tplName = (type, suffix) => `${type.replace(/[^a-z0-9]/g, '_')}_${suffix}`;
@@ -41,39 +40,7 @@ const tplName = (type, suffix) => `${type.replace(/[^a-z0-9]/g, '_')}_${suffix}`
 // Recommended template presets per integration type
 function getPresets(type) {
   const label = SOURCE_LABELS[type] || type;
-  if (type === 'shopify') {
-    return [
-      { key: 'order_created', event: 'order_created', eventLabel: 'New order placed', name: tplName(type, 'order_confirm'), label: 'Order Confirmation',
-        body: 'Hi {{1}}, your order #{{2}} of {{3}} has been confirmed! We will notify you once it ships. Thank you for shopping with us.',
-        variables: ['Customer name', 'Order number', 'Order amount'], example: ['Rahul', '1001', 'INR 999'] },
-      { key: 'order_fulfilled', event: 'order_fulfilled', eventLabel: 'Order shipped/fulfilled', name: tplName(type, 'order_shipped'), label: 'Order Shipped',
-        body: 'Hi {{1}}, great news! Your order #{{2}} has been shipped. Track it here: {{3}}',
-        variables: ['Customer name', 'Order number', 'Tracking info'], example: ['Rahul', '1001', 'https://track.example.com/123'] },
-      { key: 'order_refunded', event: 'order_refunded', eventLabel: 'Refund/return processed', name: tplName(type, 'order_refund'), label: 'Refund Update',
-        body: 'Hi {{1}}, your refund for order #{{2}} of {{3}} has been processed. It should reflect in your account within 5-7 business days.',
-        variables: ['Customer name', 'Order number', 'Refund amount'], example: ['Rahul', '1001', 'INR 999'] },
-    ];
-  }
-  if (type === 'woocommerce') {
-    return [
-      { key: 'order_created', event: 'order_created', eventLabel: 'New order placed', name: tplName(type, 'order_confirm'), label: 'Order Confirmation',
-        body: 'Hi {{1}}, your order #{{2}} of {{3}} has been confirmed! We will notify you once it ships. Thank you for shopping with us.',
-        variables: ['Customer name', 'Order number', 'Order amount'], example: ['Rahul', '1001', 'INR 999'] },
-      { key: 'order_completed', event: 'order_completed', eventLabel: 'Order completed/shipped', name: tplName(type, 'order_done'), label: 'Order Completed',
-        body: 'Hi {{1}}, your order #{{2}} is complete. Thank you for shopping with us \u2014 we hope to see you again!',
-        variables: ['Customer name', 'Order number'], example: ['Rahul', '1001'] },
-      { key: 'order_refunded', event: 'order_refunded', eventLabel: 'Refund processed', name: tplName(type, 'order_refund'), label: 'Refund Update',
-        body: 'Hi {{1}}, your refund for order #{{2}} of {{3}} has been processed. It should reflect in your account within 5-7 business days.',
-        variables: ['Customer name', 'Order number', 'Refund amount'], example: ['Rahul', '1001', 'INR 999'] },
-    ];
-  }
-  if (type === 'shiprocket') {
-    return [
-      { key: 'shipment_update', event: 'shipment_update', eventLabel: 'Shipment status update', name: tplName(type, 'shipment_update'), label: 'Shipment Update',
-        body: 'Hi {{1}}, update on your order #{{2}}: {{3}}. AWB: {{4}}. Thank you for your patience!',
-        variables: ['Customer name', 'Order ID', 'Status', 'AWB number'], example: ['Rahul', '1001', 'Out for delivery', 'AWB123456'] },
-    ];
-  }
+  if (!LEAD_SOURCES.includes(type)) return [];
   // Generic lead source
   return [
     { key: 'lead', event: 'lead', eventLabel: 'New lead received', name: tplName(type, 'lead_thanks'), label: 'Lead Thank You',
@@ -148,6 +115,7 @@ function normalizePhone(phone) {
 
 async function runAutomation({ workspaceId, type, event, phone, name, email, tags, vars }) {
   try {
+    if (!LEAD_SOURCES.includes(type) || event !== 'lead') return { ok: false, error: 'Unsupported integration event' };
     const integration = await Integration.findOne({ workspace: workspaceId, type, connected: true });
     if (!integration) return { ok: false, error: 'Integration not connected' };
 
@@ -291,7 +259,7 @@ function getEffectivePresets(type, integration) {
       headerImage: o.headerImage || p.headerImage, buttons: o.buttons || p.buttons,
     };
   });
-  const customs = (integration?.customTemplates || []).map((c) => ({ ...c, example: exampleFor(c.body, c.example), custom: true }));
+  const customs = (integration?.customTemplates || []).filter(c => c.event === 'lead' && LEAD_SOURCES.includes(type)).map((c) => ({ ...c, example: exampleFor(c.body, c.example), custom: true }));
   return [...presets, ...customs];
 }
 

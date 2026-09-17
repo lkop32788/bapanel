@@ -10,10 +10,6 @@ module.exports = {
         "href": "/features"
       },
       {
-        "label": "Pricing",
-        "href": "/#pricing"
-      },
-      {
         "label": "About",
         "href": "/about"
       },
@@ -208,15 +204,6 @@ module.exports = {
         }
       ]
     },
-    "pricing": {
-      "badge": "Pricing",
-      "title": "Simple,",
-      "titleHighlight": "transparent",
-      "titleAfter": "pricing",
-      "subtitle": "Choose the plan that fits your business. Upgrade anytime.",
-      "popularBadge": "Most Popular",
-      "buttonText": "Get Started"
-    },
     "faqTitle": "Frequently Asked Questions",
     "faqs": [
       {
@@ -234,14 +221,6 @@ module.exports = {
       {
         "q": "Can I send bulk messages without getting banned?",
         "a": "Yes! We use official WhatsApp Business API with approved templates. Your messages go through Meta's infrastructure with proper rate limiting and compliance checks."
-      },
-      {
-        "q": "How is pricing calculated?",
-        "a": "You pay a platform subscription fee plus WhatsApp conversation charges set by Meta. We don't add any markup on Meta's pricing."
-      },
-      {
-        "q": "Is there a free trial?",
-        "a": "Yes, every new account gets a 14-day free trial with full access to all features. No credit card required to start."
       }
     ],
     "cta": {

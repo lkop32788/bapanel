@@ -131,7 +131,7 @@ const getAutomationSettings = async (req, res) => {
 const updateAutomationSettings = async (req, res) => {
   try {
     const allowed = {};
-    for (const k of ['welcome', 'outOfOffice', 'feedback', 'autoAssignRules', 'icebreakers', 'wishes', 'missedCall', 'winback', 'cartRecovery', 'dailySummary', 'ownerAlerts', 'optOut']) {
+    for (const k of ['welcome', 'outOfOffice', 'feedback', 'autoAssignRules', 'icebreakers', 'wishes', 'missedCall', 'winback', 'dailySummary', 'ownerAlerts', 'optOut']) {
       if (req.body[k] !== undefined) allowed[k] = req.body[k];
     }
     if (allowed.icebreakers) allowed.icebreakers = allowed.icebreakers.filter(Boolean).slice(0, 4);

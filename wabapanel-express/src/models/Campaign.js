@@ -9,7 +9,7 @@ const campaignSchema = new mongoose.Schema({
   status: { type: String, enum: ['draft', 'scheduled', 'running', 'paused', 'completed', 'failed'], default: 'draft' },
 
   // Target audience
-  targetType: { type: String, enum: ['all', 'segment', 'tag', 'contacts', 'numbers', 'pipeline'], default: 'all' },
+  targetType: { type: String, enum: ['all', 'segment', 'tag', 'contacts', 'numbers'], default: 'all' },
   targetChannel: { type: String, default: '' },
   // 'whatsapp_qr' sends via the QR (Baileys) socket instead of the Cloud API
   sendChannel: { type: String, enum: ['cloud', 'whatsapp_qr'], default: 'cloud' },
@@ -19,8 +19,6 @@ const campaignSchema = new mongoose.Schema({
   targetTags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' }],
   targetContacts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Contact' }],
   targetNumbers: [{ type: String }],
-  targetPipeline: { type: mongoose.Schema.Types.ObjectId, ref: 'Pipeline' },
-  targetStage: { type: String, default: '' },
 
   // A/B testing: a share of recipients receives template B instead of A
   abTest: {

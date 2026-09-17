@@ -6,7 +6,6 @@ const presetMessageSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   body: { type: String, default: '' },
   carouselTemplate: { type: String, default: '' },
-  productIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
   cards: [{
     mediaUrl: { type: String, default: '' },
     body: { type: String, default: '' },

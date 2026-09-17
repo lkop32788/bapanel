@@ -66,7 +66,7 @@ async function runNoReplyFollowUps() {
         'lastMessage.direction': 'outbound',
         'lastMessage.timestamp': { $lt: cutoff },
         labels: { $ne: 'follow-up' },
-      }).populate('contact', 'name profileName phone leadScore').limit(20);
+      }).populate('contact', 'name profileName phone').limit(20);
       for (const conv of convs) {
         conv.labels = [...(conv.labels || []), 'follow-up'];
         await conv.save();
@@ -75,8 +75,7 @@ async function runNoReplyFollowUps() {
           try { await Contact.updateOne({ _id: c._id }, { $addToSet: { tags: followUpTagId } }); } catch (e) { /* ignore */ }
         }
         const label = c ? `${c.name || c.profileName || 'Customer'} (${c.phone || ''})` : 'Customer';
-        const score = c?.leadScore ? ` • Lead: ${c.leadScore}` : '';
-        await ownerNotify.notifyOwner(st.workspace, `🔔 *No reply from customer (${hours}h+)*\n\n👤 ${label}${score}\n💬 Last sent: "${(conv.lastMessage?.text || '').slice(0, 120)}"\n\nChat labelled *follow-up* — check Inbox → filter by label.`, 'onNoReply');
+        await ownerNotify.notifyOwner(st.workspace, `🔔 *No reply from customer (${hours}h+)*\n\n👤 ${label}\n💬 Last sent: "${(conv.lastMessage?.text || '').slice(0, 120)}"\n\nChat labelled *follow-up* — check Inbox → filter by label.`, 'onNoReply');
       }
 
       // Backfill: chats already labelled "follow-up" before this fix have no

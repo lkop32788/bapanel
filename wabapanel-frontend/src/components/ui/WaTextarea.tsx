@@ -50,11 +50,11 @@ export default function WaTextarea({ value, onChange, rows = 5, maxLength, place
   return (
     <div>
       <div className="flex items-center gap-1 mb-1 border border-gray-200 rounded-t-lg bg-gray-50 px-1 py-0.5 w-fit">
-        <button type="button" title="Bold" className={btn} onClick={() => wrap('*')}><Bold className="w-4 h-4" /></button>
-        <button type="button" title="Italic" className={btn} onClick={() => wrap('_')}><Italic className="w-4 h-4" /></button>
-        <button type="button" title="Strikethrough" className={btn} onClick={() => wrap('~')}><Strikethrough className="w-4 h-4" /></button>
-        <button type="button" title="Monospace" className={btn} onClick={() => wrap('```')}><Code className="w-4 h-4" /></button>
-        <button type="button" title="List item" className={btn} onClick={() => prefixLine('- ')}><List className="w-4 h-4" /></button>
+        <button type="button" title={"粗体"} className={btn} onClick={() => wrap('*')}><Bold className="w-4 h-4" /></button>
+        <button type="button" title={"斜体"} className={btn} onClick={() => wrap('_')}><Italic className="w-4 h-4" /></button>
+        <button type="button" title={"删除线"} className={btn} onClick={() => wrap('~')}><Strikethrough className="w-4 h-4" /></button>
+        <button type="button" title={"等宽字体"} className={btn} onClick={() => wrap('```')}><Code className="w-4 h-4" /></button>
+        <button type="button" title={"列表项"} className={btn} onClick={() => prefixLine('- ')}><List className="w-4 h-4" /></button>
       </div>
       <textarea
         ref={ref}

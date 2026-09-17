@@ -2,7 +2,6 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const Contact = require('../models/Contact');
 const WhatsAppService = require('../services/whatsappService');
-const { autoLinkToPipeline } = require('../services/pipelineAutoLink');
 const { sendPaginated } = require('../utils/apiResponse');
 
 // @GET /api/conversations
@@ -23,22 +22,9 @@ const getConversations = async (req, res) => {
     if (filter === 'unread') query.unreadCount = { $gt: 0 };
     if (filter === 'assigned') query.assignedAgent = { $ne: null };
     if (filter === 'unassigned') query.assignedAgent = null;
-    if (filter === 'reminder') {
-      const ContactNote = require('../models/ContactNote');
-      const notes = await ContactNote.find({ workspace: req.workspace._id, remindAt: { $ne: null }, contacted: { $ne: true } }).select('contact');
-      query.contact = { $in: notes.map(n => n.contact).filter(Boolean) };
-    }
+    
 
-    if (['hot', 'warm', 'cold'].includes(req.query.lead)) {
-      const leadContacts = await Contact.find({ workspace: req.workspace._id, leadScore: req.query.lead }).select('_id');
-      const leadIds = leadContacts.map(c => c._id);
-      if (query.contact && query.contact.$in) {
-        const set = new Set(query.contact.$in.map(String));
-        query.contact = { $in: leadIds.filter(id => set.has(String(id))) };
-      } else {
-        query.contact = { $in: leadIds };
-      }
-    }
+    
 
     if (search) {
       const contacts = await Contact.find({
@@ -59,7 +45,7 @@ const getConversations = async (req, res) => {
 
     const total = await Conversation.countDocuments(query);
     const conversations = await Conversation.find(query)
-      .populate({ path: 'contact', select: 'name phone avatar profileName leadScore tags badges stage stages', populate: [{ path: 'tags', select: 'name color' }, { path: 'badges', select: 'name color icon' }, { path: 'stage', select: 'name color' }, { path: 'stages', select: 'name color' }] })
+      .populate({ path: 'contact', select: 'name phone avatar profileName tags badges', populate: [{ path: 'tags', select: 'name color' }, { path: 'badges', select: 'name color icon' }] })
       .populate('assignedAgent', 'name avatar')
       .sort({ pinnedAt: -1, updatedAt: -1 })
       .skip((page - 1) * limit)
@@ -383,8 +369,6 @@ const sendMessage = async (req, res) => {
       });
     }
 
-    // Auto-link to pipeline (move to "Contacted" stage on reply)
-    autoLinkToPipeline(req.workspace._id, conversation.contact._id, 'outbound');
 
     res.status(201).json({ success: true, data: message });
   } catch (error) {

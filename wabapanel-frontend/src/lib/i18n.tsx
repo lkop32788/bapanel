@@ -1,6 +1,8 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
+import { zhNavigation } from './zhNavigation';
+
 // Lightweight i18n: English is the source language. Translations are looked up
 // by the English string. Unknown strings fall back to English. Panel menu /
 // navigation labels are translated for a set of major world languages.
@@ -61,20 +63,21 @@ function buildDict(codes: string[]): Record<string, Record<string, string>> {
 }
 
 const DICT = buildDict(Object.keys(TABLES));
+Object.assign(DICT.zh, zhNavigation);
 
 const I18nContext = createContext<{ lang: string; setLang: (l: string) => void; t: (s: string) => string }>({
-  lang: 'en', setLang: () => {}, t: (s) => s,
+  lang: 'zh', setLang: () => {}, t: (s) => DICT.zh[s] || s,
 });
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState('en');
+  const [lang, setLangState] = useState('zh');
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('panel_lang') : null;
-    if (saved && (saved === 'en' || DICT[saved])) setLangState(saved);
+    if (saved && LANGUAGES.some((l) => l.code === saved)) setLangState(saved);
   }, []);
   useEffect(() => {
     const l = LANGUAGES.find(x => x.code === lang);
-    if (typeof document !== 'undefined') document.documentElement.dir = l?.dir === 'rtl' ? 'rtl' : 'ltr';
+    if (typeof document !== 'undefined') { document.documentElement.dir = l?.dir === 'rtl' ? 'rtl' : 'ltr'; document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang; }
   }, [lang]);
   const setLang = useCallback((l: string) => {
     setLangState(l);

@@ -17,17 +17,17 @@ function VerifyEmailContent() {
     didRun.current = true;
     if (!token) {
       setStatus('error');
-      setMessage('Verification link is missing or invalid.');
+      setMessage("验证链接丢失或无效。");
       return;
     }
     authApi.verifyEmail(token)
       .then((res) => {
         setStatus('success');
-        setMessage(res.data.message || 'Email verified successfully.');
+        setMessage(res.data.message || "电子邮件验证成功。");
       })
       .catch((err) => {
         setStatus('error');
-        setMessage(err?.response?.data?.message || 'Invalid or expired verification link.');
+        setMessage(err?.response?.data?.message || "验证链接无效或过期。");
       });
   }, [token]);
 
@@ -37,7 +37,7 @@ function VerifyEmailContent() {
         {status === 'loading' && (
           <>
             <Loader2 className="w-10 h-10 text-violet-600 animate-spin mx-auto mb-4" />
-            <h3 className="text-lg font-semibold">Verifying your email...</h3>
+            <h3 className="text-lg font-semibold">正在验证您的电子邮件...</h3>
           </>
         )}
         {status === 'success' && (
@@ -45,9 +45,9 @@ function VerifyEmailContent() {
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <MailCheck className="w-8 h-8 text-emerald-600" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Email Verified</h3>
+            <h3 className="text-lg font-semibold mb-2">电子邮件已验证</h3>
             <p className="text-gray-500 text-sm mb-4">{message}</p>
-            <Link href="/auth/login" className="inline-block bg-violet-600 hover:bg-violet-700 text-white font-medium px-6 py-2 rounded-lg text-sm">Sign In</Link>
+            <Link href="/auth/login" className="inline-block bg-violet-600 hover:bg-violet-700 text-white font-medium px-6 py-2 rounded-lg text-sm">登录</Link>
           </>
         )}
         {status === 'error' && (
@@ -55,9 +55,9 @@ function VerifyEmailContent() {
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <XCircle className="w-8 h-8 text-red-600" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Verification Failed</h3>
+            <h3 className="text-lg font-semibold mb-2">验证失败</h3>
             <p className="text-gray-500 text-sm mb-4">{message}</p>
-            <Link href="/auth/login" className="text-violet-600 hover:text-violet-700 font-medium text-sm">Back to login</Link>
+            <Link href="/auth/login" className="text-violet-600 hover:text-violet-700 font-medium text-sm">返回登录</Link>
           </>
         )}
       </div>
@@ -67,7 +67,7 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400">Loading...</p></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400">加载中…</p></div>}>
       <VerifyEmailContent />
     </Suspense>
   );

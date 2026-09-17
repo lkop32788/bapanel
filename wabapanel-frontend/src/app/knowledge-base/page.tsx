@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
-import React, { useState, useEffect } from 'react';
+import { translateDisplay } from '@/lib/zhDisplay';
+import React, { useState, useEffect, useContext } from 'react';
+import { SiteSettingsContext } from '@/components/SiteContentProvider';
 import Link from 'next/link';
 import { MessageSquare, Search, BookOpen, Menu, X, Copy, Check, Download, Sparkles, ChevronDown } from 'lucide-react';
 
@@ -16,7 +18,7 @@ export default function KnowledgeBasePage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(useContext(SiteSettingsContext));
   const [mobileMenu, setMobileMenu] = useState(false);
   const [copiedId, setCopiedId] = useState('');
   const [copiedAll, setCopiedAll] = useState(false);
@@ -27,12 +29,12 @@ export default function KnowledgeBasePage() {
   }, []);
 
   useEffect(() => {
-    fetch(`${API}/public/knowledge-base`).then(r => r.json()).then(d => {
+    fetch(`${API}/public/knowledge`).then(r => r.json()).then(d => {
       if (d.success) setArticles(d.data);
     }).catch(() => {});
   }, []);
 
-  const biz: Biz = settings?.business || { name: 'KKHS Media' };
+  const biz: Biz = settings?.business || { name: '' };
   const logo = settings?.branding?.logo;
 
   const guideSections = getGuideSections(biz);
@@ -76,23 +78,23 @@ export default function KnowledgeBasePage() {
   return (
     <div className="min-h-screen bg-[#faf9fe] text-gray-900 overflow-x-hidden">
       {/* Navbar */}
-      <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[92%] max-w-5xl bg-white/80 backdrop-blur-2xl border border-gray-200/60 rounded-2xl shadow-lg shadow-purple-100/30 z-50 px-4 py-2.5">
-        <div className="flex items-center justify-between">
+      <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-6xl bg-white/80 backdrop-blur-2xl border border-gray-200/60 rounded-2xl shadow-lg shadow-purple-100/30 z-50 px-5 py-2.5">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             {logo ? <img src={logo} alt={biz.name} className="h-10 w-auto" /> : (
-              <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-violet-200">
+              <div className="w-9 h-9 bg-linear-to-br from-violet-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-violet-200">
                 <MessageSquare className="w-5 h-5 text-white" />
               </div>
             )}
           </Link>
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-1">
             {(c.nav.links || []).map((l: any, i: number) => (
-              <a key={i} href={l.href} className="text-sm font-bold text-gray-900 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-all">{l.label}</a>
+              <a key={i} href={l.href} className="px-3 py-1.5 text-sm font-bold text-gray-900 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-all">{l.label}</a>
             ))}
           </div>
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2">
             <Link href="/auth/login" className="px-4 py-2 text-sm font-bold text-gray-900 hover:text-violet-700 transition-all">{c.nav.loginText}</Link>
-            <Link href="/auth/register" className="px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-purple-600 rounded-lg shadow-md shadow-violet-200/40 hover:shadow-lg transition-all hover:-translate-y-0.5">{c.nav.registerText}</Link>
+            <Link href="/auth/register" className="px-4 py-2 text-sm font-bold text-white bg-linear-to-r from-violet-600 to-purple-600 rounded-lg shadow-md shadow-violet-200/40 hover:shadow-lg transition-all hover:-translate-y-0.5">{c.nav.registerText}</Link>
           </div>
           <button onClick={() => setMobileMenu(!mobileMenu)} className="md:hidden p-2 rounded-lg hover:bg-gray-100">
             {mobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -105,7 +107,7 @@ export default function KnowledgeBasePage() {
             ))}
             <div className="flex gap-2 pt-2">
               <Link href="/auth/login" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold border border-gray-200 rounded-xl">{c.nav.loginText}</Link>
-              <Link href="/auth/register" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl">{c.nav.registerText}</Link>
+              <Link href="/auth/register" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-white bg-linear-to-r from-violet-600 to-purple-600 rounded-xl">{c.nav.registerText}</Link>
             </div>
           </div>
         )}
@@ -114,21 +116,21 @@ export default function KnowledgeBasePage() {
       {/* Header */}
       <section className="pt-32 md:pt-40 pb-12 px-4 relative">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 right-1/4 w-[400px] h-[400px] bg-gradient-to-br from-violet-200/30 to-purple-100/20 rounded-full blur-3xl" />
+          <div className="absolute top-20 right-1/4 w-[400px] h-[400px] bg-linear-to-br from-violet-200/30 to-purple-100/20 rounded-full blur-3xl" />
         </div>
         <div className="relative max-w-6xl mx-auto">
-          <span className="inline-flex items-center px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full mb-4"><BookOpen className="w-3 h-3 mr-1" /> Knowledge Base</span>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">Knowledge <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">Center</span></h1>
-          <p className="text-lg text-gray-500 max-w-2xl mb-8">Everything you need to know about our platform. Copy-paste ready content for AI training and documentation.</p>
+          <span className="inline-flex items-center px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full mb-4"><BookOpen className="w-3 h-3 mr-1" /> 知识库</span>
+          <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">知识 <span className="bg-linear-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">中心</span></h1>
+          <p className="text-lg text-gray-500 max-w-2xl mb-8">关于我们平台您需要了解的一切。用于人工智能培训和文档的复制粘贴就绪内容。</p>
           <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Search articles..." value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-200 focus:border-violet-400 outline-none shadow-sm" />
+              <input type="text" placeholder={"搜索文章..."} value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-200 focus:border-violet-400 outline-none shadow-sm" />
             </div>
             {categories.length > 0 && (
               <select value={category} onChange={e => setCategory(e.target.value)} className="px-4 py-3.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-200 focus:border-violet-400 outline-none shadow-sm">
-                <option value="">All Categories</option>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="">所有类别</option>
+                {categories.map(c => <option key={c} value={c}>{translateDisplay(c)}</option>)}
               </select>
             )}
           </div>
@@ -138,19 +140,19 @@ export default function KnowledgeBasePage() {
       {/* AI Master Guide */}
       <section className="pb-8 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-6 md:p-8">
+          <div className="rounded-2xl border border-violet-200 bg-linear-to-br from-violet-50 to-white p-6 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
               <div className="flex-1">
-                <span className="inline-flex items-center px-2.5 py-1 bg-violet-600 text-white text-xs font-semibold rounded-full mb-2"><Sparkles className="w-3 h-3 mr-1" /> AI Master Guide</span>
-                <h2 className="text-xl md:text-2xl font-extrabold text-gray-900">Everything about {biz.name}, in one place</h2>
-                <p className="text-sm text-gray-500 mt-1 max-w-2xl">Sales, setup, features, technical fixes and support &mdash; all covered below. Copy the whole guide and paste it into any AI (ChatGPT etc.) to make it an expert on {biz.name}, or download it as a PDF.</p>
+                <span className="inline-flex items-center px-2.5 py-1 bg-violet-600 text-white text-xs font-semibold rounded-full mb-2"><Sparkles className="w-3 h-3 mr-1" /> AI大师指南</span>
+                <h2 className="text-xl md:text-2xl font-extrabold text-gray-900">关于的一切 {biz.name}，在一处</h2>
+                <p className="text-sm text-gray-500 mt-1 max-w-2xl">销售、设置、功能、技术修复和支持 — 全部内容如下。复制整个指南并将其粘贴到任何 AI（ChatGPT 等）中，使其成为以下方面的专家 {biz.name}，或以 PDF 格式下载。</p>
               </div>
               <div className="flex flex-col gap-2 shrink-0">
                 <button onClick={copyAll} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700">
-                  {copiedAll ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} {copiedAll ? 'Copied for AI!' : 'Copy all for AI'}
+                  {copiedAll ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} {copiedAll ? "为 AI 复制！" : "全部复制给AI"}
                 </button>
                 <button onClick={downloadPdf} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-violet-300 text-violet-700 text-sm font-semibold hover:bg-violet-50">
-                  <Download className="w-4 h-4" /> Download PDF
+                  <Download className="w-4 h-4" /> 下载 PDF
                 </button>
               </div>
             </div>
@@ -182,7 +184,7 @@ export default function KnowledgeBasePage() {
                   </div>
                 </div>
               ))}
-              {guideFiltered.length === 0 && <p className="text-sm text-gray-400 py-4">No topics match &ldquo;{search}&rdquo;.</p>}
+              {guideFiltered.length === 0 && <p className="text-sm text-gray-400 py-4">没有主题匹配“{search}”。</p>}
             </div>
           </div>
         </div>
@@ -192,16 +194,16 @@ export default function KnowledgeBasePage() {
       {articles.length > 0 && (
       <section className="pb-20 px-4">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Help Articles</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">帮助文章</h2>
           {filtered.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.map(article => (
                 <div key={article._id} className="group rounded-2xl border border-gray-100 bg-white p-6 hover:shadow-xl hover:border-violet-200 transition-all duration-300 hover:-translate-y-1 flex flex-col">
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-violet-100 to-purple-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-linear-to-br from-violet-100 to-purple-50 rounded-xl flex items-center justify-center shrink-0">
                       <BookOpen className="w-5 h-5 text-violet-600" />
                     </div>
-                    <button onClick={() => handleCopy(article)} className="p-2 rounded-lg hover:bg-violet-50 transition-colors" title="Copy content">
+                    <button onClick={() => handleCopy(article)} className="p-2 rounded-lg hover:bg-violet-50 transition-colors" title={"复制内容"}>
                       {copiedId === article._id ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-400" />}
                     </button>
                   </div>
@@ -210,14 +212,14 @@ export default function KnowledgeBasePage() {
                     <h2 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-violet-600 transition-colors line-clamp-2">{article.title}</h2>
                   </Link>
                   <p className="text-sm text-gray-500 line-clamp-3 flex-1">{article.excerpt || article.content?.substring(0, 120)}</p>
-                  <Link href={`/knowledge-base/${article.slug}`} className="inline-flex items-center gap-1 text-sm font-medium text-violet-600 mt-4 hover:text-violet-700">Read more &rarr;</Link>
+                  <Link href={`/knowledge-base/${article.slug}`} className="inline-flex items-center gap-1 text-sm font-medium text-violet-600 mt-4 hover:text-violet-700">阅读更多→</Link>
                 </div>
               ))}
             </div>
           ) : (
             <div className="text-center py-20">
               <BookOpen className="w-12 h-12 text-violet-200 mx-auto mb-4" />
-              <p className="text-gray-400 text-lg">No articles found. Check back soon!</p>
+              <p className="text-gray-400 text-lg">未找到文章。请尽快回来查看！</p>
             </div>
           )}
         </div>
@@ -229,10 +231,10 @@ export default function KnowledgeBasePage() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} {biz.name}. {c.footer.copyrightText}</p>
           <div className="flex items-center gap-4 text-sm text-gray-400">
-            <Link href="/privacy" className="hover:text-violet-600">Privacy</Link>
-            <Link href="/terms" className="hover:text-violet-600">Terms</Link>
-            <Link href="/about" className="hover:text-violet-600">About</Link>
-            <Link href="/contact" className="hover:text-violet-600">Contact</Link>
+            <Link href="/privacy" className="hover:text-violet-600">隐私政策</Link>
+            <Link href="/terms" className="hover:text-violet-600">服务条款</Link>
+            <Link href="/about" className="hover:text-violet-600">关于</Link>
+            <Link href="/contact" className="hover:text-violet-600">联系方式</Link>
           </div>
         </div>
       </footer>

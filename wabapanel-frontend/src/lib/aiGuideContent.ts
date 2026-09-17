@@ -26,391 +26,314 @@ function fill(t: string, b: Biz): string {
 const RAW: GSection[] = [
   {
     id: 'about',
-    title: '1. About {app} (Sales Overview)',
+    title: "1. 关于{app}（销售概览）",
     items: [
-      { q: 'What is {app}?', a: [
-        '{app} is an all-in-one customer communication and business platform. From one shared inbox you talk to customers on WhatsApp (official Cloud API), WhatsApp by QR, Telegram Bot, Personal Telegram, Instagram, Facebook and Email.',
-        'It also includes automation flows and chatbots, AI auto-reply, broadcasts and drip campaigns, a sales pipeline (CRM), contacts/segments/tags, lead-generation forms, product catalogs and orders, payment links, invoices and quotations, appointments, events, support tickets, analytics and full white-label branding.' ] },
-      { q: 'Who is {app} for?', a: [
-        'SMBs, agencies, e-commerce sellers, coaching/education, real estate, clinics, restaurants, travel, and any team doing sales or support over chat that wants one inbox with automation and AI.' ] },
-      { q: 'Why choose {app} over other tools?', a: [
-        'One inbox for every channel; official WhatsApp API plus an unofficial QR option with a built-in Anti-Ban/Number-Warmer engine; no-code automation and AI; payments, invoices and a full CRM inside chats; and complete white-label branding.',
-        'Contact: {email} · {website}. {address}' ] },
-      { q: 'How is {app} priced?', a: [
-        'Access is plan-based (subscriptions). Each plan unlocks features and limits. Some usage (certain messages/AI) can draw from a prepaid wallet. Exact plans, prices and coupons are set by the provider — see the pricing page or contact {email}.' ] },
-      { q: 'Is there a free trial?', a: [
-        'A free/trial plan may be offered via “Get Started Free”. Available plans and trial length are configured by the provider; check the pricing page.' ] },
-      { q: 'Is {app} white-label?', a: [
-        'Yes. The provider can set the platform name, logo, favicon, colors, fonts, domain and company details, so the whole product (including this guide and its PDF) shows their brand automatically.' ] },
+      { q: "什么是 {app}？", a: [
+        "{app} 是一个一体化的客户沟通和业务平台。您可以通过一个共享收件箱通过 WhatsApp（官方云 API）、WhatsApp by QR、Telegram Bot、Personal Telegram、Instagram、Facebook 和电子邮件与客户交谈。",
+        "平台还包含自动化流程和聊天机器人、AI 自动回复、群发和分阶段营销、销售漏斗 CRM、联系人分组与标签、获客表单、产品目录和订单、支付链接、发票和报价单、预约、事件、支持工单、数据分析及完整的品牌定制。" ] },
+      { q: "{app} 适合谁？", a: [
+        "适用于中小企业、代理机构、电商、教育培训、房地产、诊所、餐厅和旅游等行业，以及希望通过统一收件箱、自动化和 AI 开展销售或客户支持的团队。" ] },
+      { q: "为什么选择 {app} 而不是其他工具？", a: [
+        "每个频道一个收件箱；官方 WhatsApp API 加上非官方二维码选项，带有内置反禁令/暖号引擎；无代码自动化和人工智能；付款、发票和聊天内完整的 CRM；和完整的白标品牌。",
+        "联系人：{email}·{website}。 {address}" ] },
+      { q: "{app} 的定价如何？", a: [
+        "访问是基于计划的（订阅）。每个计划都会解锁功能和限制。某些用途（某些消息/人工智能）可以从预付费钱包中提取。确切的计划、价格和优惠券由提供商设置 - 请参阅定价页面或联系 {email}。" ] },
+      { q: "有免费试用吗？", a: [
+        "可以通过“免费入门”提供免费/试用计划。可用计划和试用长度由提供商配置；检查定价页面。" ] },
+      { q: "{app} 是白标吗？", a: [
+        "是的。提供商可以设置平台名称、徽标、网站图标、颜色、字体、域名和公司详细信息，以便整个产品（包括本指南及其 PDF）自动显示其品牌。" ] },
     ],
   },
   {
     id: 'getting-started',
-    title: '2. Getting Started & Navigation',
+    title: "2. 入门和导航",
     items: [
-      { q: 'How do I log in?', a: [
-        'Open your {app} URL and sign in with your email and password. Use “Forgot password” to reset, or ask your admin. New businesses can self-register via “Get Started Free” if enabled.' ] },
-      { q: 'How is the screen organised?', a: [
-        'Left sidebar = all sections (Inbox, Contacts, Campaigns, Automation, Commerce, Support, User Guide, etc.); click a heading to expand it. Top bar = global search, wallet balance, language, theme and your profile. Main area = the selected page, most with their own search/filters.' ] },
-      { q: 'How do I change the interface language?', a: [
-        'Use the Language selector in the top bar. Your choice is saved on your device. Admins enable which languages are available.' ] },
-      { q: 'How do I switch theme / colors?', a: [
-        'Use the theme picker in the top bar for light/accent options. Platform-wide branding colors are controlled by the admin under Site Settings.' ] },
-      { q: 'Where is the built-in User Guide?', a: [
-        'Both the client and admin panels have a “User Guide” item at the bottom of the sidebar (under Support) with a searchable A-Z help centre that always shows your branded app name.' ] },
+      { q: "我如何登录？", a: [
+        "打开您的 {app} 网址并使用您的电子邮件和密码登录。使用“忘记密码”进行重置，或询问您的管理员。如果启用，新企业可以通过“免费入门”自行注册。" ] },
+      { q: "屏幕是如何组织的？", a: [
+        "左侧边栏 = 所有部分（收件箱、联系人、营销活动、自动化、商务、支持、用户指南等）；单击标题将其展开。顶部栏 = 全球搜索、钱包余额、语言、主题和您的个人资料。主要区域 = 选定的页面，大多数都有自己的搜索/过滤器。" ] },
+      { q: "如何更改界面语言？", a: [
+        "使用顶部栏中的语言选择器。您的选择将保存在您的设备上。管理员启用哪些语言可用。" ] },
+      { q: "如何切换主题/颜色？", a: [
+        "使用顶部栏中的主题选择器来获取灯光/强调选项。平台范围的品牌颜色由管理员在“站点设置”下控制。" ] },
+      { q: "内置用户指南在哪里？", a: [
+        "客户端和管理面板在侧边栏底部（在支持下方）都有一个“用户指南”项目，其中包含一个可搜索的 A-Z 帮助中心，该中心始终显示您的品牌应用程序名称。" ] },
     ],
   },
   {
     id: 'setup',
-    title: '3. Setup Guide — Connecting Channels',
+    title: "3. 设置指南 — 连接通道",
     items: [
-      { q: 'How to connect WhatsApp Official API?', a: [
-        'Channels → WhatsApp. You need a Meta Business account, a phone number not currently active on WhatsApp, and API access (access token + phone number ID). Follow the connect steps and verify.',
-        'Best for: verified green tick, approved templates, unlimited broadcasts to opted-in users, guaranteed tappable buttons, and zero ban risk. Messaging outside the 24-hour customer window requires an approved template.' ] },
-      { q: 'How to connect WhatsApp by QR?', a: [
-        'Channels → “WhatsApp by QR” → Connect → a QR appears. On the phone: WhatsApp → Settings → Linked Devices → Link a Device → scan. The session is saved and auto-reconnects; no rescan needed unless you disconnect.',
-        'Use a secondary/business number. This is unofficial (WhatsApp Web protocol) so a Number Warmer & Anti-Ban engine is built in. Full old chat history imports only at scan time — re-scan to import past chats. Use the “Sync Messages” button to pull missed messages.' ] },
-      { q: 'How to connect a Telegram Bot?', a: [
-        'Create a bot in Telegram with @BotFather (send /newbot, choose a name, copy the token). Paste the token in Channels → Telegram → Connect; the webhook is set automatically. Share the bot link (t.me/your_bot). Customers must message the bot first; the bot cannot initiate.' ] },
-      { q: 'How to connect Personal Telegram (QR)?', a: [
-        'Channels → Personal Telegram → “Connect with QR”. On the phone: Telegram → Settings → Devices → Link Desktop Device → scan (enter 2FA password if set). Uses the official Telegram API (no ban risk), syncs existing chats, and can message first. Session auto-reconnects after restarts.' ] },
-      { q: 'How to connect Instagram & Facebook?', a: [
-        'Channels → connect your Facebook Page and Instagram professional account via Meta login and grant messaging permissions. Incoming DMs then appear in the Instagram and Facebook inboxes. Replies are allowed within Meta’s 24-hour window after the customer’s last message.' ] },
-      { q: 'How to connect Email?', a: [
-        'Channels → Email → enter IMAP/SMTP settings (host, port, user, password/app-password). Incoming mail appears in the Email Inbox with full HTML formatting; reply, reply-all and forward are supported.' ] },
-      { q: 'A channel shows “Not connected” — what do I do?', a: [
-        'Opening an inbox for an unconnected channel shows a notice with a Connect button at the top of the conversation list; click it to jump to that channel’s setup page.' ] },
-      { q: 'Can I connect multiple channels at once?', a: [
-        'Yes. Connect as many channels as your plan allows; each gets its own filtered inbox and they all share the same contacts, automation and AI.' ] },
+      { q: "如何连接WhatsApp官方API？", a: [
+        "渠道 → WhatsApp。您需要一个 Meta Business 账户、一个当前未在 WhatsApp 上激活的电话号码以及 API 访问权限（访问令牌 + 电话号码 ID）。按照连接步骤进行操作并进行验证。",
+        "最适合：经过验证的绿色勾号、批准的模板、向选择加入的用户进行无限制的广播、保证可点击的按钮以及零禁令风险。在 24 小时客户窗口之外发送消息需要经过批准的模板。" ] },
+      { q: "如何通过二维码连接WhatsApp？", a: [
+        "频道→“WhatsApp by QR”→连接→出现一个QR。在手机上：WhatsApp → 设置 → 链接设备 → 链接设备 → 扫描。会话被保存并自动重新连接；除非您断开连接，否则无需重新扫描。",
+        "使用辅助/企业号码。这是非官方的（WhatsApp Web 协议），因此内置了 Number Warmer 和 Anti-Ban 引擎。完整的旧聊天记录仅在扫描时导入 - 重新扫描以导入过去的聊天记录。使用“同步消息”按钮提取错过的消息。" ] },
+      { q: "如何连接 Telegram 机器人？", a: [
+        "使用 @BotFather 在 Telegram 中创建一个机器人（发送 /newbot，选择一个名称，复制令牌）。将令牌粘贴到 Channels → Telegram → Connect； Webhook 是自动设置的。分享机器人链接 (t.me/your_bot)。客户必须先向机器人发送消息；机器人无法启动。" ] },
+      { q: "如何连接个人电报（QR）？", a: [
+        "频道→个人电报→“通过QR连接”。在手机上：Telegram → 设置 → 设备 → 链接桌面设备 → 扫描（如果设置，请输入 2FA 密码）。使用官方 Telegram API（无封禁风险），同步现有聊天，并且可以先发消息。会话重新启动后自动重新连接。" ] },
+      { q: "如何连接 Instagram 和 Facebook？", a: [
+        "渠道 → 通过 Meta 登录连接您的 Facebook 页面和 Instagram 专业账户并授予消息传递权限。收到的私信随后会出现在 Instagram 和 Facebook 收件箱中。在客户发出最后一条消息后，Meta 的 24 小时内允许回复。" ] },
+      { q: "如何连接邮箱？", a: [
+        "通道 → 电子邮件 → 输入 IMAP/SMTP 设置（主机、端口、用户、密码/应用程序密码）。传入的邮件以完整的 HTML 格式显示在电子邮件收件箱中；支持回复、全部回复和转发。" ] },
+      { q: "频道显示“未连接” — 我该怎么办？", a: [
+        "打开未连接频道的收件箱会在对话列表顶部显示一条带有“连接”按钮的通知；单击它可以跳转到该频道的设置页面。" ] },
+      { q: "我可以同时连接多个通道吗？", a: [
+        "是的。连接您的计划允许的尽可能多的渠道；每个人都有自己的过滤收件箱，并且都共享相同的联系人、自动化和人工智能。" ] },
     ],
   },
   {
     id: 'inbox',
-    title: '4. Inbox & Chatting',
+    title: "4. 收件箱和聊天",
     items: [
-      { q: 'How does the shared inbox work?', a: [
-        'Each channel has its own filtered inbox in the sidebar. Open a conversation to chat, send media and use action tools. The chat header shows the channel name; reloading keeps you on the same channel inbox.' ] },
-      { q: 'How do I start a new conversation?', a: [
-        'Open the channel’s inbox and click “New Msg” (or “New Email”). Enter the recipient (with country code for WhatsApp/Telegram) and your message. On WhatsApp API, messaging outside the 24-hour window needs an approved template; QR/Telegram have no window limit and no per-message charge.' ] },
-      { q: 'Can I send images, videos, documents and voice notes?', a: [
-        'Yes — use the attachment/media button in the composer. Supported across WhatsApp, QR, Telegram, Instagram and Facebook (subject to each platform’s file rules).' ] },
-      { q: 'How do I search inside a conversation?', a: [
-        'Use the Search button in the chat toolbar to find text within that conversation and jump between matches.' ] },
-      { q: 'Can I forward a message?', a: [
-        'Hover a message and use the forward icon to send it to another conversation.' ] },
-      { q: 'What are unread counts and conversation status?', a: [
-        'Each conversation tracks unread messages and a status (active/closed). Assigning, tagging and ticket status help your team stay organised.' ] },
+      { q: "共享收件箱如何工作？", a: [
+        "每个频道在侧边栏中都有自己的已过滤收件箱。打开对话进行聊天、发送媒体和使用操作工具。聊天标题显示频道名称；重新加载可让您保持在同一频道收件箱中。" ] },
+      { q: "我如何开始新对话？", a: [
+        "打开频道的收件箱，然后单击“新消息”（或“新电子邮件”）。输入收件人（包含 WhatsApp/Telegram 的国家/地区代码）和您的消息。在 WhatsApp API 上，24 小时窗口外的消息传递需要经过批准的模板； QR/Telegram 没有窗口限制，也没有每条消息的费用。" ] },
+      { q: "我可以发送图像、视频、文档和语音留言吗？", a: [
+        "是 - 使用编辑器中的附件/媒体按钮。支持 WhatsApp、QR、Telegram、Instagram 和 Facebook（遵守每个平台的文件规则）。" ] },
+      { q: "如何在对话中进行搜索？", a: [
+        "使用聊天工具栏中的“搜索”按钮查找该对话中的文本并在匹配项之间跳转。" ] },
+      { q: "我可以转发消息吗？", a: [
+        "将鼠标悬停在消息上并使用转发图标将其发送到另一个对话。" ] },
+      { q: "什么是未读计数和对话状态？", a: [
+        "每个对话都会跟踪未读消息和状态（活动/关闭）。分配、标记和会话状态可帮助您的团队保持井井有条。" ] },
     ],
   },
   {
     id: 'chat-tools',
-    title: '5. Chat Action Tools',
+    title: "5.聊天操作工具",
     items: [
-      { q: 'What do the chat toolbar buttons do?', a: [
-        'Labels — tag the conversation. Pay — send a payment link. Notes — private internal notes. Search — find text in the chat. Export — download the chat (CSV/PDF/HTML). Chat AI — toggle AI auto-reply for this chat. Preset — send a saved preset message. Assign — hand the chat to a teammate. Invoice — create & send an invoice/quotation PDF. Summary — AI summary of the conversation.',
-        'These work on WhatsApp, WhatsApp QR, Telegram, Personal Telegram, Instagram and Facebook. Templates are WhatsApp-API only; Call / AI Call appear only where a phone number is available.' ] },
-      { q: 'What are Labels used for?', a: [
-        'Labels colour-code and categorise chats (e.g. “Lead”, “Paid”, “Urgent”) so you can filter and report on them.' ] },
-      { q: 'What are Notes?', a: [
-        'Internal notes are private to your team (customers never see them). Use them to leave context for the next agent.' ] },
-      { q: 'How does Assign work?', a: [
-        'Assign gives a conversation to a specific agent so ownership is clear. Combine with labels and ticket status to coordinate the team.' ] },
-      { q: 'What does Summary do?', a: [
-        'Summary uses AI to produce a short recap of a long conversation so you can catch up instantly.' ] },
-      { q: 'What does Export do?', a: [
-        'Export downloads the conversation (e.g. CSV/PDF/HTML) for records or sharing.' ] },
+      { q: "聊天工具栏按钮有什么作用？", a: [
+        "标签 — 标记对话。笔记——私人内部笔记。搜索 — 在聊天中查找文本。导出 — 下载聊天内容 (CSV/PDF/HTML)。聊天 AI — 切换此聊天的 AI 自动回复。预设 — 发送已保存的预设消息。分配 — 将聊天任务交给队友。摘要 — 对话的人工智能摘要。",
+        "这些适用于 WhatsApp、WhatsApp QR、Telegram、Personal Telegram、Instagram 和 Facebook。模板仅限 WhatsApp-API；呼叫/AI 呼叫仅在有电话号码可用的情况下出现。" ] },
+      { q: "标签有什么用？", a: [
+        "对聊天进行颜色代码标记和分类（例如“潜在客户”、“付费”、“紧急”），以便您可以对其进行过滤和报告。" ] },
+      { q: "什么是注释？", a: [
+        "内部注释对您的团队来说是私有的（客户永远不会看到它们）。使用它们为下一个代理留下上下文。" ] },
+      { q: "分配是如何工作的？", a: [
+        "分配将对话提供给特定的代理，因此所有权是明确的。结合标签和会话状态来协调团队。" ] },
+      { q: "摘要有什么作用？", a: [
+        "摘要使用人工智能对长对话进行简短回顾，以便您可以立即跟上。" ] },
+      { q: "出口有什么作用？", a: [
+        "导出下载对话（例如 CSV/PDF/HTML）以供记录或共享。" ] },
     ],
   },
   {
     id: 'presets',
-    title: '6. Presets, Quick Replies & Templates',
+    title: "6.预设、快速回复和模板",
     items: [
-      { q: 'What are Preset Templates?', a: [
-        'Save Money → Preset Templates: reusable messages with text, media and buttons. Send them from the Preset button in a chat — free on QR/Telegram with no 24-hour limit. On channels without native buttons, buttons become numbered options and the customer replies with the number.' ] },
-      { q: 'What are Quick Replies?', a: [
-        'Automation → Quick Replies: short canned answers you insert while typing to reply faster to common questions.' ] },
-      { q: 'What are Message Templates and approval?', a: [
-        'Campaigns → Message Templates: WhatsApp-API templates (with variables, buttons, header/media) submitted to Meta for approval. Once approved they can be used in broadcasts and to message outside the 24-hour window.' ] },
-      { q: 'What are Response Resources / Predefined Actions?', a: [
-        'Reusable content and predefined actions you can attach in flows and replies to standardise how your team responds.' ] },
+      { q: "什么是预设模板？", a: [
+        "省钱 → 预设模板：带有文本、媒体和按钮的可重复使用的消息。通过聊天中的“预设”按钮发送它们 - 在 QR/Telegram 上免费，没有 24 小时限制。在没有本机按钮的渠道上，按钮会变成编号选项，客户会回复编号。" ] },
+      { q: "什么是快速回复？", a: [
+        "自动化 → 快速回复：您在打字时插入简短的预设答案，以更快地回复常见问题。" ] },
+      { q: "什么是消息模板和批准？", a: [
+        "活动 → 消息模板：WhatsApp-API 模板（带有变量、按钮、标题/媒体）提交给 Meta 进行批准。一旦获得批准，它们就可以在广播中使用，并在 24 小时窗口外发送消息。" ] },
+      { q: "什么是响应资源/预定义操作？", a: [
+        "您可以在流程和回复中附加可重复使用的内容和预定义操作，以标准化您的团队的响应方式。" ] },
     ],
   },
   {
     id: 'bot-flows',
-    title: '7. Automation — Bot Flow Builder',
+    title: "7. 自动化 — Bot Flow Builder",
     items: [
-      { q: 'How do Bot Flows work?', a: [
-        'Automation → Bot Flow Builder. A flow has a trigger (keyword, first message, or any message) and steps: send text, buttons/list, question (save the answer), condition (if/else), delay, add tag, assign to human, AI step, payment link, booking, and more. It runs automatically on any connected channel and replies there.' ] },
-      { q: 'What triggers can start a flow?', a: [
-        'A keyword (e.g. “price”), the customer’s first-ever message, any incoming message, or a step inside another flow. On QR/Telegram, buttons are shown as numbered options; the customer replies with the number or text to continue.' ] },
-      { q: 'Can flows collect and save data?', a: [
-        'Yes. A question step captures the customer’s answer into a contact/data field for use later (segments, personalisation, CRM).' ] },
-      { q: 'Can a flow hand off to a human?', a: [
-        'Yes. Add an assign step to route the chat to an agent, optionally after conditions (e.g. VIP customer, or AI unsure).' ] },
-      { q: 'What is the Flow Builder vs Automation Flows?', a: [
-        'Both build automations; the visual Flow Builder is drag-and-drop for multi-step journeys, while simpler automations handle single triggers and actions.' ] },
+      { q: "机器人流程如何工作？", a: [
+        "自动化→机器人流程构建器。流程具有触发器（关键字、第一条消息或任何消息）和步骤：发送文本、按钮/列表、问题（保存答案）、条件（if/else）、延迟、添加标签、分配给人员、AI 步骤、付款链接、预订等。它会在任何连接的通道上自动运行并进行回复。" ] },
+      { q: "什么触发器可以启动流程？", a: [
+        "关键字（例如“价格”）、客户的第一条消息、任何传入消息或另一个流程中的步骤。在 QR/Telegram 上，按钮显示为编号选项；客户回复号码或文字以继续。" ] },
+      { q: "流可以收集和保存数据吗？", a: [
+        "是的。问题步骤将客户的答案捕获到联系人/数据字段中以供以后使用（细分、个性化、CRM）。" ] },
+      { q: "流程可以交给人吗？", a: [
+        "是的。添加分配步骤以将聊天路由到代理，可选地在条件之后（例如 VIP 客户或 AI 不确定）。" ] },
+      { q: "Flow Builder 与自动化是什么？", a: [
+        "两者都构建自动化；可视化 Flow Builder 可以拖放进行多步骤旅程，而更简单的自动化则可以处理单个触发器和操作。" ] },
     ],
   },
   {
     id: 'ai',
-    title: '8. AI Assistant & Auto-Reply',
+    title: "8.人工智能助手和自动回复",
     items: [
-      { q: 'How does AI auto-reply work?', a: [
-        'Configure AI in the AI settings: add an API key and give it business context (products, FAQs, tone). Turn it on globally or per-chat (Chat AI). When no flow/keyword matches, the AI writes and sends a smart reply.' ] },
-      { q: 'How does AI hand off to a human?', a: [
-        'When the AI is unsure or the customer asks for an agent, the chat is assigned to a human so nothing is mishandled.' ] },
-      { q: 'What can I train the AI on?', a: [
-        'Give it your product list, FAQs, policies and preferred tone. The better the context, the more accurate the replies. You can also paste the Knowledge Base “AI Master Guide” to teach an external AI about the platform.' ] },
-      { q: 'Does AI work on all channels?', a: [
-        'Yes — WhatsApp, WhatsApp QR, Telegram, Personal Telegram, Instagram and Facebook.' ] },
-      { q: 'What is AI Calling / AI Call?', a: [
-        'Where a phone number is available, AI Call can place an automated voice call through the configured voice provider. It is not a WhatsApp call.' ] },
+      { q: "人工智能自动回复是如何工作的？", a: [
+        "在 AI 设置中配置 AI：添加 API 密钥并为其提供业务上下文（产品、常见问题解答、语气）。全局或按聊天（Chat AI）打开它。当没有流/关键字匹配时，人工智能会编写并发送智能回复。" ] },
+      { q: "人工智能如何将工作交给人类？", a: [
+        "当人工智能不确定或客户请求代理时，聊天将被分配给人工，因此不会出现任何错误处理。" ] },
+      { q: "我可以用什么来训练人工智能？", a: [
+        "向其提供您的产品列表、常见问题解答、政策和首选语气。上下文越好，回复就越准确。您还可以粘贴知识库“AI大师指南”来向外部AI教授有关该平台的知识。" ] },
+      { q: "人工智能适用于所有渠道吗？", a: [
+        "是 - WhatsApp、WhatsApp QR、Telegram、Personal Telegram、Instagram 和 Facebook。" ] },
+      { q: "什么是AI通话/AI通话？", a: [
+        "获得电话号码后，AI 通话可通过已配置的语音服务商自动拨打电话。该功能使用普通语音电话，不属于 WhatsApp 通话。" ] },
     ],
   },
   {
     id: 'keywords',
-    title: '9. Keywords, Welcome & Out-of-Office',
+    title: "9. 关键词、欢迎和外出",
     items: [
-      { q: 'What are Keyword Triggers?', a: [
-        'Automation → Keyword Triggers: map a keyword to an automatic text/media reply — great for FAQs like “hours”, “location”, “price”. Simpler than a full flow.' ] },
-      { q: 'What is the Welcome message?', a: [
-        'A message sent automatically on a customer’s first contact, so no one is greeted by silence. Runs on all connected channels.' ] },
-      { q: 'What is the Out-of-Office message?', a: [
-        'An automatic reply sent outside your configured business hours to set response-time expectations.' ] },
+      { q: "什么是关键字触发器？", a: [
+        "自动化 → 关键字触发器：将关键字映射到自动文本/媒体回复 - 非常适合“时间”、“位置”、“价格”等常见问题解答。比完整流程更简单。" ] },
+      { q: "欢迎消息是什么？", a: [
+        "客户第一次联系时自动发送的消息，因此没有人会受到沉默的欢迎。在所有连接的通道上运行。" ] },
+      { q: "什么是外出消息？", a: [
+        "在您配置的工作时间之外发送的自动回复，以设置预期响应时间。" ] },
     ],
   },
   {
     id: 'followups',
-    title: '10. AI Follow-ups',
+    title: "10.人工智能后续行动",
     items: [
-      { q: 'What are AI Follow-ups?', a: [
-        'Automation → AI Follow-ups automatically nudges leads who went quiet with AI-written messages on a schedule you control, helping recover deals without manual chasing.' ] },
-      { q: 'Can I control timing and stop conditions?', a: [
-        'Yes — set the delay/sequence and it stops when the customer replies or the goal is met.' ] },
+      { q: "什么是人工智能跟进？", a: [
+        "自动化 → AI 跟进会按照您控制的时间表自动推动那些安静的潜在客户，并通过 AI 编写的消息来帮助恢复交易，而无需手动追踪。" ] },
+      { q: "我可以控制计时和停止条件吗？", a: [
+        "是 — 设置延迟/顺序，当客户回复或达到目标时停止。" ] },
     ],
   },
   {
     id: 'broadcasts',
-    title: '11. Broadcasts & Campaigns',
+    title: "11. 广播和活动",
     items: [
-      { q: 'How do I send a broadcast?', a: [
-        'Campaigns → Broadcast. Choose an audience (segment or tag), pick the message (an approved template on WhatsApp API), schedule or send now, and track delivered/read/replied in the report.' ] },
-      { q: 'What are the rules for broadcasts?', a: [
-        'On WhatsApp API, broadcasts to users outside the 24-hour window must use approved templates. Avoid mass-messaging unknown numbers on QR — that is the fastest way to get a number banned.' ] },
-      { q: 'How do I see campaign performance?', a: [
-        'Each broadcast/campaign has a report with sent/delivered/read/replied metrics; overall trends appear in Analytics.' ] },
+      { q: "如何发送广播？", a: [
+        "活动 → 广播。选择受众（细分或标签），选择消息（WhatsApp API 上批准的模板），安排或立即发送，并在报告中跟踪已发送/已读/回复。" ] },
+      { q: "广播的规则是什么？", a: [
+        "在 WhatsApp API 上，向 24 小时窗口之外的用户广播必须使用批准的模板。避免在二维码上群发未知号码——这是禁止号码的最快方法。" ] },
+      { q: "我如何查看广告活动效果？", a: [
+        "每次群发或营销活动都有包含已发送、已送达、已读和已回复数据的报告；总体趋势可在数据分析中查看。" ] },
     ],
   },
   {
     id: 'drip',
-    title: '12. Drip & Preset Campaigns',
+    title: "12. 滴灌和预设活动",
     items: [
-      { q: 'What are Drip Campaigns?', a: [
-        'Save Money → Drip: a pre-planned sequence of messages sent automatically over days/weeks (e.g. onboarding or nurture series).' ] },
-      { q: 'What are Preset Campaigns?', a: [
-        'Send your saved preset messages to a chosen audience — useful for offers and announcements on QR/Telegram without templates.' ] },
+      { q: "什么是水滴营销活动？", a: [
+        "省钱 → 滴灌：在几天/几周内自动发送的预先计划的消息序列（例如入职或培养系列）。" ] },
+      { q: "什么是预设活动？", a: [
+        "将您保存的预设消息发送给选定的受众 - 对于无需模板的 QR/Telegram 上的优惠和公告很有用。" ] },
     ],
   },
   {
     id: 'contacts',
-    title: '13. Contacts, Segments, Tags & Data',
+    title: "13. 联系人、细分、标签和数据",
     items: [
-      { q: 'How do I manage contacts?', a: [
-        'Contacts → Contact Directory lists everyone with their channels and history. Open a contact to see details, tags and conversations.' ] },
-      { q: 'How do I import contacts?', a: [
-        'Import via CSV; results and errors appear under Import Logs. Map columns to fields during import.' ] },
-      { q: 'What are Tags, Segments and Data Fields?', a: [
-        'Tags label contacts; Segments are dynamic groups built from rules (e.g. “paid customers”) for targeting; Data Fields are custom fields (e.g. city, plan) to store extra info per contact.' ] },
-      { q: 'What are Badges?', a: [
-        'Badges highlight special contact statuses (e.g. VIP) for quick recognition and filtering.' ] },
+      { q: "如何管理联系人？", a: [
+        "联系人 → 联系人目录列出了每个人及其频道和历史记录。打开联系人以查看详细信息、标签和对话。" ] },
+      { q: "如何导入联系人？", a: [
+        "通过CSV导入；结果和错误显示在“导入日志”下。导入期间将列映射到字段。" ] },
+      { q: "什么是标签、段和自定义字段？", a: [
+        "标签标签触点；细分是根据目标规则（例如“付费客户”）构建的动态组；自定义字段（例如城市、计划）存储每个联系人的额外信息。" ] },
+      { q: "什么是徽章？", a: [
+        "徽章突出显示特殊联系人状态（例如 VIP），以便快速识别和过滤。" ] },
     ],
   },
-  {
-    id: 'pipeline',
-    title: '14. Pipeline (CRM)',
-    items: [
-      { q: 'How does the Pipeline Board work?', a: [
-        'Pipeline Board is a drag-and-drop sales board. Create stages (e.g. New → Contacted → Won), move deals/contacts between them, and track your funnel.' ] },
-      { q: 'Do conversations link to the pipeline?', a: [
-        'Yes — chats can auto-link to deals so context follows the customer through each stage.' ] },
-    ],
-  },
+  
   {
     id: 'leads',
-    title: '15. Lead Gen Forms & Facebook Leads',
+    title: "15. 潜在客户发掘表格和 Facebook 潜在客户",
     items: [
-      { q: 'How do Lead Gen Forms work?', a: [
-        'Leads & Commerce → Lead Gen Forms: build a form, share its link or embed it, and submissions become contacts automatically for follow-up.' ] },
-      { q: 'What are Facebook Leads?', a: [
-        'Facebook lead-ad submissions sync straight into {app} as contacts, so you can respond fast.' ] },
+      { q: "销售线索表格如何运作？", a: [
+        "潜在客户和商务 → 潜在客户发掘表单：构建表单、共享其链接或嵌入它，提交的内容会自动成为联系人以进行后续跟进。" ] },
+      { q: "什么是 Facebook 潜在客户？", a: [
+        "Facebook 线索广告提交作为联系人直接同步到 {app} 中，以便您可以快速响应。" ] },
     ],
   },
-  {
-    id: 'commerce',
-    title: '16. Product Catalogs & Orders',
-    items: [
-      { q: 'What are Product Catalogs?', a: [
-        'List products (name, price, image, description) and share catalog items in chats and flows so customers can browse and buy.' ] },
-      { q: 'How does Order Management work?', a: [
-        'Track orders customers place, update their status, and connect them to payments and invoices.' ] },
-    ],
-  },
-  {
-    id: 'payments',
-    title: '17. Payments & Payment Links',
-    items: [
-      { q: 'How do payment links work?', a: [
-        'Click Pay in any chat to create a UPI or gateway payment link. The customer taps it to pay. Works on WhatsApp, QR, Telegram, Instagram and Facebook.' ] },
-      { q: 'Which gateways are supported?', a: [
-        'Payment gateways are configured by the admin (keys/secrets under Gateway Setup). UPI links can be sent directly where enabled.' ] },
-      { q: 'How do I know a payment succeeded?', a: [
-        'Payment status is tracked and reflected against the link/order; admins see all payments in the billing area.' ] },
-    ],
-  },
-  {
-    id: 'invoices',
-    title: '18. Invoices & Quotations',
-    items: [
-      { q: 'How do I send an invoice or quotation?', a: [
-        'Click the Invoice button in a chat, add line items, tax and notes, and choose Invoice or Quotation. {app} generates a branded PDF and sends it on the current channel.' ] },
-      { q: 'Where do the company details and tax come from?', a: [
-        'Company name, address, GSTIN/Tax ID, phone, billing email and footer come from the invoice settings (admin-controlled); the tax rate comes from the active default tax.' ] },
-    ],
-  },
-  {
-    id: 'appointments',
-    title: '19. Appointments & Events',
-    items: [
-      { q: 'How do Appointments work?', a: [
-        'Automation/Appointments lets customers book time slots (via a flow or link); bookings are tracked and can trigger reminders.' ] },
-      { q: 'What are Events?', a: [
-        'Events let you schedule and manage time-based activities and can be used inside automations.' ] },
-    ],
-  },
-  {
-    id: 'tickets',
-    title: '20. Tickets & Customer Support',
-    items: [
-      { q: 'How do support Tickets work (client side)?', a: [
-        'Create and track tickets for customer issues, set priority and status (open / awaiting reply / answered / closed), and keep the conversation threaded.' ] },
-      { q: 'How do I contact platform support?', a: [
-        'Open a Support ticket from the sidebar or email {email}. Include a clear description and screenshots for a faster resolution.' ] },
-    ],
-  },
+  
+  
+  
+  
+  
   {
     id: 'shortlinks-media-ads',
-    title: '21. Short Links, Media Library & CTWA Ads',
+    title: "21. 短链接与媒体库",
     items: [
-      { q: 'What are Short Links?', a: [
-        'Create trackable short links to share in messages so you can measure clicks and engagement.' ] },
-      { q: 'What is the Media Library?', a: [
-        'A central place to store and reuse images, videos and documents across chats, presets and campaigns.' ] },
-      { q: 'What are CTWA Ads?', a: [
-        'Click-to-WhatsApp Ads bring ad clicks straight into your WhatsApp inbox as conversations, so ad leads land where your team can reply and automate.' ] },
+      { q: "什么是短链接？", a: [
+        "创建可跟踪的短链接以在消息中共享，以便您可以衡量点击次数和参与度。" ] },
+      { q: "什么是媒体库？", a: [
+        "跨聊天、预设和活动存储和重复使用图像、视频和文档的中心位置。" ] },
+      
     ],
   },
   {
     id: 'analytics',
-    title: '22. Dashboard & Analytics',
+    title: "22.仪表板和分析",
     items: [
-      { q: 'What does the Dashboard show?', a: [
-        'A live overview of your activity — recent conversations, unread counts, campaign status and key numbers at a glance.' ] },
-      { q: 'What is in Analytics?', a: [
-        'Deeper reporting on messages sent/delivered/read, response times, campaign performance and growth trends to guide decisions.' ] },
+      { q: "仪表板显示什么？", a: [
+        "您的活动的实时概览 — 最近的对话、未读计数、活动状态和关键数字一目了然。" ] },
+      { q: "Analytics 中有什么？", a: [
+        "通过消息发送、送达和阅读情况、响应时间、营销活动效果及增长趋势等详细报告辅助决策。" ] },
     ],
   },
   {
     id: 'team',
-    title: '23. Team, Agents & Permissions',
+    title: "23. 团队、代理和权限",
     items: [
-      { q: 'How do I add team members / agents?', a: [
-        'Invite agents from the team/agents area. Each agent logs in with their own account and works from the shared inbox.' ] },
-      { q: 'How do permissions work?', a: [
-        'Granular permissions control which sections and actions each agent can access, so staff only see what they should.' ] },
+      { q: "如何添加团队成员/代理？", a: [
+        "从团队/代理区域邀请代理。每个客服人员都使用自己的账户登录，并通过共享收件箱进行工作。" ] },
+      { q: "权限如何运作？", a: [
+        "细粒度权限控制每个代理可以访问哪些部分和操作，因此员工只能看到他们应该访问的内容。" ] },
     ],
   },
-  {
-    id: 'billing',
-    title: '24. Account, Billing, Wallet & Subscriptions',
-    items: [
-      { q: 'What is the wallet balance?', a: [
-        'The wallet funds usage-based charges (certain messages/AI, depending on plan). Top it up from billing; low-balance reminders keep you informed.' ] },
-      { q: 'Where do I see my plan and invoices?', a: [
-        'Your subscription, plan limits and billing history are in the billing/account area. Upgrade there if a feature is locked.' ] },
-      { q: 'How do I upgrade or renew?', a: [
-        'Choose a plan in billing and pay via the enabled gateway; coupons apply at checkout. Renewal reminders are sent before expiry.' ] },
-    ],
-  },
+  
   {
     id: 'mobile',
-    title: '25. Mobile App (PWA) & Notifications',
+    title: "25. 移动应用程序 (PWA) 和通知",
     items: [
-      { q: 'Can I install {app} as an app?', a: [
-        'Yes. Use “Install App” in the top bar (or the browser Install icon) to add {app} to your phone/desktop as a PWA — it opens like a native app with faster access.' ] },
-      { q: 'How do notifications work?', a: [
-        'Enable browser/PWA notifications to get alerted on new messages so you never miss a customer.' ] },
+      { q: "我可以将 {app} 安装为应用程序吗？", a: [
+        "是的。使用顶部栏中的“安装应用程序”（或浏览器安装图标）将 {app} 作为 PWA 添加到您的手机/桌面 - 它像本机应用程序一样打开，访问速度更快。" ] },
+      { q: "通知如何工作？", a: [
+        "启用浏览器/PWA 通知以收到新消息提醒，这样您就不会错过任何客户。" ] },
     ],
   },
-  {
-    id: 'api',
-    title: '26. API, Developers & Integrations',
-    items: [
-      { q: 'Is there an API?', a: [
-        'Yes. API & Developers documents endpoints and webhooks to integrate {app} with your own systems (send messages, manage contacts, receive events).' ] },
-      { q: 'What integrations are available?', a: [
-        'Integrations connect {app} to external tools and webhooks; availability depends on your plan and admin configuration.' ] },
-    ],
-  },
+  
   {
     id: 'antiban',
-    title: '27. Anti-Ban & Safety (WhatsApp QR)',
+    title: "27. 反禁令与安全（WhatsApp QR）",
     items: [
-      { q: 'What protections are built in?', a: [
-        'Gradual warm-up (Day 1 ≈ 25 messages, rising over ~2 weeks), human-like random delays (5–15s), typing indicator, per-number daily caps, and auto-pause if a ban/logout is detected. A custom daily limit override is available at your own risk.' ] },
-      { q: 'How do I avoid getting banned?', a: [
-        'Use a secondary number, don’t bulk-message unknown numbers, don’t repeat identical text, keep replying to real conversations, and respect the warm-up limits. For large-scale or template sending, use the official WhatsApp API instead.' ] },
-      { q: 'What is the warm-up limit and can I change it?', a: [
-        'The daily safe limit rises automatically over ~2 weeks. You can set a custom daily limit override in the QR card, but higher limits on a fresh number increase ban risk.' ] },
+      { q: "内置了哪些保护措施？", a: [
+        "逐步预热（第 1 天 ≈ 25 条消息，在约 2 周内不断增加）、类人随机延迟（5-15 秒）、打字指示器、每个号码的每日上限以及检测到禁止/注销时自动暂停。您可以自行承担自定义每日限额覆盖的风险。" ] },
+      { q: "如何避免被禁止？", a: [
+        "使用辅助号码，不要批量发送未知号码，不要重复相同的文本，继续回复真实对话，并遵守预热限制。对于大规模或模板发送，请改用官方 WhatsApp API。" ] },
+      { q: "预热限制是多少？我可以更改它吗？", a: [
+        "每日安全限额会在约 2 周内自动上升。您可以在二维码卡中设置自定义每日限制覆盖，但新号码的更高限制会增加禁令风险。" ] },
     ],
   },
   {
     id: 'technical',
-    title: '28. Technical & Troubleshooting',
+    title: "28. 技术与故障排除",
     items: [
-      { q: 'Messages not arriving on WhatsApp QR.', a: [
-        'Keep the linked phone online. Use Channels → WhatsApp by QR → “Sync Messages”. If still stuck, Disconnect → Connect → re-scan to refresh the session (this also re-imports recent history).' ] },
-      { q: '“Waiting for this message” on the recipient’s phone.', a: [
-        'An encryption-sync issue on QR. It auto-recovers now; if an old message is stuck, Disconnect → Connect → re-scan to reset the encryption session.' ] },
-      { q: 'Tappable buttons not showing on QR.', a: [
-        'WhatsApp blocks unofficial buttons on newer versions, so QR uses numbered options that deliver reliably everywhere. For guaranteed buttons use the official WhatsApp API.' ] },
-      { q: 'Old chat history did not import.', a: [
-        'Full history imports only at QR scan time. Do Disconnect → Connect → re-scan to import recent chats.' ] },
-      { q: 'Can I make WhatsApp voice/video calls from the panel?', a: [
-        'No. WhatsApp’s calling protocol is not available to any third-party tool. Call / AI Call place a normal phone call through the configured voice provider, not a WhatsApp call.' ] },
-      { q: 'A feature is locked or missing.', a: [
-        'It is not in your current plan, or your agent role lacks permission. Upgrade the plan or ask your admin to enable it.' ] },
-      { q: 'Branding changes are not visible.', a: [
-        'Hard-refresh (Ctrl+Shift+R) or use Clear Cache. Branding is cached per device and refreshes on reload.' ] },
-      { q: 'A contact shows a number/ID instead of a name.', a: [
-        'Names resolve as the contact map syncs; on QR, use Sync Messages or re-scan so the name mapping loads.' ] },
+      { q: "消息未通过 WhatsApp QR 到达。", a: [
+        "保持链接的电话在线。使用频道 → WhatsApp by QR → “同步消息”。如果仍然卡住，请断开连接 → 连接 → 重新扫描以刷新会话（这也会重新导入最近的历史记录）。" ] },
+      { q: "收件人手机上显示“正在等待此消息”。", a: [
+        "QR 上的加密同步问题。现在会自动恢复；如果旧消息卡住，请断开连接 → 连接 → 重新扫描以重置加密会话。" ] },
+      { q: "QR 上未显示可点击按钮。", a: [
+        "WhatsApp 在新版本上屏蔽了非官方按钮，因此 QR 使用编号选项，可以在任何地方可靠地传送。对于有保证的按钮，请使用官方 WhatsApp API。" ] },
+      { q: "旧聊天记录未导入。", a: [
+        "仅在 QR 扫描时导入完整历史记录。断开连接 → 连接 → 重新扫描以导入最近的聊天记录。" ] },
+      { q: "我可以通过面板进行 WhatsApp 语音/视频通话吗？", a: [
+        "不可以。任何第三方工具都无法使用 WhatsApp 的调用协议。呼叫/AI 呼叫通过配置的语音提供商拨打普通电话，而不是 WhatsApp 呼叫。" ] },
+      { q: "功能被锁定或丢失。", a: [
+        "它不在您当前的计划中，或者您的代理角色缺乏权限。升级计划或要求您的管理员启用它。" ] },
+      { q: "品牌变化不可见。", a: [
+        "硬刷新 (Ctrl+Shift+R) 或使用清除缓存。品牌标识按设备缓存并在重新加载时刷新。" ] },
+      { q: "联系人显示号码/ID而不是姓名。", a: [
+        "联系人地图同步时解析名称；在 QR 上，使用同步消息或重新扫描，以便加载名称映射。" ] },
     ],
   },
   {
     id: 'faq',
-    title: '29. Common Customer Queries (FAQ)',
+    title: "29. 常见客户查询（常见问题解答）",
     items: [
-      { q: 'Is my number safe on QR?', a: [
-        'QR is unofficial, so a small risk always exists, but the Anti-Ban engine (warm-up, delays, caps, auto-pause) keeps it low when used sensibly. Official WhatsApp API has zero ban risk.' ] },
-      { q: 'Do QR/Telegram messages cost per message?', a: [
-        'No per-message charge on QR/Telegram/Personal Telegram. WhatsApp API template/conversation pricing follows Meta’s rates.' ] },
-      { q: 'Can I use the same number on WhatsApp API and QR?', a: [
-        'They are separate connections; each channel keeps its own inbox. A number active on the official API cannot also run on WhatsApp Web/QR.' ] },
-      { q: 'Can the bot message a customer first?', a: [
-        'A Telegram bot cannot initiate — the customer must start. Personal Telegram and WhatsApp can message first (respecting WhatsApp’s 24-hour/template rules).' ] },
-      { q: 'How many agents/channels can I add?', a: [
-        'Depends on your plan limits. Check billing or ask your admin to raise limits.' ] },
-      { q: 'How do I get help?', a: [
-        'Open a Support ticket from the sidebar or contact {email}. Include a clear description and screenshots.' ] },
+      { q: "我的二维码号码安全吗？", a: [
+        "QR 是非官方的，因此始终存在小风险，但反禁令引擎（预热、延迟、上限、自动暂停）在合理使用时可使其保持较低水平。官方 WhatsApp API 被禁风险为零。" ] },
+      { q: "QR/Telegram 消息每条消息是否收费？", a: [
+        "QR/Telegram/Personal Telegram 上的每条消息不收费。 WhatsApp API 模板/对话定价遵循 Meta 的费率。" ] },
+      { q: "我可以在 WhatsApp API 和 QR 上使用相同的号码吗？", a: [
+        "它们是单独的连接；每个频道都有自己的收件箱。在官方 API 上活跃的号码也无法在 WhatsApp Web/QR 上运行。" ] },
+      { q: "机器人可以先向客户发送消息吗？", a: [
+        "Telegram 机器人无法启动 — 客户必须启动。个人 Telegram 和 WhatsApp 可以先发消息（尊重 WhatsApp 的 24 小时/模板规则）。" ] },
+      { q: "我可以添加多少个代理/渠道？", a: [
+        "取决于您的计划限制。检查账单或要求管理员提高限制。" ] },
+      { q: "我如何获得帮助？", a: [
+        "从侧边栏打开支持票证或联系 {email}。包括清晰的描述和屏幕截图。" ] },
     ],
   },
 ];
@@ -426,12 +349,12 @@ export function getGuideSections(biz: Biz): GSection[] {
 // Full plain-text version for copy-to-AI.
 export function buildPlainText(biz: Biz): string {
   const lines: string[] = [];
-  lines.push(`${biz.name} — COMPLETE PLATFORM GUIDE (for AI assistant training)`);
+  lines.push(`${biz.name} - 完整的平台指南（用于人工智能助理培训）`);
   if (biz.tagline) lines.push(biz.tagline);
   const contact = [biz.email, biz.url, biz.phone, biz.address].filter(Boolean).join(' · ');
   if (contact) lines.push(contact);
   lines.push('');
-  lines.push('Instruction to the AI: Use ONLY the information below to answer questions about ' + biz.name + ' — its sales, setup, features, technical issues and support. Answer clearly and helpfully.');
+  lines.push("对 AI 的说明：仅使用以下信息来回答以下问题：" + biz.name + "— 其销售、设置、功能、技术问题和支持。回答清楚且有帮助。");
   lines.push('');
   for (const s of getGuideSections(biz)) {
     lines.push('==== ' + s.title + ' ====');

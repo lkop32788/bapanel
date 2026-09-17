@@ -444,9 +444,7 @@ async function handleIncoming(workspaceId, m, state) {
   const Workspace = require('../models/Workspace');
   const workspace = await Workspace.findById(workspaceId);
   if (workspace) {
-    if (!outbound) require('./apiWebhookDispatcher').dispatch(workspace, 'message.received', {
-      conversation_id: conversation._id, contact_id: contact._id, channel: 'whatsapp_qr', text: text || '',
-    }).catch(() => {});
+
     if (!isGroup && !outbound && (text || buttonId)) {
       // Opt-out / opt-in (STOP / START) first, so an unsubscribing contact gets
       // the confirmation instead of an automation reply.

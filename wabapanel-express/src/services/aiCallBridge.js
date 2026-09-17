@@ -229,19 +229,11 @@ LANGUAGE: Speak in ENGLISH by default, but with a natural INDIAN accent and a wa
 SALES: Listen carefully to what the customer actually wants - if they ask for a plan, an appointment, a demo, pricing, or anything else, follow their request and use the right tool to help them right away. Suggest the plan that fits their need. Do NOT pitch the premium agency plan (₹19,999) to everyone - it makes people feel we are expensive. Only bring up the agency plan if the customer specifically asks you to set everything up for them (done-for-you) or asks about that plan directly; otherwise keep it simple and recommend the plan that matches what they need.
 
 TOOLS you can use during the call:
-- book_appointment: book an appointment (collect name, date, time, purpose first; confirm details back).
-- save_lead: when the caller shows interest in a product/service, save their name, requirement and budget as a lead.
 - schedule_callback: if the caller asks to be called later. For a specific date/time pass date+time; for relative requests ("abhi", "2 minute baad", "aadhe ghante baad") pass minutes_from_now instead.
 - transfer_to_human: if the caller asks to talk to a human/staff, use this, then tell them the team will call them shortly.
-- send_catalog: if the caller asks for the catalog/price list/brochure, send it on WhatsApp.
 - send_whatsapp_message: if the caller asks you to send them a link, website, app link, address, price, or any details on WhatsApp, use this to send them a WhatsApp text message right away (you can include links in the message text). Always actually call this tool when they ask you to send something - do not just say you will.
-- get_order_status: if the caller asks about their order, look it up by order number (or their phone number).
-- create_order: when customer wants to buy/order something, create an order (collect item names, quantities).
-- send_payment_reminder: send a payment reminder message on WhatsApp about pending amount.
-- qualify_lead: update the customer lead status (hot/warm/cold) and pipeline stage based on conversation.
 - schedule_followup: schedule a follow-up WhatsApp message to send after the call.
 - collect_feedback: save customer feedback/rating/survey response.
-- create_ticket: create a support ticket when customer has a complaint or issue.
 Always confirm to the caller after a tool succeeds. Current date/time: ` + new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' (IST).',
     ...(context?.externalSpeaker
       ? {
@@ -254,37 +246,7 @@ Always confirm to the caller after a tool succeeds. Current date/time: ` + new D
             output: { format: { type: 'audio/pcm', rate: 24000 }, voice: voice || 'alloy' },
           },
         }),
-    tools: [
-      {
-        type: 'function',
-        name: 'book_appointment',
-        description: 'Book an appointment for the caller in the business calendar.',
-        parameters: {
-          type: 'object',
-          properties: {
-            name: { type: 'string', description: 'Caller name' },
-            date: { type: 'string', description: 'Appointment date in YYYY-MM-DD' },
-            time: { type: 'string', description: 'Appointment time in 24h HH:MM' },
-            purpose: { type: 'string', description: 'Reason for the appointment' },
-          },
-          required: ['date', 'time'],
-        },
-      },
-      {
-        type: 'function',
-        name: 'save_lead',
-        description: 'Save the caller as a sales lead when they show interest in a product or service.',
-        parameters: {
-          type: 'object',
-          properties: {
-            name: { type: 'string', description: 'Caller name' },
-            requirement: { type: 'string', description: 'What the caller is interested in / needs' },
-            budget: { type: 'string', description: 'Budget mentioned by the caller, if any' },
-          },
-          required: ['requirement'],
-        },
-      },
-      {
+    tools: [{
         type: 'function',
         name: 'schedule_callback',
         description: 'Schedule an AI callback. For a specific date/time pass date+time; for relative requests ("abhi", "2 minute baad", "aadhe ghante baad") pass minutes_from_now instead.',
@@ -298,7 +260,7 @@ Always confirm to the caller after a tool succeeds. Current date/time: ` + new D
           },
         },
       },
-      {
+{
         type: 'function',
         name: 'transfer_to_human',
         description: 'Notify the human team that the caller wants to talk to a person. The team will call them back shortly.',
@@ -309,13 +271,7 @@ Always confirm to the caller after a tool succeeds. Current date/time: ` + new D
           },
         },
       },
-      {
-        type: 'function',
-        name: 'send_catalog',
-        description: 'Send the business catalog / price list / brochure to the caller on WhatsApp.',
-        parameters: { type: 'object', properties: {} },
-      },
-      {
+{
         type: 'function',
         name: 'send_whatsapp_message',
         description: 'Send a WhatsApp text message to the caller during the call - use when they ask you to send a link, website/app link, address, price, or any details on WhatsApp. The message text can include links.',
@@ -326,19 +282,7 @@ Always confirm to the caller after a tool succeeds. Current date/time: ` + new D
           },
           required: ['message'],
         },
-      },
-      {
-        type: 'function',
-        name: 'get_order_status',
-        description: 'Look up the status of the caller order by order number, or their latest order.',
-        parameters: {
-          type: 'object',
-          properties: {
-            order_number: { type: 'string', description: 'Order number mentioned by the caller, if any' },
-          },
-        },
-      },
-    ],
+      }],
     tool_choice: 'auto',
   };
   // Add dynamic tools from callTools module
@@ -511,51 +455,7 @@ async function logCallOutbound(workspaceId, phone, type, text, sendResult) {
 }
 
 async function handleTool(name, args, ctx) {
-  if (name === 'book_appointment') {
-    if (!ctx.workspaceId) return { ok: false, error: 'no workspace context' };
-    const Appointment = require('../models/Appointment');
-    const Contact = require('../models/Contact');
-    const digits = (ctx.phone || '').replace(/[^0-9]/g, '');
-    const contact = digits
-      ? await Contact.findOne({ workspace: ctx.workspaceId, phone: { $in: [digits, digits.slice(-10), '91' + digits.slice(-10)] } })
-      : null;
-    const time = args.time || '10:00';
-    const [hh, mm] = time.split(':').map(Number);
-    const endMin = (hh * 60 + (mm || 0) + 30) % 1440;
-    const endTime = String(Math.floor(endMin / 60)).padStart(2, '0') + ':' + String(endMin % 60).padStart(2, '0');
-    const appt = await Appointment.create({
-      workspace: ctx.workspaceId,
-      title: args.purpose || 'Appointment (AI call)',
-      contact: contact?._id,
-      contactName: args.name || contact?.name || '',
-      contactPhone: digits,
-      date: new Date(args.date),
-      startTime: time,
-      endTime,
-      notes: 'Booked by AI calling agent',
-      metadata: { source: 'ai_call' },
-    });
-    // Send the customer a WhatsApp confirmation with Confirm/Reschedule/Cancel buttons.
-    if (ctx.accessToken && ctx.phoneNumberId && digits) {
-      try {
-        const WhatsAppService = require('./whatsappService');
-        const wa = new WhatsAppService(ctx.accessToken, ctx.phoneNumberId);
-        const dStr = new Date(args.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
-        const apptBody = 'Your appointment has been booked!' + String.fromCharCode(10, 10) + (appt.title || 'Appointment') + String.fromCharCode(10) + 'Date: ' + dStr + String.fromCharCode(10) + 'Time: ' + time + ' (IST)';
-        const apptRes = await wa.sendInteractiveMessage(digits, {
-          type: 'button',
-          body: { text: apptBody },
-        action: { buttons: [
-            { type: 'reply', reply: { id: 'appt_confirm_' + appt._id, title: 'Confirm' } },
-            { type: 'reply', reply: { id: 'appt_reschedule_' + appt._id, title: 'Reschedule' } },
-            { type: 'reply', reply: { id: 'appt_cancel_' + appt._id, title: 'Cancel' } },
-          ] },
-        });
-        await logCallOutbound(ctx.workspaceId, digits, 'interactive', apptBody, apptRes);
-      } catch (e) { console.error('[AI Call] appt buttons send failed:', e.message); }
-    }
-    return { ok: true, appointment_id: String(appt._id), date: args.date, time, name: args.name || contact?.name || '' };
-  }
+  
   const digits = (ctx.phone || '').replace(/[^0-9]/g, '');
   const findContact = async () => {
     if (!digits || !ctx.workspaceId) return null;
@@ -563,25 +463,7 @@ async function handleTool(name, args, ctx) {
     return Contact.findOne({ workspace: ctx.workspaceId, phone: { $in: [digits, digits.slice(-10), '91' + digits.slice(-10)] } });
   };
 
-  if (name === 'save_lead') {
-    if (!ctx.workspaceId) return { ok: false, error: 'no workspace context' };
-    const Pipeline = require('../models/Pipeline');
-    const contact = await findContact();
-    let p = await Pipeline.findOne({ workspace: ctx.workspaceId, status: 'active' });
-    if (!p) p = await Pipeline.create({ workspace: ctx.workspaceId, name: 'Leads', stages: [{ id: 'new', name: 'New', order: 0 }] });
-    const stage = p.stages[0]?.id || 'new';
-    const budget = parseFloat(String(args.budget || '').replace(/[^0-9.]/g, '')) || 0;
-    p.deals.push({
-      title: (args.name || contact?.name || digits) + ' — ' + (args.requirement || 'AI call lead'),
-      value: budget,
-      contact: contact?._id,
-      stage,
-      notes: 'Source: AI call\n' + (args.requirement || '') + (args.budget ? '\nBudget: ' + args.budget : ''),
-    });
-    await p.save();
-    console.log('[AI Call] lead saved:', args.requirement);
-    return { ok: true, lead_saved: true };
-  }
+  
 
   if (name === 'schedule_callback') {
     if (!ctx.workspaceId || !digits) return { ok: false, error: 'no context' };
@@ -606,8 +488,6 @@ async function handleTool(name, args, ctx) {
         const cbExisting = await ContactNote.findOne({ workspace: ctx.workspaceId, contact: cbContact._id, contacted: { $ne: true }, text: { $regex: '^Callback requested by customer' } }).sort('-createdAt');
         if (cbExisting) { cbExisting.remindAt = at; cbExisting.text = cbText; cbExisting.reminderSent = false; await cbExisting.save(); }
         else { await ContactNote.create({ workspace: ctx.workspaceId, contact: cbContact._id, text: cbText, remindAt: at, contacted: false, notifyCustomer: false }); }
-        const Contact = require('../models/Contact');
-        await Contact.findByIdAndUpdate(cbContact._id, { callStatus: 'callback' });
       }
     } catch (e) { /* noop: reminder is best-effort */ }
     console.log('[AI Call] callback scheduled for', at.toISOString());
@@ -626,8 +506,6 @@ async function handleTool(name, args, ctx) {
         const cbRemark = 'Customer ne callback cancel karwa di' + (args.reason ? ' - ' + args.reason : '');
         const cbNotes = await ContactNote.find({ workspace: ctx.workspaceId, contact: cbContact._id, contacted: { $ne: true }, text: { $regex: '^Callback requested by customer' } });
         for (const cbN of cbNotes) { cbN.contacted = true; cbN.reminderSent = true; cbN.contactedRemark = cbRemark; await cbN.save(); cbCancelled++; }
-        const Contact = require('../models/Contact');
-        await Contact.findByIdAndUpdate(cbContact._id, { callStatus: '' });
       }
     } catch (e) { /* noop */ }
     console.log('[AI Call] callback cancelled for', digits, 'notes:', cbCancelled);
@@ -646,19 +524,7 @@ async function handleTool(name, args, ctx) {
     return { ok: true, message: 'Team has been notified and will call the customer shortly.' };
   }
 
-  if (name === 'send_catalog') {
-    const url = ctx.agent?.catalogUrl;
-    if (!url) return { ok: false, error: 'No catalog is configured. Tell the caller you will share it later.' };
-    if (!ctx.accessToken || !ctx.phoneNumberId || !digits) return { ok: false, error: 'no whatsapp context' };
-    const WhatsAppService = require('./whatsappService');
-    const wa = new WhatsAppService(ctx.accessToken, ctx.phoneNumberId);
-    const isImage = /\.(png|jpe?g|webp)(\?|$)/i.test(url);
-    const r = await wa.sendMediaMessage(digits, isImage ? 'image' : 'document', url, 'Catalog / Price list');
-    if (!r?.success) return { ok: false, error: 'send failed' };
-    await logCallOutbound(ctx.workspaceId, digits, isImage ? 'image' : 'document', 'Catalog / Price list', r);
-    console.log('[AI Call] catalog sent to', digits);
-    return { ok: true, sent: true };
-  }
+  
 
   if (name === 'send_whatsapp_message') {
     const message = String(args.message || '').trim();
@@ -673,31 +539,10 @@ async function handleTool(name, args, ctx) {
     return { ok: true, sent: true };
   }
 
-  if (name === 'get_order_status') {
-    if (!ctx.workspaceId) return { ok: false, error: 'no workspace context' };
-    const Order = require('../models/Order');
-    let order = null;
-    if (args.order_number) {
-      const esc = String(args.order_number).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      order = await Order.findOne({ workspace: ctx.workspaceId, orderNumber: new RegExp('^' + esc + '$', 'i') });
-    }
-    if (!order) {
-      const contact = await findContact();
-      if (contact) order = await Order.findOne({ workspace: ctx.workspaceId, contact: contact._id }).sort('-createdAt');
-    }
-    if (!order) return { ok: false, error: 'order not found' };
-    return {
-      ok: true,
-      order_number: order.orderNumber,
-      status: order.status,
-      payment_status: order.paymentStatus,
-      total: order.totalAmount + ' ' + order.currency,
-      items: order.items.map(i => i.name + ' x' + i.quantity),
-    };
-  }
+  
 
-  // Handle callTools module tools (create_order, send_payment_reminder, qualify_lead, schedule_followup, collect_feedback, create_ticket)
-  if (['create_order', 'send_payment_reminder', 'qualify_lead', 'schedule_followup', 'collect_feedback', 'create_ticket'].includes(name)) {
+  // Run supported follow-up and feedback tools.
+  if (['schedule_followup', 'collect_feedback'].includes(name)) {
     try {
       const result = await executeTool(name, args, ctx);
       return JSON.parse(result);
@@ -1040,11 +885,6 @@ async function sendCallSummary(b) {
     await Conversation.findByIdAndUpdate(conversation._id, {
       lastMessage: { text: summary, timestamp: new Date(), direction: 'outbound', type: 'text' },
     });
-    // CRM: keep the call summary + transcript on the contact profile.
-    const stamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-    const note = '\n\n[AI Call ' + stamp + ']\n' + summary + '\n--- Transcript ---\n' + convoText;
-    contact.notes = ((contact.notes || '') + note).slice(-20000);
-    await contact.save();
   } catch (e) { console.error('[AI Call] summary save failed:', e.message); }
   // Optional follow-up message configured on the agent.
   try {

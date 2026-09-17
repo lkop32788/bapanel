@@ -1,7 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('./models/User');
-const Plan = require('./models/Plan');
 const SystemSettings = require('./models/SystemSettings');
 const Permission = require('./models/Permission');
 const LandingPage = require('./models/LandingPage');
@@ -11,70 +10,17 @@ const seed = async () => {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/wapto');
     console.log('Connected to MongoDB');
 
-    // Seed Plans
-    const existingPlans = await Plan.countDocuments();
-    if (existingPlans === 0) {
-      await Plan.create([
-        {
-          name: 'Free',
-          description: 'Get started for free',
-          price: 0,
-          interval: 'lifetime',
-          limits: {
-            contacts: 100, templateBots: 5, messageBots: 2, campaigns: 5,
-            aiPrompts: 10, agents: 1, conversations: 50, teams: 1,
-            botFlows: 2, customFields: 5, tags: 10, whatsappForms: 2,
-            aiCallingAgents: 0, appointmentBookings: 10, facebookAdsCampaigns: 0,
-            kanbanFunnels: 1, segments: 5,
-          },
-          features: { restApi: false, whatsappWebhook: true, autoReplies: true, analytics: false, prioritySupport: false },
-        },
-        {
-          name: 'Silver',
-          description: 'Perfect for growing businesses',
-          price: 2000,
-          interval: 'lifetime',
-          isPopular: true,
-          limits: {
-            contacts: -1, templateBots: 100, messageBots: 10, campaigns: 100,
-            aiPrompts: 99, agents: 100, conversations: 100, teams: 15,
-            botFlows: 100, customFields: 100, tags: 100, whatsappForms: 100,
-            aiCallingAgents: 100, appointmentBookings: 100, facebookAdsCampaigns: 100,
-            kanbanFunnels: 100, segments: 100,
-          },
-          features: { restApi: true, whatsappWebhook: true, autoReplies: true, analytics: true, prioritySupport: false },
-        },
-        {
-          name: 'Unlimited',
-          description: 'For enterprise needs',
-          price: 9999,
-          interval: 'lifetime',
-          limits: {
-            contacts: -1, templateBots: -1, messageBots: -1, campaigns: -1,
-            aiPrompts: -1, agents: -1, conversations: -1, teams: -1,
-            botFlows: -1, customFields: -1, tags: -1, whatsappForms: -1,
-            aiCallingAgents: -1, appointmentBookings: -1, facebookAdsCampaigns: -1,
-            kanbanFunnels: -1, segments: -1,
-          },
-          features: { restApi: true, whatsappWebhook: true, autoReplies: true, analytics: true, prioritySupport: true },
-        },
-      ]);
-      console.log('Plans seeded');
-    }
-
     // Seed Super Admin
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@wabapanel.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123456';
     const existingAdmin = await User.findOne({ role: 'super_admin' });
     if (!existingAdmin) {
-      const freePlan = await Plan.findOne({ price: 0 });
       await User.create({
         name: 'Super Admin',
         email: adminEmail,
         password: adminPassword,
         role: 'super_admin',
         status: 'active',
-        plan: freePlan?._id,
       });
       console.log(`Super Admin created (${adminEmail})`);
     }
@@ -82,7 +28,6 @@ const seed = async () => {
     // Seed demo user
     const existingUser = await User.findOne({ email: 'demo@wabapanel.com' });
     if (!existingUser) {
-      const silverPlan = await Plan.findOne({ name: 'Silver' });
       const Workspace = require('./models/Workspace');
 
       const user = await User.create({
@@ -91,8 +36,6 @@ const seed = async () => {
         password: 'demo123456',
         role: 'user',
         status: 'active',
-        plan: silverPlan?._id,
-        walletBalance: 2000,
       });
 
       const workspace = await Workspace.create({
@@ -119,12 +62,10 @@ const seed = async () => {
         automations: { view: true, create: true, edit: true, delete: true },
         chat: { view: true, send: true, assign: true },
         teams: { view: true, manage: true },
-        billing: { view: true, manage: true },
         settings: { view: true, manage: true },
         pipelines: { view: true, create: true, edit: true, delete: true },
         forms: { view: true, create: true, edit: true, delete: true },
         shortLinks: { view: true, create: true, edit: true, delete: true },
-        appointments: { view: true, create: true, edit: true, delete: true },
         whatsapp: { connect: true, manage: true },
         analytics: { view: true },
       };
@@ -139,12 +80,10 @@ const seed = async () => {
         automations: { view: true, create: false, edit: false, delete: false },
         chat: { view: true, send: true, assign: false },
         teams: { view: true, manage: false },
-        billing: { view: false, manage: false },
         settings: { view: false, manage: false },
         pipelines: { view: true, create: true, edit: true, delete: false },
         forms: { view: true, create: false, edit: false, delete: false },
         shortLinks: { view: true, create: false, edit: false, delete: false },
-        appointments: { view: true, create: true, edit: true, delete: false },
         whatsapp: { connect: false, manage: false },
         analytics: { view: true },
       };
@@ -208,7 +147,6 @@ const seed = async () => {
         faq: [
           { question: 'What is WhatsApp Business API?', answer: 'WhatsApp Business API is a solution for medium and large businesses to communicate with customers at scale through WhatsApp.', order: 0 },
           { question: 'How do I get started?', answer: 'Sign up for a free account, connect your WhatsApp Business number, and start sending messages.', order: 1 },
-          { question: 'What payment methods do you accept?', answer: 'We accept credit/debit cards via Stripe, UPI and netbanking via Razorpay, and PayPal.', order: 2 },
         ],
         isPublished: true,
       });

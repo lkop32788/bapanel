@@ -1,0 +1,15 @@
+{
+  "version": "frontend-v202",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/app/client/channels/page.tsx",
+    "src/app/admin/license/page.tsx",
+    "src/components/ChannelDiagnose.tsx"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v202.zip",
+  "zip_sha256": "3cc43a9174df2280d931b86d6658345d6139350f7fe00fb93ae58e9bc6aebf08",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

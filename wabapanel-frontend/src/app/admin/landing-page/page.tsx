@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { Save, Plus, Trash2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -13,7 +14,7 @@ import ImageUploadInput from '@/components/ui/ImageUploadInput';
 interface LandingPageData {
   hero: { title: string; subtitle: string; description: string; ctaText: string; ctaLink: string; heroImage: string };
   features: Array<{ icon: string; title: string; description: string }>;
-  pricing: { title: string; subtitle: string; showPlans: boolean };
+  
   faq: Array<{ question: string; answer: string }>;
   testimonials: Array<{ name: string; company: string; text: string; avatar: string }>;
   contact: { title: string; email: string; phone: string; address: string };
@@ -23,12 +24,12 @@ interface LandingPageData {
 }
 
 const defaultData: LandingPageData = {
-  hero: { title: 'Transform Your Business Communication', subtitle: 'Powerful WhatsApp Business API Platform', description: '', ctaText: 'Get Started Free', ctaLink: '/auth/register', heroImage: '' },
+  hero: { title: "改变您的商务沟通", subtitle: "强大的 WhatsApp Business API 平台", description: '', ctaText: "免费开始", ctaLink: '/auth/register', heroImage: '' },
   features: [],
-  pricing: { title: 'Simple, Transparent Pricing', subtitle: 'Choose the plan that fits your business', showPlans: true },
+  
   faq: [],
   testimonials: [],
-  contact: { title: 'Contact Us', email: '', phone: '', address: '' },
+  contact: { title: "联系我们", email: '', phone: '', address: '' },
   footer: { companyName: '', description: '', copyrightText: '', socialLinks: { facebook: '', twitter: '', instagram: '', linkedin: '', youtube: '' } },
   seo: { title: '', description: '' },
   isPublished: true,
@@ -39,7 +40,7 @@ function merge(base: LandingPageData, incoming: Partial<LandingPageData>): Landi
     ...base,
     ...incoming,
     hero: { ...base.hero, ...(incoming.hero || {}) },
-    pricing: { ...base.pricing, ...(incoming.pricing || {}) },
+    
     contact: { ...base.contact, ...(incoming.contact || {}) },
     footer: { ...base.footer, ...(incoming.footer || {}), socialLinks: { ...base.footer.socialLinks, ...(incoming.footer?.socialLinks || {}) } },
     seo: { ...base.seo, ...(incoming.seo || {}) },
@@ -59,7 +60,7 @@ export default function LandingPageAdmin() {
 
   const handleSave = async () => {
     setSaving(true);
-    try { await adminApi.updateLandingPage({ ...data, isPublished: true }); toast.success('Landing page saved'); } catch { toast.error('Failed'); }
+    try { await adminApi.updateLandingPage({ ...data, isPublished: true }); toast.success(translateApiMessage("着陆页已保存")); } catch { toast.error(translateApiMessage("操作失败")); }
     setSaving(false);
   };
 
@@ -74,111 +75,99 @@ export default function LandingPageAdmin() {
     <div className="space-y-6">
       <div className="page-hero flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Landing Page Setup</h1>
-          <p className="text-sm text-gray-500 mt-1">Customize every section of your public landing page. Pricing plans come automatically from Admin → Plans.</p>
+          <h1 className="text-2xl font-bold text-gray-900">登陆页面设置</h1>
+          <p className="text-sm text-gray-500 mt-1">自定义公共登陆页面的每个部分。定价计划自动来自管理 → 计划。</p>
         </div>
-        <Button onClick={handleSave} loading={saving} icon={<Save className="w-4 h-4" />}>Save All</Button>
+        <Button onClick={handleSave} loading={saving} icon={<Save className="w-4 h-4" />}>全部保存</Button>
       </div>
 
       <Tabs tabs={[
-        { key: 'hero', label: 'Hero', content: (
+        { key: 'hero', label: "英雄", content: (
           <Card>
             <div className="space-y-4 max-w-lg">
-              <Input label="Title" value={data.hero.title} onChange={e => setData({ ...data, hero: { ...data.hero, title: e.target.value } })} />
-              <Textarea label="Subtitle" value={data.hero.subtitle} onChange={e => setData({ ...data, hero: { ...data.hero, subtitle: e.target.value } })} />
+              <Input label={"标题"} value={data.hero.title} onChange={e => setData({ ...data, hero: { ...data.hero, title: e.target.value } })} />
+              <Textarea label={"副标题"} value={data.hero.subtitle} onChange={e => setData({ ...data, hero: { ...data.hero, subtitle: e.target.value } })} />
               <div className="grid grid-cols-2 gap-4">
-                <Input label="CTA Text" value={data.hero.ctaText} onChange={e => setData({ ...data, hero: { ...data.hero, ctaText: e.target.value } })} />
-                <Input label="CTA Link" value={data.hero.ctaLink} onChange={e => setData({ ...data, hero: { ...data.hero, ctaLink: e.target.value } })} />
+                <Input label={"CTA 文本"} value={data.hero.ctaText} onChange={e => setData({ ...data, hero: { ...data.hero, ctaText: e.target.value } })} />
+                <Input label={"CTA 链接"} value={data.hero.ctaLink} onChange={e => setData({ ...data, hero: { ...data.hero, ctaLink: e.target.value } })} />
               </div>
-              <ImageUploadInput label="Hero Image" value={data.hero.heroImage} onChange={v => setData({ ...data, hero: { ...data.hero, heroImage: v } })} hint="Recommended: 800x600px or larger JPG/PNG" folder="landing" />
+              <ImageUploadInput label={"英雄形象"} value={data.hero.heroImage} onChange={v => setData({ ...data, hero: { ...data.hero, heroImage: v } })} hint={"推荐：800x600px或更大的JPG/PNG"} folder="landing" />
             </div>
           </Card>
         )},
-        { key: 'features', label: 'Features', content: (
+        { key: 'features', label: "特点", content: (
           <Card>
             {data.features.map((f, i) => (
               <div key={i} className="flex gap-3 items-start mb-4 p-3 bg-gray-50 rounded-lg">
                 <div className="flex-1 grid grid-cols-3 gap-2">
-                  <Input placeholder="Icon (message/zap/send/bot/users/chart/calendar/pipeline/phone)" value={f.icon} onChange={e => { const features = [...data.features]; features[i] = { ...f, icon: e.target.value }; setData({ ...data, features }); }} />
-                  <Input placeholder="Title" value={f.title} onChange={e => { const features = [...data.features]; features[i] = { ...f, title: e.target.value }; setData({ ...data, features }); }} />
-                  <Input placeholder="Description" value={f.description} onChange={e => { const features = [...data.features]; features[i] = { ...f, description: e.target.value }; setData({ ...data, features }); }} />
+                  <Input placeholder={"图标（消息/zap/发送/机器人/用户/图表/日历/管道/电话）"} value={f.icon} onChange={e => { const features = [...data.features]; features[i] = { ...f, icon: e.target.value }; setData({ ...data, features }); }} />
+                  <Input placeholder={"标题"} value={f.title} onChange={e => { const features = [...data.features]; features[i] = { ...f, title: e.target.value }; setData({ ...data, features }); }} />
+                  <Input placeholder={"说明"} value={f.description} onChange={e => { const features = [...data.features]; features[i] = { ...f, description: e.target.value }; setData({ ...data, features }); }} />
                 </div>
                 <button onClick={() => removeFeature(i)} className="text-red-400 mt-1"><Trash2 className="w-4 h-4" /></button>
               </div>
             ))}
-            <Button variant="ghost" size="sm" onClick={addFeature} icon={<Plus className="w-3 h-3" />}>Add Feature</Button>
+            <Button variant="ghost" size="sm" onClick={addFeature} icon={<Plus className="w-3 h-3" />}>添加功能</Button>
           </Card>
         )},
-        { key: 'pricing', label: 'Pricing', content: (
-          <Card>
-            <div className="space-y-4 max-w-lg">
-              <Input label="Section Title" value={data.pricing.title} onChange={e => setData({ ...data, pricing: { ...data.pricing, title: e.target.value } })} />
-              <Input label="Section Subtitle" value={data.pricing.subtitle} onChange={e => setData({ ...data, pricing: { ...data.pricing, subtitle: e.target.value } })} />
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <input type="checkbox" checked={data.pricing.showPlans} onChange={e => setData({ ...data, pricing: { ...data.pricing, showPlans: e.target.checked } })} />
-                Show pricing section on landing page
-              </label>
-              <p className="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg">Plans (name, price, features) automatically come from Admin → Plans. Edit plans there and the landing page updates automatically.</p>
-            </div>
-          </Card>
-        )},
+        
         { key: 'faq', label: 'FAQ', content: (
           <Card>
             {data.faq.map((f, i) => (
               <div key={i} className="mb-4 p-3 bg-gray-50 rounded-lg">
                 <div className="flex gap-2 items-start">
                   <div className="flex-1 space-y-2">
-                    <Input placeholder="Question" value={f.question} onChange={e => { const faq = [...data.faq]; faq[i] = { ...f, question: e.target.value }; setData({ ...data, faq }); }} />
-                    <Textarea placeholder="Answer" value={f.answer} onChange={e => { const faq = [...data.faq]; faq[i] = { ...f, answer: e.target.value }; setData({ ...data, faq }); }} />
+                    <Input placeholder={"问题"} value={f.question} onChange={e => { const faq = [...data.faq]; faq[i] = { ...f, question: e.target.value }; setData({ ...data, faq }); }} />
+                    <Textarea placeholder={"答案"} value={f.answer} onChange={e => { const faq = [...data.faq]; faq[i] = { ...f, answer: e.target.value }; setData({ ...data, faq }); }} />
                   </div>
                   <button onClick={() => removeFaq(i)} className="text-red-400 mt-1"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             ))}
-            <Button variant="ghost" size="sm" onClick={addFaq} icon={<Plus className="w-3 h-3" />}>Add FAQ</Button>
+            <Button variant="ghost" size="sm" onClick={addFaq} icon={<Plus className="w-3 h-3" />}>添加常见问题解答</Button>
           </Card>
         )},
-        { key: 'testimonials', label: 'Testimonials', content: (
+        { key: 'testimonials', label: "感言", content: (
           <Card>
             {data.testimonials.map((t, i) => (
               <div key={i} className="mb-4 p-3 bg-gray-50 rounded-lg">
                 <div className="flex gap-2 items-start">
                   <div className="flex-1 grid grid-cols-2 gap-2">
-                    <Input placeholder="Name" value={t.name} onChange={e => { const ts = [...data.testimonials]; ts[i] = { ...t, name: e.target.value }; setData({ ...data, testimonials: ts }); }} />
-                    <Input placeholder="Company / Role" value={t.company} onChange={e => { const ts = [...data.testimonials]; ts[i] = { ...t, company: e.target.value }; setData({ ...data, testimonials: ts }); }} />
-                    <Input placeholder="Avatar URL" value={t.avatar} onChange={e => { const ts = [...data.testimonials]; ts[i] = { ...t, avatar: e.target.value }; setData({ ...data, testimonials: ts }); }} className="col-span-2" />
-                    <Textarea placeholder="Testimonial text" value={t.text} onChange={e => { const ts = [...data.testimonials]; ts[i] = { ...t, text: e.target.value }; setData({ ...data, testimonials: ts }); }} className="col-span-2" />
+                    <Input placeholder={"名称"} value={t.name} onChange={e => { const ts = [...data.testimonials]; ts[i] = { ...t, name: e.target.value }; setData({ ...data, testimonials: ts }); }} />
+                    <Input placeholder={"公司/角色"} value={t.company} onChange={e => { const ts = [...data.testimonials]; ts[i] = { ...t, company: e.target.value }; setData({ ...data, testimonials: ts }); }} />
+                    <Input placeholder={"头像网址"} value={t.avatar} onChange={e => { const ts = [...data.testimonials]; ts[i] = { ...t, avatar: e.target.value }; setData({ ...data, testimonials: ts }); }} className="col-span-2" />
+                    <Textarea placeholder={"推荐文字"} value={t.text} onChange={e => { const ts = [...data.testimonials]; ts[i] = { ...t, text: e.target.value }; setData({ ...data, testimonials: ts }); }} className="col-span-2" />
                   </div>
                   <button onClick={() => removeTestimonial(i)} className="text-red-400 mt-1"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             ))}
-            <Button variant="ghost" size="sm" onClick={addTestimonial} icon={<Plus className="w-3 h-3" />}>Add Testimonial</Button>
+            <Button variant="ghost" size="sm" onClick={addTestimonial} icon={<Plus className="w-3 h-3" />}>添加推荐</Button>
           </Card>
         )},
-        { key: 'contact', label: 'Contact', content: (
+        { key: 'contact', label: "联系方式", content: (
           <Card>
             <div className="space-y-4 max-w-lg">
-              <Input label="Email" value={data.contact.email} onChange={e => setData({ ...data, contact: { ...data.contact, email: e.target.value } })} />
-              <Input label="Phone" value={data.contact.phone} onChange={e => setData({ ...data, contact: { ...data.contact, phone: e.target.value } })} />
-              <Textarea label="Address" value={data.contact.address} onChange={e => setData({ ...data, contact: { ...data.contact, address: e.target.value } })} />
+              <Input label={"邮箱"} value={data.contact.email} onChange={e => setData({ ...data, contact: { ...data.contact, email: e.target.value } })} />
+              <Input label={"电话"} value={data.contact.phone} onChange={e => setData({ ...data, contact: { ...data.contact, phone: e.target.value } })} />
+              <Textarea label={"地址"} value={data.contact.address} onChange={e => setData({ ...data, contact: { ...data.contact, address: e.target.value } })} />
             </div>
           </Card>
         )},
-        { key: 'footer', label: 'Footer', content: (
+        { key: 'footer', label: "页脚", content: (
           <Card>
             <div className="space-y-4 max-w-lg">
-              <Input label="Company Name" value={data.footer.companyName} onChange={e => setData({ ...data, footer: { ...data.footer, companyName: e.target.value } })} placeholder="WabaPanel" />
-              <Textarea label="Company Description" value={data.footer.description} onChange={e => setData({ ...data, footer: { ...data.footer, description: e.target.value } })} placeholder="WhatsApp Business Platform for modern businesses." />
-              <Input label="Copyright Text" value={data.footer.copyrightText} onChange={e => setData({ ...data, footer: { ...data.footer, copyrightText: e.target.value } })} placeholder="© 2026 WabaPanel. All rights reserved." />
+              <Input label={"公司名称"} value={data.footer.companyName} onChange={e => setData({ ...data, footer: { ...data.footer, companyName: e.target.value } })} placeholder="WabaPanel" />
+              <Textarea label={"公司描述"} value={data.footer.description} onChange={e => setData({ ...data, footer: { ...data.footer, description: e.target.value } })} placeholder={"适用于现代企业的 WhatsApp 商业平台。"} />
+              <Input label={"版权文本"} value={data.footer.copyrightText} onChange={e => setData({ ...data, footer: { ...data.footer, copyrightText: e.target.value } })} placeholder={"© 2026 WabaPanel。版权所有。"} />
             </div>
           </Card>
         )},
         { key: 'seo', label: 'SEO', content: (
           <Card>
             <div className="space-y-4 max-w-lg">
-              <Input label="Meta Title" value={data.seo.title} onChange={e => setData({ ...data, seo: { ...data.seo, title: e.target.value } })} />
-              <Textarea label="Meta Description" value={data.seo.description} onChange={e => setData({ ...data, seo: { ...data.seo, description: e.target.value } })} />
+              <Input label={"元标题"} value={data.seo.title} onChange={e => setData({ ...data, seo: { ...data.seo, title: e.target.value } })} />
+              <Textarea label={"元描述"} value={data.seo.description} onChange={e => setData({ ...data, seo: { ...data.seo, description: e.target.value } })} />
             </div>
           </Card>
         )},

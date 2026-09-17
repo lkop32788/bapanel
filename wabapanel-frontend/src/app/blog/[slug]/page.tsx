@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { SiteSettingsContext } from '@/components/SiteContentProvider';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { MessageSquare, ArrowLeft, Calendar } from 'lucide-react';
@@ -10,18 +11,19 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 export default function BlogPostPage() {
   const { slug } = useParams();
   const [post, setPost] = useState<any>(null);
-  const [biz, setBiz] = useState({ name: 'KKHS Media', logo: '' });
+  const initialSettings = useContext(SiteSettingsContext);
+  const [biz, setBiz] = useState({ name: initialSettings?.business?.name || '', logo: initialSettings?.branding?.logo || '' });
 
   useEffect(() => {
     fetch(`${API}/public/site-settings`).then(r => r.json()).then(d => {
-      if (d.success) setBiz({ name: d.data.business?.name || 'KKHS Media', logo: d.data.branding?.logo || '' });
+      if (d.success) setBiz({ name: d.data.business?.name || '', logo: d.data.branding?.logo || '' });
     }).catch(() => {});
     if (slug) fetch(`${API}/public/blog/${slug}`).then(r => r.json()).then(d => { if (d.success) setPost(d.data); }).catch(() => {});
   }, [slug]);
 
   if (!post) return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-pulse text-gray-400">Loading...</div>
+      <div className="animate-pulse text-gray-400">加载中…</div>
     </div>
   );
 
@@ -31,20 +33,20 @@ export default function BlogPostPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2.5">
             {biz.logo ? <img src={biz.logo} alt={biz.name} className="h-8 w-auto" /> : (
-              <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center"><MessageSquare className="w-5 h-5 text-white" /></div>
+              <div className="w-9 h-9 bg-linear-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center"><MessageSquare className="w-5 h-5 text-white" /></div>
             )}
             <span className="text-lg font-bold text-gray-900">{biz.name}</span>
           </Link>
-          <Link href="/auth/register" className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-semibold rounded-xl">Get Started</Link>
+          <Link href="/auth/register" className="px-4 py-2 bg-linear-to-r from-emerald-600 to-teal-600 text-white text-sm font-semibold rounded-xl">开始吧</Link>
         </div>
       </nav>
 
       <article className="pt-24 pb-20 px-4">
         <div className="max-w-3xl mx-auto">
-          <Link href="/blog" className="inline-flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 mb-6"><ArrowLeft className="w-4 h-4" /> All Posts</Link>
+          <Link href="/blog" className="inline-flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 mb-6"><ArrowLeft className="w-4 h-4" /> 所有帖子</Link>
 
           {post.coverImage && (
-            <div className="rounded-2xl overflow-hidden mb-8 aspect-[2/1]">
+            <div className="rounded-2xl overflow-hidden mb-8 aspect-2/1">
               <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover" />
             </div>
           )}
@@ -67,7 +69,7 @@ export default function BlogPostPage() {
 
       <footer className="border-t border-gray-100 py-8 px-4">
         <div className="max-w-7xl mx-auto text-center text-sm text-gray-400">
-          © {new Date().getFullYear()} {biz.name}. All rights reserved.
+          © {new Date().getFullYear()} {biz.name}。版权所有。
         </div>
       </footer>
     </div>

@@ -97,9 +97,6 @@ app.get('/api/maintenance-status', platform.maintenanceStatus);
 app.use('/api/install', require('./routes/install'));
 app.use(platform.maintenanceGuard);
 
-// License gate — hard-block all APIs (except login/activate/public) when unlicensed
-app.use('/api', require('./middleware/licenseGate'));
-
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/platform', platform.router);
@@ -117,22 +114,21 @@ app.use('/api/push', require('./routes/push'));
 app.use('/api/waqr', require('./routes/waqr'));
 app.use('/api/tgpersonal', require('./routes/tgpersonal'));
 app.use('/api/dashboard', require('./routes/dashboard'));
-app.use('/api/pipelines', require('./routes/pipelines'));
-app.use('/api/crm', require('./routes/crm'));
+
+
 app.use('/api/forms', require('./routes/forms'));
 // Public short link redirect (clean URL)
 const { redirectShortLink } = require('./controllers/shortLinkController');
-app.use('/widget', require('express').static(require('path').join(__dirname, '../public/widget')));
 app.get('/s/:code', redirectShortLink);
 
 app.use('/api/short-links', require('./routes/shortLinks'));
-app.use('/api/appointments', require('./routes/appointments'));
+
 app.use('/api/teams', require('./routes/teams'));
-app.use('/api/payments', require('./routes/payments'));
+
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/facebook-leads', require('./routes/facebookLeads'));
-app.use('/api/catalogs', require('./routes/catalogs'));
-app.use('/api/orders', require('./routes/orders'));
+
+
 app.use('/api/keywords', require('./routes/keywords'));
 app.use('/api/instagram-auto-dm', require('./routes/instagramAutoDm'));
 app.use('/api/facebook-connect', require('./routes/facebookConnect'));
@@ -142,9 +138,9 @@ app.use('/api/ai-calling', require('./routes/aiCalling'));
 app.use('/api/drips', require('./routes/drips'));
 app.use('/api/contact-notes', require('./routes/contactNotes'));
 app.use('/api/followups', require('./routes/followups'));
-app.use('/api/payment-links', require('./routes/paymentLinks'));
-app.use('/api/tickets', require('./routes/tickets'));
-app.use('/api/v1', require('./routes/v1'));
+
+
+
 app.use('/api/webhook', require('./routes/webhooks'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/admin/kkhs-license', require('./routes/kkhsLicense'));
@@ -152,37 +148,30 @@ app.use("/api/embedded-signup", require("./routes/embeddedSignup"));
 app.use("/api/data-fields", require("./routes/dataFields"));
 app.use("/api/badges", require("./routes/badges"));
 app.use("/api/ai-settings", require("./routes/aiSettings"));
-app.use("/api/chat-appearance", require("./routes/chatAppearance"));
+
 app.use("/api/integrations", require("./routes/integrations"));
 app.use("/api/media", require("./routes/media"));
-app.use("/api/ctwa-ads", require("./routes/ctwaAds"));
+
 app.use("/api/predefined-actions", require("./routes/predefinedActions"));
 app.use("/api/response-resources", require("./routes/responseResources"));
 app.use("/api/quick-replies-client", require("./routes/quickRepliesClient"));
 app.use("/api/ext", require("./routes/externalWebhooks"));
-app.use("/api/workspace-kb", require("./routes/knowledgeBase"));app.use("/api/audit-logs", require("./routes/auditLog"));app.use("/api/invoices", require("./routes/invoices"));
+app.use("/api/workspace-kb", require("./routes/knowledgeBase"));app.use("/api/audit-logs", require("./routes/auditLog"));
 
 // Landing page API (public)
 app.get('/api/landing-page', async (req, res) => {
   try {
     const LandingPage = require('./models/LandingPage');
-    const Plan = require('./models/Plan');
     const page = await LandingPage.findOne();
-    const plans = await Plan.find({ status: 'active' }).sort('price');
-    res.json({ success: true, data: { page, plans } });
+    res.json({ success: true, data: { page } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// License status (public — needed by frontend before auth)
-app.get("/api/public/license-status", async (req, res) => {
-  try {
-    const kkhsSvc = require("./services/kkhsLicenseService");
-    const status = await kkhsSvc.getStatus();
-    const gate = kkhsSvc.getGateState ? kkhsSvc.getGateState() : { licensed: status.isActive, reason: '' };
-    res.json({ success: true, active: gate.licensed === true, reason: gate.reason, killSwitch: status.killSwitch || false });
-  } catch (e) { res.json({ success: true, active: false, reason: 'error' }); }
+// Compatibility endpoint for older clients; this installation does not require a license.
+app.get('/api/public/license-status', (req, res) => {
+  res.json({ success: true, active: true, required: false, reason: '', killSwitch: false });
 });
 
 // KKHS store auto-login — signed link from kkhsmedia.com storepanel
@@ -207,22 +196,9 @@ app.get('/api/auth/kkhs-auto-login', async (req, res) => {
   } catch (e) { res.status(500).send('Auto-login failed'); }
 });
 
-// Feature locks — fetch LIVE from kkhsmedia.com for instant updates
-app.get("/api/public/kkhs-features", async (req, res) => {
-  // Owner/master panel: never hide features if the store is unreachable (IP block etc.)
-  if (process.env.KKHS_MASTER === "true") { return res.json({ success: true, data: {}, config: {} }); }
-  try {
-    const axios = require("axios");
-    const domain = String(req.get("host") || "").split(":")[0].replace(/^www\./, "");
-    const r = await axios.get("https://kkhsmedia.com/api/waba-panel-nodejs.php?action=get_feature_locks&panel_id=0&domain=" + encodeURIComponent(domain), { timeout: 5000 });
-    const locks = (r.data && r.data.success) ? r.data.locks : {};
-    const kkhsSvc = require("./services/kkhsLicenseService");
-    res.json({ success: true, data: locks, config: { poweredByEnabled: kkhsSvc.getConfig("powered_by_enabled"), poweredByText: kkhsSvc.getConfig("powered_by_text"), poweredByUrl: kkhsSvc.getConfig("powered_by_url"), referralCtaEnabled: kkhsSvc.getConfig("referral_cta_enabled"), referralCtaText: kkhsSvc.getConfig("referral_cta_text"), referralCtaUrl: kkhsSvc.getConfig("referral_cta_url") } });
-  } catch (e) {
-    // Fallback to cached locks if kkhsmedia.com is unreachable
-    try { const kkhsSvc = require("./services/kkhsLicenseService"); res.json({ success: true, data: kkhsSvc.getFeatureLocks(), config: {} }); }
-    catch (e2) { res.json({ success: true, data: {}, config: {} }); }
-  }
+// Compatibility endpoint: remote store locks are no longer applied.
+app.get('/api/public/kkhs-features', (req, res) => {
+  res.json({ success: true, data: {}, config: {} });
 });
 // White-label brand resolver: use the panel's configured appName; if unset,
 // fall back to the master brand only on the master install (KKHS_MASTER),
@@ -230,10 +206,10 @@ app.get("/api/public/kkhs-features", async (req, res) => {
 // master brand/tagline to customer installs.
 const _isMasterInstall = () => process.env.KKHS_MASTER === 'true';
 function brandNameFor(s, req) {
-  if (s && s.appName && s.appName !== 'Wapto') return s.appName;
+  if (s && typeof s.appName === 'string' && s.appName.trim()) return s.appName.trim();
   if (_isMasterInstall()) return 'WabaPanel';
   const host = String((req && req.headers && req.headers.host) || '').replace(/:\d+$/, '').replace(/^www\./, '');
-  if (!host) return 'Panel';
+  if (!host || require('net').isIP(host.replace(/^\[|\]$/g, ''))) return 'Panel';
   return host.split('.')[0].replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 function brandTaglineFor(s) {
@@ -345,21 +321,8 @@ app.get(['/api/public/manifest.webmanifest', '/api/public/manifest.json'], async
 app.get('/api/public/landing-page', async (req, res) => {
   try {
     const LandingPage = require('./models/LandingPage');
-    const Plan = require('./models/Plan');
     const page = await LandingPage.findOne({ isPublished: true });
-    const plans = await Plan.find({ status: 'active' }).sort('price');
-    res.json({ success: true, data: { page, plans } });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Plans API (public)
-app.get('/api/plans', async (req, res) => {
-  try {
-    const Plan = require('./models/Plan');
-    const plans = await Plan.find({ status: 'active' }).sort('price');
-    res.json({ success: true, data: plans });
+    res.json({ success: true, data: { page } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -370,7 +333,7 @@ app.post('/api/inquiries', async (req, res) => {
   try {
     const Inquiry = require('./models/Inquiry');
     const inquiry = await Inquiry.create(req.body);
-    require('./services/adminNotify').notifyAdmin('New inquiry received', ['Name: ' + (req.body.name || ''), 'Email: ' + (req.body.email || ''), 'Message: ' + String(req.body.message || '').slice(0, 200)], '/admin/inquiries').catch(() => {});
+    require('./services/adminNotify').notifyAdmin('New inquiry received', ['Name: ' + (req.body.name || ''), 'Email: ' + (req.body.email || ''), 'Message: ' + String(req.body.message || '').slice(0, 200)], '/admin/dashboard').catch(() => {});
     res.status(201).json({ success: true, data: inquiry });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -398,90 +361,6 @@ app.get("/api/public/blog/:slug", async (req, res) => {
     const post = await BlogPost.findOne({ slug: req.params.slug, status: "published" }).lean();
     if (!post) return res.status(404).json({ success: false, message: "Not found" });
     res.json({ success: true, data: post });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-// ---------- Public self-service booking (Cal.com-style) ----------
-app.get("/api/public/booking/:slug", async (req, res) => {
-  try {
-    const BookingSettings = require("./models/BookingSettings");
-    const Workspace = require("./models/Workspace");
-    const s = await BookingSettings.findOne({ slug: req.params.slug, enabled: true }).lean();
-    if (!s) return res.status(404).json({ success: false, message: "Booking page not found" });
-    const ws = await Workspace.findById(s.workspace).select("name").lean();
-    const days = (s.weekly || []).map((w) => Array.isArray(w) && w.length > 0);
-    const overrides = {};
-    for (const o of (s.overrides || [])) {
-      overrides[o.date] = !o.unavailable && (o.windows || []).length > 0;
-    }
-    res.json({ success: true, data: {
-      title: s.title, description: s.description, slotDuration: s.slotDuration,
-      advanceDays: s.advanceDays, timezone: s.timezone, days, overrides,
-      workspaceName: ws ? ws.name : "",
-    } });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-app.get("/api/public/booking/:slug/slots", async (req, res) => {
-  try {
-    const BookingSettings = require("./models/BookingSettings");
-    const bookingService = require("./services/bookingService");
-    const date = String(req.query.date || "");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ success: false, message: "date (YYYY-MM-DD) required" });
-    const s = await BookingSettings.findOne({ slug: req.params.slug, enabled: true });
-    if (!s) return res.status(404).json({ success: false, message: "Booking page not found" });
-    const slots = await bookingService.slotsForDate(s.workspace, s, date);
-    res.json({ success: true, data: { date, slotDuration: s.slotDuration, slots } });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-app.post("/api/public/booking/:slug", async (req, res) => {
-  try {
-    const BookingSettings = require("./models/BookingSettings");
-    const bookingService = require("./services/bookingService");
-    const Appointment = require("./models/Appointment");
-    const Contact = require("./models/Contact");
-    const crypto = require("crypto");
-    const s = await BookingSettings.findOne({ slug: req.params.slug, enabled: true });
-    if (!s) return res.status(404).json({ success: false, message: "Booking page not found" });
-    const { name, phone, email, date, start, notes } = req.body || {};
-    if (!name || !phone || !date || !start) return res.status(400).json({ success: false, message: "name, phone, date and start are required" });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ success: false, message: "invalid date" });
-    const chk = await bookingService.verifySlot(s.workspace, s, date, start);
-    if (!chk.ok) return res.status(400).json({ success: false, message: chk.message });
-    let contact = null;
-    try {
-      const digits = String(phone).replace(/\D/g, "");
-      if (digits) contact = await Contact.findOne({ workspace: s.workspace, phone: { $regex: digits.slice(-10) + "$" } }).select("_id");
-    } catch (e) { /* optional */ }
-    const cancelToken = crypto.randomBytes(12).toString("hex");
-    const appt = await Appointment.create({
-      workspace: s.workspace,
-      title: `${s.title} — ${name}`,
-      contact: contact ? contact._id : undefined,
-      contactName: name, contactPhone: phone, contactEmail: email || "",
-      date: new Date(date + "T00:00:00"),
-      startTime: start, endTime: chk.end, duration: s.slotDuration,
-      status: "scheduled", notes: notes || "", type: "booking",
-      metadata: { publicBooking: true, cancelToken },
-    });
-    try { bookingService.notifyBooking(s, appt); } catch (e) { /* notify is best-effort */ }
-    res.status(201).json({ success: true, data: { id: appt._id, cancelToken, date, start, end: chk.end } });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-app.post("/api/public/booking/:slug/cancel", async (req, res) => {
-  try {
-    const BookingSettings = require("./models/BookingSettings");
-    const Appointment = require("./models/Appointment");
-    const s = await BookingSettings.findOne({ slug: req.params.slug, enabled: true });
-    if (!s) return res.status(404).json({ success: false, message: "Booking page not found" });
-    const { id, token } = req.body || {};
-    const appt = await Appointment.findOne({ _id: id, workspace: s.workspace });
-    if (!appt || (appt.metadata && appt.metadata.cancelToken) !== token) return res.status(400).json({ success: false, message: "Invalid booking or token" });
-    appt.status = "cancelled";
-    await appt.save();
-    res.json({ success: true });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
@@ -613,7 +492,6 @@ setInterval(async () => {
 global._io = io;
 require('./services/aiCallScheduler').start();
 require('./services/aiCallScheduler').startBulkCampaigns();
-require('./services/aiAssistScheduler').start(io);
 require('./services/dataCleanup').start();
 require('./services/wisher').start();
 require('./services/dailyDigest').start();
@@ -654,49 +532,6 @@ setInterval(async () => {
   } catch (e) { console.error('[Call Rec cleanup]', e.message); }
 }, 6 * 60 * 60 * 1000);
 
-// Initialize appointment auto-reminder scheduler (every 5 minutes)
-const { processAutoReminders } = require('./controllers/appointmentController');
-setInterval(async () => {
-  try {
-    const result = await processAutoReminders();
-    if (result && (result.sent1h > 0 || result.sent24h > 0)) {
-      console.log(`[Appointment Scheduler] Sent ${result.sent1h} 1h reminders, ${result.sent24h} 24h reminders`);
-    }
-  } catch (err) {
-    console.error('[Appointment Scheduler] Error:', err.message);
-  }
-}, 5 * 60 * 1000); // Every 5 minutes
-
-// Plan auto-reminder scheduler (every 6 hours)
-const { runAutoReminder } = require("./controllers/adminController");
-setInterval(async () => {
-  try {
-    const result = await runAutoReminder();
-    if (result && result.sentCount > 0) console.log("[Plan Reminder] Auto sent:", result.sentCount, "reminders");
-  } catch (e) { console.error("[Plan Reminder] Scheduler error:", e.message); }
-}, 6 * 60 * 60 * 1000);
-// Run once at startup after 30 sec delay
-setTimeout(async () => {
-  try { await runAutoReminder(); } catch(e) { console.error("[Plan Reminder] Startup run error:", e.message); }
-}, 30000);
-
-// Expired plan enforcement (hourly): clears plan on users whose planExpiry has passed
-const expireOverduePlans = async () => {
-  const User = require('./models/User');
-  const result = await User.updateMany(
-    { plan: { $ne: null }, planExpiry: { $ne: null, $lt: new Date() } },
-    { $set: { plan: null, planExpiry: null } }
-  );
-  if (result.modifiedCount > 0) console.log('[Plan Expiry] Deactivated expired plans:', result.modifiedCount);
-  const Subscription = require('./models/Subscription');
-  await Subscription.updateMany(
-    { status: 'active', endDate: { $ne: null, $lt: new Date() } },
-    { $set: { status: 'expired' } }
-  );
-};
-setInterval(() => { expireOverduePlans().catch((e) => console.error('[Plan Expiry] Error:', e.message)); }, 60 * 60 * 1000);
-setTimeout(() => { expireOverduePlans().catch((e) => console.error('[Plan Expiry] Startup error:', e.message)); }, 45000);
-
 // Daily database backup (every 24 hours, keeps last 10)
 setInterval(async () => {
   try { await platform.runBackup(); console.log('[Backup] Daily database backup completed'); }
@@ -706,9 +541,6 @@ setInterval(async () => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  // Initialize KKHS License Service
-  const kkhsService = require('./services/kkhsLicenseService');
-  kkhsService.init().then(() => console.log('[KKHS] License service initialized')).catch(e => console.error('[KKHS] Init failed:', e.message));
 
   // Self-heal: the installer's nginx config historically missed client_max_body_size,
   // so uploads over 1MB got 413. Add it to our own site file only, then reload nginx.

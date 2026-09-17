@@ -3,8 +3,6 @@ const Contact = require('../models/Contact');
 const Conversation = require('../models/Conversation');
 const Campaign = require('../models/Campaign');
 const User = require('../models/User');
-const Plan = require('../models/Plan');
-const Payment = require('../models/Payment');
 
 // @GET /api/dashboard (Client Dashboard)
 const getClientDashboard = async (req, res) => {
@@ -57,14 +55,11 @@ const getClientDashboard = async (req, res) => {
     const Template = require('../models/Template');
     const PresetMessage = require('../models/PresetMessage');
     const CallSession = require('../models/CallSession');
-    const Appointment = require('../models/Appointment');
-    const Order = require('../models/Order');
     const Keyword = require('../models/Keyword');
-    const WalletTransaction = require('../models/WalletTransaction');
 
     const [
-      campaignAgg, templateAgg, presetCount, callAgg, apptTotal, apptUpcoming,
-      orderAgg, keywordCount, unreadAgg, newContacts, contactChart, spendAgg,
+      campaignAgg, templateAgg, presetCount, callAgg,
+      keywordCount, unreadAgg, newContacts, contactChart,
       todayMsgAgg, campaignRecent, callChart,
     ] = await Promise.all([
       Campaign.aggregate([
@@ -83,13 +78,6 @@ const getClientDashboard = async (req, res) => {
           failed: { $sum: { $cond: [{ $in: ['$status', ['failed', 'rejected']] }, 1, 0] } },
           seconds: { $sum: { $ifNull: ['$duration', 0] } } } },
       ]),
-      Appointment.countDocuments({ workspace: workspaceId }),
-      Appointment.countDocuments({ workspace: workspaceId, date: { $gte: todayStart }, status: { $nin: ['cancelled'] } }),
-      Order.aggregate([
-        { $match: { workspace: workspaceId } },
-        { $group: { _id: null, total: { $sum: 1 },
-          revenue: { $sum: { $cond: [{ $in: ['$status', ['cancelled', 'refunded']] }, 0, { $ifNull: ['$totalAmount', 0] }] } } } },
-      ]),
       Keyword.countDocuments({ workspace: workspaceId }),
       Conversation.aggregate([
         { $match: { workspace: workspaceId } },
@@ -100,10 +88,6 @@ const getClientDashboard = async (req, res) => {
         { $match: { workspace: workspaceId, createdAt: { $gte: thirtyDaysAgo } } },
         { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
-      ]),
-      WalletTransaction.aggregate([
-        { $match: { user: req.user._id, type: 'debit', createdAt: { $gte: thirtyDaysAgo } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       Message.aggregate([
         { $match: { workspace: workspaceId, createdAt: { $gte: todayStart } } },
@@ -176,9 +160,7 @@ const getClientDashboard = async (req, res) => {
     const ContactNote = require('../models/ContactNote');
     const BotFlow = require('../models/BotFlow');
     const todayEnd = new Date(todayStart.getTime() + 86400000);
-    const [todayAppointments, dueReminders, resolvedCount, botFlowsActive] = await Promise.all([
-      Appointment.find({ workspace: workspaceId, date: { $gte: todayStart }, status: { $nin: ['cancelled', 'completed'] }, archived: { $ne: true } })
-        .select('title contactName contactPhone startTime status date').sort('date startTime').limit(6).lean(),
+    const [dueReminders, resolvedCount, botFlowsActive] = await Promise.all([
       ContactNote.find({ workspace: workspaceId, remindAt: { $lte: todayEnd }, contacted: { $ne: true } })
         .populate('contact', 'name phone').select('text remindAt contact').sort('remindAt').limit(6).lean(),
       Conversation.countDocuments({ workspace: workspaceId, status: 'closed' }),
@@ -205,50 +187,17 @@ const getClientDashboard = async (req, res) => {
         },
         messageChart: recentMessages,
         recentConversations,
-        // Agents bill against the workspace owner's wallet, so show the owner's
-        // balance and rate card to them too.
-        ...(await (async () => {
-          let billUser = req.user;
-          if (req.user.role === 'agent' && req.workspace.owner) {
-            try {
-              const owner = await require('../models/User').findById(req.workspace.owner)
-                .select('walletBalance walletBillingExempt showRateCard walletTemplateRates').lean();
-              if (owner) billUser = owner;
-            } catch { /* fall back to req.user */ }
-          }
-          return {
-            walletBalance: billUser.walletBalance || 0,
-            rateCard: await (async () => {
-              try {
-                if (billUser.walletBillingExempt || billUser.showRateCard === false) return null;
-                const rates = await require('../services/walletBilling').getRates();
-                if (!rates) return null;
-                const custom = billUser.walletTemplateRates || {};
-                return {
-                  marketing: custom.marketing != null ? custom.marketing : rates.marketing,
-                  utility: custom.utility != null ? custom.utility : rates.utility,
-                  authentication: custom.authentication != null ? custom.authentication : rates.authentication,
-                  service: 0,
-                };
-              } catch { return null; }
-            })(),
-          };
-        })()),
         whatsappConnected: req.workspace.whatsapp?.isConnected || false,
-        plan: req.user.plan,
         campaigns: campaignStats,
         recentCampaigns: campaignRecent,
         templates: templateStats,
         presets: presetCount,
         aiCalls: { total: calls.total, completed: calls.completed, failed: calls.failed, minutes: Math.round((calls.seconds || 0) / 60) },
         callChart,
-        appointments: { total: apptTotal, upcoming: apptUpcoming },
-        orders: { total: orderAgg[0]?.total || 0, revenue: orderAgg[0]?.revenue || 0 },
         keywords: keywordCount,
         unreadCount: unreadAgg[0]?.unread || 0,
         newContacts,
         contactChart,
-        spend: spendAgg[0]?.total || 0,
         today: todayMsgs,
         rangeDays: days,
         hourlyActivity: hourlyAgg.map(h => ({ hour: parseInt(h._id, 10), count: h.count })),
@@ -257,7 +206,6 @@ const getClientDashboard = async (req, res) => {
         campaignTable,
         typeBreakdown: typeAgg.map(t => ({ source: t._id || 'manual', count: t.count })),
         responseTime: { avgMinutes: Math.round(avgResponseMin * 10) / 10, medianMinutes: Math.round(medianResponseMin * 10) / 10, samples: respDiffs.length },
-        todayAppointments,
         dueReminders,
         resolvedCount,
         botFlowsActive,
@@ -268,134 +216,37 @@ const getClientDashboard = async (req, res) => {
   }
 };
 
-// @GET /api/admin/dashboard (Admin Dashboard)
-// @GET /api/admin/dashboard (Admin Dashboard)
+// @GET /api/admin/dashboard
 const getAdminDashboard = async (req, res) => {
   try {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const sevenDaysFromNow = new Date(now.getTime() + 7 * 86400000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
-
-    const [
-      totalUsers,
-      activeUsers,
-      totalPlans,
-      totalRevenue,
-      recentSignups,
-      subscriptionStats,
-      paymentStats,
-      platformStats,
-      todaySignups,
-      expiringSoon,
-      expiredUsers,
-      recentPayments,
-      todayRevenue,
-      userGrowthChart,
-    ] = await Promise.all([
+    const Workspace = require('../models/Workspace');
+    const CallSession = require('../models/CallSession');
+    const [totalUsers, activeUsers, recentSignups, todaySignups, userGrowthChart,
+      workspaces, msgSent30, msgRecv30, campaigns, aiCalls30, msgToday] = await Promise.all([
       User.countDocuments({ role: 'vendor' }),
       User.countDocuments({ role: 'vendor', status: 'active' }),
-      Plan.countDocuments({ status: 'active' }),
-      Payment.aggregate([
-        { $match: { status: 'completed' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
-      User.find({ role: 'vendor' })
-        .select('name email plan status createdAt lastLogin planExpiry')
-        .populate('plan', 'name')
-        .sort('-createdAt')
-        .limit(10),
-      User.aggregate([
-        { $match: { plan: { $exists: true, $ne: null } } },
-        { $group: { _id: '$plan', count: { $sum: 1 } } },
-      ]),
-      Payment.aggregate([
-        { $match: { status: 'completed' } },
-        { $group: {
-          _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
-          total: { $sum: '$amount' },
-          count: { $sum: 1 },
-        }},
-        { $sort: { _id: -1 } },
-        { $limit: 12 },
-      ]),
-      (async () => {
-        const Workspace = require('../models/Workspace');
-        const Message = require('../models/Message');
-        const Campaign = require('../models/Campaign');
-        const CallSession = require('../models/CallSession');
-        const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
-        const todayMsgs = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const [workspaces, msgSent30, msgRecv30, campaigns, aiCalls30, walletAgg, msgToday] = await Promise.all([
-          Workspace.countDocuments({}),
-          Message.countDocuments({ direction: 'outbound', createdAt: { $gte: since } }),
-          Message.countDocuments({ direction: 'inbound', createdAt: { $gte: since } }),
-          Campaign.countDocuments({}),
-          CallSession.countDocuments({ createdAt: { $gte: since } }),
-          User.aggregate([{ $group: { _id: null, total: { $sum: '$walletBalance' } } }]),
-          Message.countDocuments({ createdAt: { $gte: todayMsgs } }),
-        ]);
-        return { workspaces, msgSent30, msgRecv30, campaigns, aiCalls30, walletTotal: walletAgg[0]?.total || 0, msgToday };
-      })(),
+      User.find({ role: 'vendor' }).select('name email status createdAt lastLogin').sort('-createdAt').limit(10),
       User.countDocuments({ role: 'vendor', createdAt: { $gte: todayStart } }),
-      User.find({ role: 'vendor', status: 'active', planExpiry: { $gte: now, $lte: sevenDaysFromNow } })
-        .select('name email plan planExpiry')
-        .populate('plan', 'name')
-        .sort('planExpiry')
-        .limit(10)
-        .lean(),
-      User.countDocuments({ role: 'vendor', planExpiry: { $lt: now } }),
-      Payment.find({ status: 'completed' })
-        .select('user amount description createdAt')
-        .populate('user', 'name email')
-        .sort('-createdAt')
-        .limit(8)
-        .lean(),
-      Payment.aggregate([
-        { $match: { status: 'completed', createdAt: { $gte: todayStart } } },
-        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
-      ]),
       User.aggregate([
         { $match: { role: 'vendor', createdAt: { $gte: thirtyDaysAgo } } },
         { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ]),
+      Workspace.countDocuments({}),
+      Message.countDocuments({ direction: 'outbound', createdAt: { $gte: thirtyDaysAgo } }),
+      Message.countDocuments({ direction: 'inbound', createdAt: { $gte: thirtyDaysAgo } }),
+      Campaign.countDocuments({}),
+      CallSession.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+      Message.countDocuments({ createdAt: { $gte: todayStart } }),
     ]);
-
-    const SupportTicket = require('../models/SupportTicket');
-    const Inquiry = require('../models/Inquiry');
-    const [pendingManualPayments, openTickets, newInquiries] = await Promise.all([
-      Payment.countDocuments({ gateway: 'manual', status: 'pending' }),
-      SupportTicket.countDocuments({ status: { $in: ['open', 'awaiting_reply'] } }),
-      Inquiry.countDocuments({ status: 'new' }),
-    ]);
-
-    // Plan name lookup for subscription stats
-    const planIds = subscriptionStats.map(s => s._id);
-    const planDocs = await Plan.find({ _id: { $in: planIds } }).select('name').lean();
-    const planMap = {};
-    planDocs.forEach(p => { planMap[String(p._id)] = p.name; });
-    const subsWithNames = subscriptionStats.map(s => ({ ...s, planName: planMap[String(s._id)] || 'Unknown' }));
-
-    res.json({
-      success: true,
-      data: {
-        users: { total: totalUsers, active: activeUsers },
-        plans: totalPlans,
-        revenue: totalRevenue[0]?.total || 0,
-        recentSignups,
-        subscriptionStats: subsWithNames,
-        paymentStats,
-        platform: platformStats,
-        todaySignups,
-        expiringSoon,
-        expiredUsers,
-        recentPayments,
-        todayRevenue: { total: todayRevenue[0]?.total || 0, count: todayRevenue[0]?.count || 0 },
-        userGrowthChart,
-        pendingActions: { manualPayments: pendingManualPayments, openTickets, newInquiries },
-      },
-    });
+    res.json({ success: true, data: {
+      users: { total: totalUsers, active: activeUsers },
+      recentSignups, todaySignups, userGrowthChart,
+      platform: { workspaces, msgSent30, msgRecv30, campaigns, aiCalls30, msgToday },
+    } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

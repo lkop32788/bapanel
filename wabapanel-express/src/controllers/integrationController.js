@@ -6,9 +6,11 @@ const Contact = require('../models/Contact');
 const WhatsAppService = require('../services/whatsappService');
 const { LEAD_SOURCES, getEffectivePresets, submitPresetTemplate } = require('../services/integrationAutomation');
 
+const integrationTypes = Integration.schema.path('type').enumValues;
+
 const getIntegrations = async (req, res) => {
   try {
-    const integrations = await Integration.find({ workspace: req.workspace._id });
+    const integrations = await Integration.find({ workspace: req.workspace._id, type: { $in: integrationTypes } });
     const safe = integrations.map(i => {
       const obj = i.toObject();
       if (obj.config.apiKey) obj.config.apiKey = '****' + obj.config.apiKey.slice(-4);
@@ -28,6 +30,7 @@ const shopHost = (s) => String(s || '').trim().replace(/^https?:\/\//i, '').repl
 
 const connectIntegration = async (req, res) => {
   try {
+    if (!integrationTypes.includes(req.body.type)) return res.status(400).json({ success: false, message: 'Unsupported integration type' });
     const { type, config } = req.body;
     if (type === 'shopify' && config && config.storeUrl) config.storeUrl = shopHost(config.storeUrl);
     let integration = await Integration.findOne({ workspace: req.workspace._id, type });
@@ -40,14 +43,10 @@ const connectIntegration = async (req, res) => {
       if (config.webhookUrl) integration.config.webhookUrl = config.webhookUrl;
       if (config.storeUrl) integration.config.storeUrl = config.storeUrl;
       if (config.sheetId) integration.config.sheetId = config.sheetId;
-      if (config.calendarId) integration.config.calendarId = config.calendarId;
       if (config.measurementId) integration.config.measurementId = config.measurementId;
       if (config.instanceUrl) integration.config.instanceUrl = config.instanceUrl;
       if (config.apiDomain) integration.config.apiDomain = config.apiDomain;
       if (config.companyDomain) integration.config.companyDomain = config.companyDomain;
-      if (config.clientId) integration.config.clientId = config.clientId;
-      if (config.merchantId) integration.config.merchantId = config.merchantId;
-      if (config.saltIndex) integration.config.saltIndex = config.saltIndex;
       if (config.endpointUrl) integration.config.endpointUrl = config.endpointUrl;
       if (config.model) integration.config.model = config.model;
       integration.connected = true;
@@ -82,6 +81,7 @@ const connectIntegration = async (req, res) => {
 
 const disconnectIntegration = async (req, res) => {
   try {
+    if (!integrationTypes.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Unsupported integration type' });
     const integration = await Integration.findOne({ workspace: req.workspace._id, type: req.params.type });
     if (!integration) return res.status(404).json({ success: false, message: 'Integration not found' });
     integration.connected = false;
@@ -94,6 +94,7 @@ const disconnectIntegration = async (req, res) => {
 
 const updateSyncSettings = async (req, res) => {
   try {
+    if (!integrationTypes.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Unsupported integration type' });
     const integration = await Integration.findOne({ workspace: req.workspace._id, type: req.params.type });
     if (!integration) return res.status(404).json({ success: false, message: 'Integration not found' });
     Object.assign(integration.syncSettings, req.body);
@@ -106,6 +107,7 @@ const updateSyncSettings = async (req, res) => {
 
 const triggerSync = async (req, res) => {
   try {
+    if (!integrationTypes.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Unsupported integration type' });
     const integration = await Integration.findOne({ workspace: req.workspace._id, type: req.params.type, connected: true });
     if (!integration) return res.status(404).json({ success: false, message: 'Integration not connected' });
 
@@ -177,9 +179,6 @@ async function testIntegrationConnection(type, config) {
     case 'google-sheets':
       if (!config.apiKey) throw new Error('API Key required');
       return { success: true, message: 'Google Sheets connected (Service Account key saved)' };
-    case 'google-calendar':
-      if (!config.apiKey || !config.calendarId) throw new Error('Service Account key and Calendar ID required');
-      return { success: true, message: 'Google Calendar connected' };
     case 'shopify': {
       if (!config.storeUrl || !config.apiKey) throw new Error('Store URL and API Key required');
       const host = shopHost(config.storeUrl);
@@ -223,22 +222,6 @@ async function testIntegrationConnection(type, config) {
         });
         return { success: true, message: 'Mailchimp connected' };
       } catch (e) { throw new Error(apiErr(e, 'Mailchimp — invalid API key')); }
-    case 'razorpay':
-      if (!config.apiKey || !config.apiSecret) throw new Error('Key ID and Secret required');
-      try {
-        await axios.get('https://api.razorpay.com/v1/items?count=1', {
-          auth: { username: config.apiKey, password: config.apiSecret }, timeout: 12000
-        });
-        return { success: true, message: 'Razorpay connected' };
-      } catch (e) { throw new Error(apiErr(e, 'Razorpay — invalid Key ID / Secret')); }
-    case 'stripe':
-      if (!config.apiKey) throw new Error('Secret Key required');
-      try {
-        await axios.get('https://api.stripe.com/v1/balance', {
-          headers: { Authorization: `Bearer ${config.apiKey}` }, timeout: 12000
-        });
-        return { success: true, message: 'Stripe connected' };
-      } catch (e) { throw new Error(apiErr(e, 'Stripe — invalid secret key')); }
     case 'google-analytics':
       if (!config.measurementId) throw new Error('Measurement ID required');
       return { success: true, message: 'Google Analytics configured' };
@@ -277,38 +260,9 @@ async function testIntegrationConnection(type, config) {
         await axios.get(`${pHost}/api/v1/users/me?api_token=${encodeURIComponent(config.apiKey)}`, { timeout: 12000 });
         return { success: true, message: 'Pipedrive connected' };
       } catch (e) { throw new Error(apiErr(e, 'Pipedrive — invalid API token')); }
-    case 'paypal':
-      if (!config.clientId || !config.apiSecret) throw new Error('Client ID and Secret required');
-      return { success: true, message: 'PayPal connected' };
-    case 'paytm':
-      if (!config.merchantId || !config.apiSecret) throw new Error('Merchant ID and Key required');
-      return { success: true, message: 'Paytm connected' };
-    case 'phonepe':
-      if (!config.merchantId || !config.apiSecret) throw new Error('Merchant ID and Salt Key required');
-      return { success: true, message: 'PhonePe connected' };
-    case 'cashfree':
-      if (!config.clientId || !config.apiSecret) throw new Error('App ID and Secret Key required');
-      return { success: true, message: 'Cashfree connected' };
-    case 'paystack':
-      if (!config.apiKey) throw new Error('Secret Key required');
-      try {
-        await axios.get('https://api.paystack.co/transaction?perPage=1', {
-          headers: { Authorization: `Bearer ${config.apiKey}` }, timeout: 12000
-        });
-        return { success: true, message: 'Paystack connected' };
-      } catch (e) { throw new Error(apiErr(e, 'Paystack — invalid secret key')); }
-    case 'mercadopago':
-      if (!config.apiKey) throw new Error('Access Token required');
-      try {
-        await axios.get(`https://api.mercadopago.com/users/me?access_token=${encodeURIComponent(config.apiKey)}`, { timeout: 12000 });
-        return { success: true, message: 'Mercado Pago connected' };
-      } catch (e) { throw new Error(apiErr(e, 'Mercado Pago — invalid access token')); }
     case 'openai':
       if (!config.apiKey && !config.endpointUrl) throw new Error('API Key or Custom Endpoint URL required');
       return { success: true, message: 'AI provider connected' };
-    case 'calendly':
-      if (!config.apiKey) throw new Error('API Key required');
-      return { success: true, message: 'Calendly connected' };
     default:
       return { success: true, message: 'Connected' };
   }
@@ -492,6 +446,8 @@ async function syncFromWooCommerce(integration, workspaceId) {
 // @GET /api/integrations/:type/setup — webhook URL + recommended templates + automation config
 const getIntegrationSetup = async (req, res) => {
   try {
+    if (!integrationTypes.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Unsupported integration type' });
+    if (!LEAD_SOURCES.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Automation is available only for lead sources' });
     const type = req.params.type;
     const base = process.env.BACKEND_URL || 'https://wabapanel.com';
     const wsId = req.workspace._id;
@@ -507,9 +463,6 @@ const getIntegrationSetup = async (req, res) => {
     let webhookUrl = '';
     if (LEAD_SOURCES.includes(type) && type !== 'facebook-leads') webhookUrl = `${base}/api/ext/lead/${wsId}/${type}${key}`;
     else if (type === 'facebook-leads') webhookUrl = `${base}/api/webhook/facebook-leads`;
-    else if (type === 'shopify') webhookUrl = `${base}/api/ext/shopify/${wsId}${key}`;
-    else if (type === 'shiprocket') webhookUrl = `${base}/api/ext/shiprocket/${wsId}${key}`;
-    else if (type === 'woocommerce') webhookUrl = `${base}/api/ext/woocommerce/${wsId}${key}`;
 
     const integration = integrationDoc.toObject();
     const presets = getEffectivePresets(type, integration);
@@ -551,7 +504,7 @@ const getIntegrationSetup = async (req, res) => {
           status: byName[p.name]?.status || 'not_submitted',
           rejectionReason: byName[p.name]?.rejectionReason || '',
         })),
-        automations: integration?.automations || {},
+        automations: integration?.automations?.lead ? { lead: integration.automations.lead } : {},
         connected: integration?.connected || false,
         stats: integration?.stats || {},
       },
@@ -564,6 +517,8 @@ const getIntegrationSetup = async (req, res) => {
 // @POST /api/integrations/:type/templates/:presetKey/submit — 1-click Meta approval submit
 const submitIntegrationTemplate = async (req, res) => {
   try {
+    if (!integrationTypes.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Unsupported integration type' });
+    if (!LEAD_SOURCES.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Automation is available only for lead sources' });
     const integration = await Integration.findOne({ workspace: req.workspace._id, type: req.params.type }).lean();
     const preset = getEffectivePresets(req.params.type, integration).find(p => p.key === req.params.presetKey);
     if (!preset) return res.status(404).json({ success: false, message: 'Template preset not found' });
@@ -584,13 +539,15 @@ const submitIntegrationTemplate = async (req, res) => {
 // @PUT /api/integrations/:type/automation — toggle per-event auto-send
 const updateAutomation = async (req, res) => {
   try {
+    if (!integrationTypes.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Unsupported integration type' });
+    if (!LEAD_SOURCES.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Automation is available only for lead sources' });
     const { event, enabled, templateName } = req.body;
-    if (!event) return res.status(400).json({ success: false, message: 'event is required' });
+    if (event !== 'lead') return res.status(400).json({ success: false, message: 'Unsupported integration event' });
     let integration = await Integration.findOne({ workspace: req.workspace._id, type: req.params.type });
     if (!integration) {
       integration = new Integration({ workspace: req.workspace._id, type: req.params.type, connected: true, config: {} });
     }
-    const automations = { ...(integration.automations || {}) };
+    const automations = integration.automations?.lead ? { lead: integration.automations.lead } : {};
     automations[event] = {
       enabled: enabled !== undefined ? !!enabled : (automations[event]?.enabled || false),
       templateName: templateName !== undefined ? templateName : (automations[event]?.templateName || ''),
@@ -628,6 +585,8 @@ const getAllLeads = async (req, res) => {
 // @PUT /api/integrations/:type/templates/:presetKey — edit a template's label/body
 const updateIntegrationTemplate = async (req, res) => {
   try {
+    if (!integrationTypes.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Unsupported integration type' });
+    if (!LEAD_SOURCES.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Automation is available only for lead sources' });
     const { label, body, headerType, headerText, headerImage, buttons } = req.body;
     if (!body || !String(body).trim()) return res.status(400).json({ success: false, message: 'Template body is required' });
     let integration = await Integration.findOne({ workspace: req.workspace._id, type: req.params.type });
@@ -665,8 +624,10 @@ const updateIntegrationTemplate = async (req, res) => {
 // @POST /api/integrations/:type/templates — add a custom template for an event
 const addIntegrationTemplate = async (req, res) => {
   try {
+    if (!integrationTypes.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Unsupported integration type' });
+    if (!LEAD_SOURCES.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Automation is available only for lead sources' });
     const { event, label, body, headerType, headerText, headerImage, buttons } = req.body;
-    if (!event || !body || !String(body).trim()) return res.status(400).json({ success: false, message: 'event and body are required' });
+    if (event !== 'lead' || !body || !String(body).trim()) return res.status(400).json({ success: false, message: 'event and body are required' });
     let integration = await Integration.findOne({ workspace: req.workspace._id, type: req.params.type });
     if (!integration) integration = new Integration({ workspace: req.workspace._id, type: req.params.type, connected: true, config: {} });
 
@@ -698,6 +659,8 @@ const addIntegrationTemplate = async (req, res) => {
 // @DELETE /api/integrations/:type/templates/:presetKey — remove a custom template
 const deleteIntegrationTemplate = async (req, res) => {
   try {
+    if (!integrationTypes.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Unsupported integration type' });
+    if (!LEAD_SOURCES.includes(req.params.type)) return res.status(400).json({ success: false, message: 'Automation is available only for lead sources' });
     const integration = await Integration.findOne({ workspace: req.workspace._id, type: req.params.type });
     if (!integration) return res.status(404).json({ success: false, message: 'Integration not found' });
     const customs = integration.customTemplates || [];
@@ -705,7 +668,7 @@ const deleteIntegrationTemplate = async (req, res) => {
     if (!target) return res.status(400).json({ success: false, message: 'Only custom templates can be deleted' });
     integration.customTemplates = customs.filter(c => c.key !== req.params.presetKey);
     integration.markModified('customTemplates');
-    const automations = { ...(integration.automations || {}) };
+    const automations = integration.automations?.lead ? { lead: integration.automations.lead } : {};
     Object.keys(automations).forEach(ev => {
       if (automations[ev]?.templateName === target.name) automations[ev] = { ...automations[ev], enabled: false, templateName: '' };
     });

@@ -1,4 +1,6 @@
 'use client';
+import { translateDisplay } from '@/lib/zhDisplay';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Link2, Unlink, ArrowUpDown, Zap, Copy, Send, CheckCircle2, Clock, XCircle, Search, Pencil, Trash2, Plus, Download, BookOpen } from 'lucide-react';
 import { integrationApi } from '@/lib/api';
@@ -7,144 +9,137 @@ import toast from 'react-hot-toast';
 
 interface IntegrationDef {
   id: string; name: string; description: string; icon: string; category: string; color: string;
-  fields: { key: string; label: string; type: string; placeholder: string }[];
+  fields: { key: string; label: string; type: string; placeholder: string; options?: { value: string; label: string }[] }[];
 }
 
 const integrationDefs: IntegrationDef[] = [
-  { id: 'google-calendar', name: 'Google Calendar', description: 'Auto-create calendar events when appointments are booked', icon: 'GC', category: 'productivity', color: '#4285F4',
-    fields: [{ key: 'apiKey', label: 'Service Account JSON Key', type: 'textarea', placeholder: 'Paste service account JSON...' }, { key: 'calendarId', label: 'Calendar ID', type: 'text', placeholder: 'e.g. yourname@gmail.com or calendar ID from settings' }] },
-  { id: 'google-sheets', name: 'Google Sheets', description: 'Sync contacts and data with Google Sheets', icon: 'GS', category: 'productivity', color: '#0F9D58',
-    fields: [{ key: 'apiKey', label: 'Service Account JSON Key', type: 'textarea', placeholder: 'Paste service account JSON...' }, { key: 'sheetId', label: 'Sheet ID', type: 'text', placeholder: 'Google Sheet ID from URL' }] },
-  { id: 'shopify', name: 'Shopify', description: 'Sync orders and customers from Shopify', icon: 'S', category: 'ecommerce', color: '#7AB55C',
-    fields: [{ key: 'storeUrl', label: 'Store URL', type: 'text', placeholder: 'mystore.myshopify.com' }, { key: 'apiKey', label: 'Admin API Access Token', type: 'password', placeholder: 'shpat_...' }] },
-  { id: 'woocommerce', name: 'WooCommerce', description: 'Connect your WooCommerce store', icon: 'WC', category: 'ecommerce', color: '#96588A',
-    fields: [{ key: 'storeUrl', label: 'Store URL', type: 'text', placeholder: 'https://yourstore.com' }, { key: 'apiKey', label: 'Consumer Key', type: 'password', placeholder: 'ck_...' }, { key: 'apiSecret', label: 'Consumer Secret', type: 'password', placeholder: 'cs_...' }] },
-  { id: 'hubspot', name: 'HubSpot', description: 'Sync contacts with HubSpot CRM', icon: 'HS', category: 'crm', color: '#FF7A59',
-    fields: [{ key: 'apiKey', label: 'Private App Token', type: 'password', placeholder: 'pat-...' }] },
-  { id: 'mailchimp', name: 'Mailchimp', description: 'Sync email marketing contacts', icon: 'MC', category: 'marketing', color: '#FFE01B',
-    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'xxxxxxxx-us21' }] },
-  { id: 'razorpay', name: 'Razorpay', description: 'Process payments via Razorpay', icon: 'RP', category: 'payments', color: '#0051FF',
-    fields: [{ key: 'apiKey', label: 'Key ID', type: 'text', placeholder: 'rzp_live_...' }, { key: 'apiSecret', label: 'Key Secret', type: 'password', placeholder: 'Secret...' }, { key: 'webhookSecret', label: 'Webhook Secret (for auto-confirm messages)', type: 'password', placeholder: 'Same secret you set in Razorpay Dashboard → Webhooks' }] },
-  { id: 'stripe', name: 'Stripe', description: 'Accept payments via Stripe', icon: 'ST', category: 'payments', color: '#635BFF',
-    fields: [{ key: 'apiKey', label: 'Secret Key', type: 'password', placeholder: 'sk_live_...' }] },
-  { id: 'google-analytics', name: 'Google Analytics', description: 'Track campaign performance', icon: 'GA', category: 'analytics', color: '#E37400',
-    fields: [{ key: 'measurementId', label: 'Measurement ID', type: 'text', placeholder: 'G-XXXXXXXXXX' }] },
-  { id: 'webhook', name: 'Custom Webhook', description: 'Send data to any URL via webhooks', icon: 'WH', category: 'developer', color: '#6366F1',
+  { id: 'google-workspace', name: 'Google Workspace', description: "Bot Flow Builder 内的 Google Meet、文档和表单卡", icon: 'GW', category: 'productivity', color: '#1A73E8',
+    fields: [{ key: 'apiKey', label: "服务账户 JSON 密钥", type: 'textarea', placeholder: "粘贴服务账户 JSON..." },
+      { key: 'subjectEmail', label: "充当的工作区用户（域范围委派）", type: 'text', placeholder: "you@yourdomain.com — Google Meet 链接需要" },
+      { key: 'calendarId', label: "会议的日历 ID（可选）", type: 'text', placeholder: "初级" },
+      { key: 'driveFolderId', label: "生成的文档的驱动器文件夹 ID（可选）", type: 'text', placeholder: "云端硬盘 URL 中的文件夹 ID" },
+      { key: 'timezone', label: "默认会议时区（可选）", type: 'text', placeholder: "亚洲/加尔各答" }] },
+  { id: 'google-sheets', name: 'Google Sheets', description: "将联系人和数据与 Google 表格同步", icon: 'GS', category: 'productivity', color: '#0F9D58',
+    fields: [{ key: 'apiKey', label: "服务账户 JSON 密钥", type: 'textarea', placeholder: "粘贴服务账户 JSON..." }, { key: 'sheetId', label: "工作表ID", type: 'text', placeholder: "来自 URL 的 Google 表格 ID" },
+      { key: 'sheetTab', label: "选项卡/工作表名称", type: 'text', placeholder: "表 1" },] },
+  { id: 'shopify', name: 'Shopify', description: "从 Shopify 导入联系人", icon: 'S', category: 'ecommerce', color: '#7AB55C',
+    fields: [{ key: 'storeUrl', label: "商店网址", type: 'text', placeholder: 'mystore.myshopify.com' },
+      { key: 'apiKey', label: "管理 API 访问令牌", type: 'password', placeholder: "shpat_... — 仅用于客户同步" },
+      { key: 'apiSecret', label: "自定义应用程序API密钥", type: 'password', placeholder: "shpss_... — 用于验证应用凭证" }] },
+  { id: 'woocommerce', name: 'WooCommerce', description: "从 WooCommerce 导入联系人", icon: 'WC', category: 'ecommerce', color: '#96588A',
+    fields: [{ key: 'storeUrl', label: "商店网址", type: 'text', placeholder: 'https://yourstore.com' }, { key: 'apiKey', label: "消费者钥匙", type: 'password', placeholder: 'ck_...' }, { key: 'apiSecret', label: "消费者的秘密", type: 'password', placeholder: 'cs_...' }] },
+  { id: 'hubspot', name: 'HubSpot', description: "与 HubSpot CRM 同步联系人", icon: 'HS', category: 'crm', color: '#FF7A59',
+    fields: [{ key: 'apiKey', label: "私人应用程序令牌", type: 'password', placeholder: 'pat-...' }] },
+  { id: 'mailchimp', name: 'Mailchimp', description: "同步电子邮件营销联系人", icon: 'MC', category: 'marketing', color: '#FFE01B',
+    fields: [{ key: 'apiKey', label: "API 密钥", type: 'password', placeholder: 'xxxxxxxx-us21' }] },
+  { id: 'google-analytics', name: 'Google Analytics', description: "跟踪活动效果", icon: 'GA', category: 'analytics', color: '#E37400',
+    fields: [{ key: 'measurementId', label: "测量ID", type: 'text', placeholder: 'G-XXXXXXXXXX' }] },
+  { id: 'webhook', name: 'Custom Webhook', description: "通过 webhooks 将数据发送到任何 URL", icon: 'WH', category: 'developer', color: '#6366F1',
     fields: [{ key: 'webhookUrl', label: 'Webhook URL', type: 'text', placeholder: 'https://your-server.com/webhook' }] },
-  { id: 'zapier', name: 'Zapier', description: 'Connect with 5000+ apps via Zapier', icon: 'Z', category: 'automation', color: '#FF4A00',
+  { id: 'zapier', name: 'Zapier', description: "通过 Zapier 与 5000 多个应用程序连接", icon: 'Z', category: 'automation', color: '#FF4A00',
     fields: [{ key: 'webhookUrl', label: 'Zapier Webhook URL', type: 'text', placeholder: 'https://hooks.zapier.com/...' }] },
-  { id: 'make', name: 'Make (Integromat)', description: 'Automate workflows with Make', icon: 'MK', category: 'automation', color: '#6D00CC',
-    fields: [{ key: 'webhookUrl', label: 'Make Webhook URL', type: 'text', placeholder: 'https://hook.make.com/...' }] },
-  { id: 'calendly', name: 'Calendly', description: 'Schedule appointments via Calendly', icon: 'CL', category: 'productivity', color: '#006BFF',
-    fields: [{ key: 'apiKey', label: 'Personal Access Token', type: 'password', placeholder: 'eyJ...' }] },
-  { id: 'pabbly', name: 'Pabbly Connect', description: 'Automate workflows with Pabbly Connect', icon: 'PC', category: 'automation', color: '#16A34A',
+  { id: 'make', name: 'Make (Integromat)', description: "使用 Make 自动化工作流程", icon: 'MK', category: 'automation', color: '#6D00CC',
+    fields: [{ key: 'webhookUrl', label: "创建 Webhook URL", type: 'text', placeholder: 'https://hook.make.com/...' }] },
+  { id: 'pabbly', name: 'Pabbly Connect', description: "使用 Pabbly Connect 自动化工作流程", icon: 'PC', category: 'automation', color: '#16A34A',
     fields: [{ key: 'webhookUrl', label: 'Pabbly Webhook URL', type: 'text', placeholder: 'https://connect.pabbly.com/workflow/sendwebhookdata/...' }] },
-  { id: 'n8n', name: 'n8n', description: 'Automate workflows with self-hosted n8n', icon: 'N8', category: 'automation', color: '#EA4B71',
+  { id: 'n8n', name: 'n8n', description: "使用自托管 n8n 实现工作流程自动化", icon: 'N8', category: 'automation', color: '#EA4B71',
     fields: [{ key: 'webhookUrl', label: 'n8n Webhook URL', type: 'text', placeholder: 'https://your-n8n.com/webhook/...' }] },
-  { id: 'ifttt', name: 'IFTTT', description: 'Trigger IFTTT applets from panel events', icon: 'IF', category: 'automation', color: '#000000',
+  { id: 'ifttt', name: 'IFTTT', description: "从面板事件触发 IFTTT 小程序", icon: 'IF', category: 'automation', color: '#000000',
     fields: [{ key: 'webhookUrl', label: 'IFTTT Webhook URL', type: 'text', placeholder: 'https://maker.ifttt.com/trigger/{event}/with/key/{key}' }] },
-  { id: 'salesforce', name: 'Salesforce', description: 'Sync leads and contacts with Salesforce CRM', icon: 'SF', category: 'crm', color: '#00A1E0',
-    fields: [{ key: 'instanceUrl', label: 'Instance URL', type: 'text', placeholder: 'https://yourorg.my.salesforce.com' }, { key: 'apiKey', label: 'Access Token', type: 'password', placeholder: 'Access token...' }] },
-  { id: 'zoho-crm', name: 'Zoho CRM', description: 'Sync contacts and deals with Zoho CRM', icon: 'ZC', category: 'crm', color: '#E42527',
-    fields: [{ key: 'apiKey', label: 'OAuth Access Token', type: 'password', placeholder: '1000.xxxx...' }, { key: 'apiDomain', label: 'API Domain', type: 'text', placeholder: 'https://www.zohoapis.com (or .in / .eu)' }] },
-  { id: 'pipedrive', name: 'Pipedrive', description: 'Sync contacts and deals with Pipedrive', icon: 'PD', category: 'crm', color: '#017737',
-    fields: [{ key: 'apiKey', label: 'API Token', type: 'password', placeholder: 'API token from Pipedrive settings' }, { key: 'companyDomain', label: 'Company Domain', type: 'text', placeholder: 'yourcompany (from yourcompany.pipedrive.com)' }] },
-  { id: 'bitrix24', name: 'Bitrix24', description: 'Sync leads with Bitrix24 CRM', icon: 'B24', category: 'crm', color: '#2FC7F7',
-    fields: [{ key: 'webhookUrl', label: 'Inbound Webhook URL', type: 'text', placeholder: 'https://yourcompany.bitrix24.com/rest/1/xxxx/' }] },
-  { id: 'paypal', name: 'PayPal', description: 'Accept payments worldwide via PayPal', icon: 'PP', category: 'payments', color: '#003087',
-    fields: [{ key: 'clientId', label: 'Client ID', type: 'text', placeholder: 'PayPal Client ID' }, { key: 'apiSecret', label: 'Client Secret', type: 'password', placeholder: 'Client Secret...' }] },
-  { id: 'paytm', name: 'Paytm', description: 'Accept payments via Paytm', icon: 'PT', category: 'payments', color: '#00BAF2',
-    fields: [{ key: 'merchantId', label: 'Merchant ID', type: 'text', placeholder: 'Paytm MID' }, { key: 'apiSecret', label: 'Merchant Key', type: 'password', placeholder: 'Merchant key...' }] },
-  { id: 'phonepe', name: 'PhonePe', description: 'Accept payments via PhonePe', icon: 'PE', category: 'payments', color: '#5F259F',
-    fields: [{ key: 'merchantId', label: 'Merchant ID', type: 'text', placeholder: 'PhonePe MID' }, { key: 'apiSecret', label: 'Salt Key', type: 'password', placeholder: 'Salt key...' }, { key: 'saltIndex', label: 'Salt Index', type: 'text', placeholder: '1' }] },
-  { id: 'cashfree', name: 'Cashfree', description: 'Accept payments via Cashfree', icon: 'CF', category: 'payments', color: '#7C3AED',
-    fields: [{ key: 'clientId', label: 'App ID', type: 'text', placeholder: 'Cashfree App ID' }, { key: 'apiSecret', label: 'Secret Key', type: 'password', placeholder: 'Secret key...' }] },
-  { id: 'payu', name: 'PayU', description: 'Accept payments via PayU', icon: 'PU', category: 'payments', color: '#00A651',
-    fields: [{ key: 'merchantKey', label: 'Merchant Key', type: 'text', placeholder: 'PayU Merchant Key' }, { key: 'merchantSalt', label: 'Merchant Salt', type: 'password', placeholder: 'Merchant Salt...' }] },
-  { id: 'paystack', name: 'Paystack', description: 'Accept payments in Africa via Paystack', icon: 'PS', category: 'payments', color: '#09A5DB',
-    fields: [{ key: 'apiKey', label: 'Secret Key', type: 'password', placeholder: 'sk_live_...' }] },
-  { id: 'mercadopago', name: 'Mercado Pago', description: 'Accept payments in Latin America via Mercado Pago', icon: 'MP', category: 'payments', color: '#009EE3',
-    fields: [{ key: 'apiKey', label: 'Access Token', type: 'password', placeholder: 'APP_USR-...' }] },
-  { id: 'openai', name: 'OpenAI / Custom GPT', description: 'Use your own OpenAI key or custom GPT endpoint for AI replies', icon: 'AI', category: 'ai', color: '#10A37F',
-    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' }, { key: 'endpointUrl', label: 'Custom Endpoint URL (optional)', type: 'text', placeholder: 'https://your-gpt-server.com/v1/chat/completions' }, { key: 'model', label: 'Model (optional)', type: 'text', placeholder: 'gpt-4o-mini' }] },
+  { id: 'salesforce', name: 'Salesforce', description: "与 Salesforce CRM 同步潜在客户和联系人", icon: 'SF', category: 'crm', color: '#00A1E0',
+    fields: [{ key: 'instanceUrl', label: "实例 URL", type: 'text', placeholder: 'https://yourorg.my.salesforce.com' }, { key: 'apiKey', label: "访问令牌", type: 'password', placeholder: "访问令牌..." }] },
+  { id: 'zoho-crm', name: 'Zoho CRM', description: "与 Zoho CRM 同步联系人和交易", icon: 'ZC', category: 'crm', color: '#E42527',
+    fields: [{ key: 'apiKey', label: "OAuth 访问令牌", type: 'password', placeholder: '1000.xxxx...' }, { key: 'apiDomain', label: "API 域", type: 'text', placeholder: 'https://www.zohoapis.com (or .in / .eu)' }] },
+  { id: 'pipedrive', name: 'Pipedrive', description: "与 Pipedrive 同步联系人和交易", icon: 'PD', category: 'crm', color: '#017737',
+    fields: [{ key: 'apiKey', label: "API 令牌", type: 'password', placeholder: "Pipedrive 设置中的 API 令牌" }, { key: 'companyDomain', label: "公司域名", type: 'text', placeholder: "yourcompany（来自 yourcompany.pipedrive.com）" }] },
+  { id: 'bitrix24', name: 'Bitrix24', description: "与 Bitrix24 CRM 同步潜在客户", icon: 'B24', category: 'crm', color: '#2FC7F7',
+    fields: [{ key: 'webhookUrl', label: "入站 Webhook URL", type: 'text', placeholder: 'https://yourcompany.bitrix24.com/rest/1/xxxx/' }] },
+  { id: 'openai', name: 'OpenAI / Custom GPT', description: "使用您自己的 OpenAI 密钥或自定义 GPT 端点进行 AI 回复", icon: 'AI', category: 'ai', color: '#10A37F',
+    fields: [{ key: 'apiKey', label: "API 密钥", type: 'password', placeholder: 'sk-...' }, { key: 'endpointUrl', label: "自定义端点 URL（可选）", type: 'text', placeholder: 'https://your-gpt-server.com/v1/chat/completions' }, { key: 'model', label: "型号（可选）", type: 'text', placeholder: "gpt-4o-迷你" }] },
   // Lead sources — connect, copy your webhook URL into the platform, leads auto-reply on WhatsApp
-  { id: 'indiamart', name: 'IndiaMART', description: 'Auto-send WhatsApp to every IndiaMART enquiry instantly', icon: 'IM', category: 'leads', color: '#128807', fields: [] },
-  { id: 'justdial', name: 'Justdial', description: 'Auto-send WhatsApp to every Justdial lead instantly', icon: 'JD', category: 'leads', color: '#F26722', fields: [] },
-  { id: 'tradeindia', name: 'TradeIndia', description: 'Auto-send WhatsApp to TradeIndia enquiries', icon: 'TI', category: 'leads', color: '#C8102E', fields: [] },
-  { id: 'exportersindia', name: 'ExportersIndia', description: 'Auto-send WhatsApp to ExportersIndia enquiries', icon: 'EI', category: 'leads', color: '#1B5E9E', fields: [] },
-  { id: 'facebook-leads', name: 'Facebook Lead Ads', description: 'Instant WhatsApp welcome to Facebook/Instagram lead form submissions', icon: 'FB', category: 'leads', color: '#1877F2', fields: [] },
-  { id: 'google-lead-forms', name: 'Google Lead Form Ads', description: 'Auto WhatsApp for Google & YouTube Ads lead forms', icon: 'GL', category: 'leads', color: '#EA4335', fields: [] },
-  { id: 'linkedin-ads', name: 'LinkedIn Lead Gen', description: 'Auto WhatsApp for LinkedIn Lead Gen form leads', icon: 'LI', category: 'leads', color: '#0A66C2', fields: [] },
-  { id: 'twitter-ads', name: 'X (Twitter) Ads', description: 'Auto WhatsApp for X lead generation cards', icon: 'X', category: 'leads', color: '#000000', fields: [] },
-  { id: '99acres', name: '99acres', description: 'Auto WhatsApp to property enquiries from 99acres', icon: '99', category: 'leads', color: '#0078DB', fields: [] },
-  { id: 'magicbricks', name: 'MagicBricks', description: 'Auto WhatsApp to property leads from MagicBricks', icon: 'MB', category: 'leads', color: '#D8232A', fields: [] },
-  { id: 'housing', name: 'Housing.com', description: 'Auto WhatsApp to leads from Housing.com', icon: 'HO', category: 'leads', color: '#6B21A8', fields: [] },
-  { id: 'olx', name: 'OLX', description: 'Auto WhatsApp to OLX ad enquiries', icon: 'OX', category: 'leads', color: '#002F34', fields: [] },
-  { id: 'tagmango', name: 'TagMango', description: 'Auto WhatsApp to TagMango leads and customers', icon: 'TM', category: 'leads', color: '#FF6B00', fields: [] },
-  { id: 'leadsquared', name: 'LeadSquared', description: 'Auto WhatsApp to leads pushed from LeadSquared', icon: 'LS', category: 'leads', color: '#2E7CF6', fields: [] },
-  { id: 'gohighlevel', name: 'GoHighLevel', description: 'Auto WhatsApp to GoHighLevel contacts/leads', icon: 'GH', category: 'leads', color: '#188BF6', fields: [] },
-  { id: 'wordpress-forms', name: 'WordPress Forms', description: 'Elementor, CF7, WPForms, Gravity — auto WhatsApp on form submit', icon: 'WP', category: 'forms', color: '#21759B', fields: [] },
-  { id: 'google-forms', name: 'Google Forms', description: 'Auto WhatsApp on Google Form responses', icon: 'GF', category: 'forms', color: '#7248B9', fields: [] },
-  { id: 'typeform', name: 'Typeform', description: 'Auto WhatsApp on Typeform submissions', icon: 'TF', category: 'forms', color: '#262627', fields: [] },
-  { id: 'jotform', name: 'Jotform', description: 'Auto WhatsApp on Jotform submissions', icon: 'JF', category: 'forms', color: '#0A1551', fields: [] },
-  { id: 'landing-pages', name: 'Landing Pages', description: 'Auto WhatsApp from any landing page form', icon: 'LP', category: 'forms', color: '#059669', fields: [] },
-  { id: 'flexifunnels', name: 'FlexiFunnels', description: 'Auto WhatsApp to FlexiFunnels leads and buyers', icon: 'FF', category: 'forms', color: '#7C3AED', fields: [] },
-  { id: 'website', name: 'Own Website Webhook', description: 'Send leads from your own website to WhatsApp instantly', icon: 'WS', category: 'forms', color: '#334155', fields: [] },
-  { id: 'shiprocket', name: 'Shiprocket', description: 'Shipment status updates on WhatsApp — shipped, out for delivery', icon: 'SR', category: 'shipping', color: '#7B2CBF', fields: [] },
+  { id: 'indiamart', name: 'IndiaMART', description: "立即自动向每个 IndiaMART 询问发送 WhatsApp", icon: 'IM', category: 'leads', color: '#128807', fields: [] },
+  { id: 'justdial', name: 'Justdial', description: "立即自动向每个 Justdial 潜在客户发送 WhatsApp", icon: 'JD', category: 'leads', color: '#F26722', fields: [] },
+  { id: 'tradeindia', name: 'TradeIndia', description: "自动发送 WhatsApp 至 TradeIndia 询问", icon: 'TI', category: 'leads', color: '#C8102E', fields: [] },
+  { id: 'exportersindia', name: 'ExportersIndia', description: "自动向印度出口商发送 WhatsApp 询问", icon: 'EI', category: 'leads', color: '#1B5E9E', fields: [] },
+  { id: 'facebook-leads', name: 'Facebook Lead Ads', description: "Instant WhatsApp 欢迎使用 Facebook/Instagram 提交潜在客户表格", icon: 'FB', category: 'leads', color: '#1877F2', fields: [] },
+  { id: 'google-lead-forms', name: 'Google Lead Form Ads', description: "适用于 Google 和 YouTube 广告的自动 WhatsApp 潜在客户表单", icon: 'GL', category: 'leads', color: '#EA4335', fields: [] },
+  { id: 'linkedin-ads', name: 'LinkedIn Lead Gen', description: "自动 WhatsApp for LinkedIn Lead Gen 表格潜在客户", icon: 'LI', category: 'leads', color: '#0A66C2', fields: [] },
+  { id: 'twitter-ads', name: 'X (Twitter) Ads', description: "X 潜在客户生成卡的自动 WhatsApp", icon: 'X', category: 'leads', color: '#000000', fields: [] },
+  { id: '99acres', name: '99acres', description: "自动 WhatsApp 进行 99 英亩房产查询", icon: '99', category: 'leads', color: '#0078DB', fields: [] },
+  { id: 'magicbricks', name: 'MagicBricks', description: "自动 WhatsApp 至 MagicBricks 的房产线索", icon: 'MB', category: 'leads', color: '#D8232A', fields: [] },
+  { id: 'housing', name: 'Housing.com', description: "自动 WhatsApp 发送来自 Housing.com 的潜在客户", icon: 'HO', category: 'leads', color: '#6B21A8', fields: [] },
+  { id: 'olx', name: 'OLX', description: "自动 WhatsApp 至 OLX 广告查询", icon: 'OX', category: 'leads', color: '#002F34', fields: [] },
+  { id: 'tagmango', name: 'TagMango', description: "自动通过 WhatsApp 发送给 TagMango 潜在客户和客户", icon: 'TM', category: 'leads', color: '#FF6B00', fields: [] },
+  { id: 'leadsquared', name: 'LeadSquared', description: "自动 WhatsApp 发送至 LeadSquared 推送的潜在客户", icon: 'LS', category: 'leads', color: '#2E7CF6', fields: [] },
+  { id: 'gohighlevel', name: 'GoHighLevel', description: "自动 WhatsApp 至 GoHighLevel 联系人/潜在客户", icon: 'GH', category: 'leads', color: '#188BF6', fields: [] },
+  { id: 'wordpress-forms', name: 'WordPress Forms', description: "Elementor、CF7、WPForms、Gravity — 表单提交时自动 WhatsApp", icon: 'WP', category: 'forms', color: '#21759B', fields: [] },
+  { id: 'google-forms', name: 'Google Forms', description: "Google 表单上的自动 WhatsApp 回复", icon: 'GF', category: 'forms', color: '#7248B9', fields: [] },
+  { id: 'typeform', name: 'Typeform', description: "Typeform 提交上的自动 WhatsApp", icon: 'TF', category: 'forms', color: '#262627', fields: [] },
+  { id: 'jotform', name: 'Jotform', description: "Jotform 提交上的自动 WhatsApp", icon: 'JF', category: 'forms', color: '#0A1551', fields: [] },
+  { id: 'landing-pages', name: 'Landing Pages', description: "从任何登陆页面表单自动发送 WhatsApp", icon: 'LP', category: 'forms', color: '#059669', fields: [] },
+  { id: 'flexifunnels', name: 'FlexiFunnels', description: "自动 WhatsApp 至 FlexiFunnels 潜在客户和买家", icon: 'FF', category: 'forms', color: '#7C3AED', fields: [] },
+  { id: 'website', name: 'Own Website Webhook', description: "立即将潜在客户从您自己的网站发送到 WhatsApp", icon: 'WS', category: 'forms', color: '#334155', fields: [] },
 ];
 
 // Integrations that support event automation (webhook in → WhatsApp template out)
-const automationTypes = new Set(['indiamart', 'justdial', 'tradeindia', 'exportersindia', '99acres', 'magicbricks', 'housing', 'olx', 'tagmango', 'google-lead-forms', 'wordpress-forms', 'google-forms', 'typeform', 'jotform', 'landing-pages', 'flexifunnels', 'website', 'linkedin-ads', 'twitter-ads', 'leadsquared', 'gohighlevel', 'facebook-leads', 'shopify', 'shiprocket', 'woocommerce']);
+const automationTypes = new Set(['indiamart', 'justdial', 'tradeindia', 'exportersindia', '99acres', 'magicbricks', 'housing', 'olx', 'tagmango', 'google-lead-forms', 'wordpress-forms', 'google-forms', 'typeform', 'jotform', 'landing-pages', 'flexifunnels', 'website', 'linkedin-ads', 'twitter-ads', 'leadsquared', 'gohighlevel', 'facebook-leads']);
 
 // Per-source, honest setup guidance shown in the Automation modal.
 // `steps` = how to make it work; `note` = provider dependency/limitation.
 const SETUP_HINTS: Record<string, { steps: string[]; note?: string }> = {
   indiamart: {
     steps: [
-      'IndiaMART Seller panel → Lead Manager → "Import/Export Leads" → API / Push API section.',
-      'Enable the Push API and paste the Webhook URL above as the destination CRM URL.',
-      'Submit + approve the "Lead Thank You" template below and turn Auto-send ON.',
+      "IndiaMART 卖家面板→潜在客户经理→“导入/导出潜在客户”→ API /推送 API 部分。",
+      "启用推送 API 并将上面的 Webhook URL 粘贴为目标 CRM URL。",
+      "提交并批准下面的“领导谢谢”模板并打开自动发送。",
     ],
-    note: 'IndiaMART only exposes lead push/pull on eligible seller plans. If your plan has no API option, ask your IndiaMART relationship manager to enable "Push API to CRM" — otherwise leads cannot flow automatically.',
+    note: "IndiaMART 仅公开符合资格的卖家计划的潜在客户推/拉。如果您的计划没有 API 选项，请要求您的 IndiaMART 关系经理启用“将 API 推送到 CRM”——否则潜在客户无法自动流动。",
   },
   justdial: {
     steps: [
-      'Contact your Justdial account/relationship manager and request "Lead Webhook / API push".',
-      'Give them the Webhook URL above as your CRM endpoint.',
-      'Submit + approve the template below and turn Auto-send ON.',
+      "联系您的 Justdial 账户/关系经理并请求“引导 Webhook / API 推送”。",
+      "向他们提供上面的 Webhook URL 作为您的 CRM 端点。",
+      "提交+批准下面的模板并打开自动发送。",
     ],
-    note: 'Justdial does NOT offer self-serve lead APIs. Webhook push is enabled manually by Justdial only for paid/verified advertisers on request. Without their approval, automatic lead capture is not possible.',
+    note: "Justdial 不提供自助服务 API。 Webhook 推送仅根据请求由 Justdial 为付费/经过验证的广告商手动启用。未经他们的批准，自动捕获潜在客户是不可能的。",
   },
   'facebook-leads': {
     steps: [
-      'Meta App Dashboard → your App → Webhooks → subscribe to the "leadgen" field on your Page.',
-      'Use the Webhook URL and Verify Token above in the Meta webhook config.',
-      'Submit + approve the template below and turn Auto-send ON.',
+      "元应用程序仪表板 → 您的应用程序 → Webhooks → 订阅页面上的“leadgen”字段。",
+      "在 Meta webhook 配置中使用上面的 Webhook URL 和验证令牌。",
+      "提交+批准下面的模板并打开自动发送。",
     ],
-    note: 'Requires a Meta App with pages_manage_metadata + leads_retrieval permissions and the Page connected. New apps need Meta App Review before leads flow in production.',
+    note: "需要具有pages_manage_metadata +leads_retrieval权限的元应用程序和连接的页面。新应用程序在潜在客户投入生产之前需要进行元应用程序审核。",
   },
-  'google-lead-forms': { steps: ['Google Ads → your Lead form asset → "Webhook integration".', 'Paste the Webhook URL above (Key = leave blank or as shown).', 'Submit + approve the template and turn Auto-send ON.'] },
-  'linkedin-ads': { steps: ['LinkedIn Campaign Manager → Lead Gen Forms → connect via a webhook tool (Zapier/Make) pointing to the URL above.'], note: 'LinkedIn has no native webhook; a connector (Zapier/Make) is required to forward leads to this URL.' },
-  'twitter-ads': { steps: ['Forward X (Twitter) lead cards via a connector (Zapier/Make) to the Webhook URL above.'], note: 'X provides no direct webhook; use a connector to forward leads.' },
-  tradeindia: { steps: ['TradeIndia Seller panel → Lead/Enquiry API settings → set the Webhook URL above.', 'Submit + approve the template and turn Auto-send ON.'], note: 'Requires TradeIndia lead API access on your plan.' },
-  exportersindia: { steps: ['ExportersIndia lead/enquiry forwarding → set the Webhook URL above.'], note: 'Requires ExportersIndia lead forwarding/API access on your plan.' },
-  '99acres': { steps: ['99acres CRM/lead push settings → set the Webhook URL above.'], note: 'Lead push availability depends on your 99acres subscription.' },
-  magicbricks: { steps: ['MagicBricks lead API/CRM push → set the Webhook URL above.'], note: 'Lead push availability depends on your MagicBricks plan.' },
-  housing: { steps: ['Housing.com lead push/CRM settings → set the Webhook URL above.'], note: 'Lead push availability depends on your Housing.com plan.' },
-  olx: { steps: ['OLX lead forwarding → set the Webhook URL above (or via a connector).'], note: 'OLX has no public webhook; a connector may be required.' },
-  leadsquared: { steps: ['LeadSquared → Automation/Webhook → POST new leads to the Webhook URL above.'] },
-  gohighlevel: { steps: ['GoHighLevel → Workflows → Webhook action → POST to the Webhook URL above.'] },
-  tagmango: { steps: ['TagMango → integrations/webhook → POST leads to the Webhook URL above.'] },
-  'wordpress-forms': { steps: ['Elementor / CF7 / WPForms / Gravity → add a Webhook action → POST submissions to the URL above (map phone & name fields).'] },
-  'google-forms': { steps: ['Google Form → Apps Script → onFormSubmit → POST responses to the Webhook URL above.'] },
-  typeform: { steps: ['Typeform → Connect → Webhooks → add the Webhook URL above.'] },
-  jotform: { steps: ['Jotform → Settings → Integrations → Webhooks → add the Webhook URL above.'] },
-  'landing-pages': { steps: ['Any landing page form → POST the submission (with phone & name) to the Webhook URL above.'] },
-  flexifunnels: { steps: ['FlexiFunnels → form/webhook settings → POST leads to the Webhook URL above.'] },
-  website: { steps: ['Your website form backend → POST { name, phone, email } to the Webhook URL above.'] },
-  shiprocket: { steps: ['Shiprocket → Settings → Webhooks → add the Webhook URL above for shipment status updates.'] },
-  shopify: { steps: ['Shopify Admin → Settings → Notifications → Webhooks → add the URL above for orders/create, orders/fulfilled, refunds/create.'] },
-  woocommerce: { steps: ['WooCommerce → Settings → Advanced → Webhooks → add the URL above for order.created / order.updated.'] },
+  'google-lead-forms': { steps: ["Google Ads → 您的潜在客户表单资产 → “Webhook 集成”。", "粘贴上面的 Webhook URL（键 = 留空或如图所示）。", "提交+批准模板并打开自动发送。"] },
+  'linkedin-ads': { steps: ["LinkedIn Campaign Manager → Lead Gen Forms → 通过指向上述 URL 的 Webhook 工具 (Zapier/Make) 连接。"], note: "LinkedIn 没有原生 webhook；需要连接器 (Zapier/Make) 将潜在客户转发到此 URL。" },
+  'twitter-ads': { steps: ["通过连接器 (Zapier/Make) 将 X (Twitter) 线索卡转发到上面的 Webhook URL。"], note: "X 不提供直接的 webhook；使用连接器转发引线。" },
+  tradeindia: { steps: ["TradeIndia 卖家面板 → 潜在客户/查询 API 设置 → 设置上面的 Webhook URL。", "提交+批准模板并打开自动发送。"], note: "您的计划需要 TradeIndia 主要 API 访问权限。" },
+  exportersindia: { steps: ["ExportersIndia 线索/询盘转发 → 设置上面的 Webhook URL。"], note: "需要您的计划中的 ExportersIndia 潜在客户转发/API 访问权限。" },
+  '99acres': { steps: ["99acres CRM/潜在客户推送设置 → 设置上面的 Webhook URL。"], note: "潜在客户推送的可用性取决于您的 99acres 订阅。" },
+  magicbricks: { steps: ["MagicBricks 主导 API/CRM 推送 → 设置上面的 Webhook URL。"], note: "潜在客户推送的可用性取决于您的 MagicBricks 计划。" },
+  housing: { steps: ["Housing.com 线索推送/CRM 设置 → 设置上面的 Webhook URL。"], note: "潜在客户推送的可用性取决于您的 Housing.com 计划。" },
+  olx: { steps: ["OLX 潜在客户转发 → 设置上面的 Webhook URL（或通过连接器）。"], note: "OLX 没有公共 webhook；可能需要连接器。" },
+  leadsquared: { steps: ["LeadSquared → 自动化/Webhook → 将新线索发布到上面的 Webhook URL。"] },
+  gohighlevel: { steps: ["GoHighLevel → 工作流程 → Webhook 操作 → POST 到上面的 Webhook URL。"] },
+  tagmango: { steps: ["TagMango→integrations/webhook→POST 指向上面的 Webhook URL。"] },
+  'wordpress-forms': { steps: ["Elementor / CF7 / WPForms / Gravity → 添加 Webhook 操作 → POST 提交到上面的 URL（映射电话和姓名字段）。"] },
+  'google-forms': { steps: ["Google 表单 → Apps 脚本 → onFormSubmit → POST 响应到上面的 Webhook URL。"] },
+  typeform: { steps: ["Typeform → 连接 → Webhooks → 添加上面的 Webhook URL。"] },
+  jotform: { steps: ["Jotform → 设置 → 集成 → Webhooks → 添加上面的 Webhook URL。"] },
+  'landing-pages': { steps: ["任何登陆页面表单 → 将提交内容（包含电话和姓名）发布到上面的 Webhook URL。"] },
+  flexifunnels: { steps: ["FlexiFunnels → 表单/webhook 设置 → POST 指向上面的 Webhook URL。"] },
+  website: { steps: ["您的网站表单后端 → POST { 姓名、电话、电子邮件 } 到上面的 Webhook URL。"] },
+  'google-workspace': {
+    steps: [
+      "Google Cloud Console → API 和服务 → 启用 Google Calendar API、Google Drive API、Google Docs API 和 Google Forms API。",
+      "创建服务账户 → 密钥 → 添加密钥 (JSON) → 粘贴上面的整个 JSON。",
+      "Google Meet 链接：管理控制台 → 安全性 → API 控制 → 域范围委派 → 添加服务账户客户端 ID，范围包括日历、驱动器、文档、forms.body.readonly，然后填写“要充当的工作区用户”。",
+      "文档模板和表单：与服务账户电子邮件（或模拟用户）共享模板文档/表单，以便它可以复制和阅读它们。",
+      "然后在 Bot Flow Builder 中添加 Google Meet / Google Docs / Google Forms 卡。",
+    ],
+    note: "如果没有域范围的委派，普通服务账户无法创建 Google Meet 链接（文档和表单卡仍然有效）。",
+  },
 };
 
 // Returns the combined setup steps for an app (credential guide + lead-source hint).
@@ -200,7 +195,7 @@ function buildGuideHtml(ids: string[]): string {
 
 function downloadGuidePdf(ids: string[]) {
   const w = window.open('', '_blank');
-  if (!w) { toast.error('Allow pop-ups to download the guide'); return; }
+  if (!w) { toast.error(translateApiMessage("允许弹出窗口下载指南")); return; }
   w.document.write(buildGuideHtml(ids));
   w.document.close();
 }
@@ -209,7 +204,7 @@ interface SetupTemplate { key: string; event: string; eventLabel: string; name: 
 interface SetupData { webhookUrl: string; verifyToken?: string; templates: SetupTemplate[]; automations: Record<string, { enabled: boolean; templateName: string }>; connected: boolean }
 
 export default function IntegrationsPage() {
-  const [connectedMap, setConnectedMap] = useState<Record<string, { connected: boolean; config: Record<string, string>; stats?: { totalSynced: number; lastSyncAt: string } }>>({});
+  const [connectedMap, setConnectedMap] = useState<Record<string, { connected: boolean; config: Record<string, string>; stats?: { totalSynced: number; lastSyncAt: string; lastError?: string } }>>({});
   const [loading, setLoading] = useState(true);
   const [filterCat, setFilterCat] = useState('all');
   const [search, setSearch] = useState('');
@@ -232,7 +227,7 @@ export default function IntegrationsPage() {
   useEffect(() => {
     integrationApi.list().then(r => {
       const map: Record<string, typeof connectedMap[string]> = {};
-      (r.data.data || []).forEach((i: { type: string; connected: boolean; config: Record<string, string>; stats?: { totalSynced: number; lastSyncAt: string } }) => {
+      (r.data.data || []).forEach((i: { type: string; connected: boolean; config: Record<string, string>; stats?: { totalSynced: number; lastSyncAt: string; lastError?: string } }) => {
         map[i.type] = { connected: i.connected, config: i.config, stats: i.stats };
       });
       setConnectedMap(map);
@@ -270,7 +265,7 @@ export default function IntegrationsPage() {
         openAutomation(id);
       } catch (err: unknown) {
         const error = err as { response?: { data?: { message?: string } } };
-        toast.error(error.response?.data?.message || 'Connection failed');
+        toast.error(translateApiMessage(error.response?.data?.message || "连接失败"));
       } finally { setConnecting(false); }
       return;
     }
@@ -285,13 +280,13 @@ export default function IntegrationsPage() {
     try {
       const r = await integrationApi.connect({ type: showConfig, config: configForm });
       setConnectedMap({ ...connectedMap, [showConfig]: { connected: true, config: r.data.data?.config || configForm, stats: r.data.data?.stats } });
-      toast.success(r.data.message || 'Connected!');
+      toast.success(translateApiMessage(r.data.message || "已连接！"));
       setShowConfig(null);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       // Failed validation must clear any stale "connected" badge
       setConnectedMap(prev => ({ ...prev, [showConfig]: { connected: false, config: prev[showConfig]?.config || {}, stats: prev[showConfig]?.stats } }));
-      toast.error(error.response?.data?.message || 'Connection failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "连接失败"));
     }
     setSubmitting(false);
     setConnecting(false);
@@ -299,15 +294,15 @@ export default function IntegrationsPage() {
 
   const handleDisconnect = async (type: string) => {
     if (submitting) return;
-    if (!confirm('Disconnect this integration?')) return;
+    if (!confirm("断开此集成？")) return;
     setSubmitting(true);
     try {
       await integrationApi.disconnect(type);
       setConnectedMap(prev => ({ ...prev, [type]: { ...prev[type], connected: false } }));
-      toast.success('Disconnected');
+      toast.success(translateApiMessage("已断开连接"));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to disconnect');
+      toast.error(translateApiMessage(error.response?.data?.message || "无法断开连接"));
     } finally { setSubmitting(false); }
   };
 
@@ -317,10 +312,10 @@ export default function IntegrationsPage() {
     setSubmitting(true);
     try {
       const r = await integrationApi.sync(type);
-      toast.success(r.data.data?.message || 'Sync complete');
+      toast.success(translateApiMessage(r.data.data?.message || "同步完成"));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Sync failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "同步失败"));
     } finally {
       setSubmitting(false);
     }
@@ -345,7 +340,7 @@ export default function IntegrationsPage() {
       setSetupData(r.data.data);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to load setup');
+      toast.error(translateApiMessage(error.response?.data?.message || "无法加载设置"));
       setShowAuto(null);
     }
     setLoadingSetup(false);
@@ -355,12 +350,12 @@ export default function IntegrationsPage() {
     setSubmittingTpl(tpl.key);
     try {
       const r = await integrationApi.submitTemplate(type, tpl.key);
-      toast.success(r.data.message || 'Submitted');
+      toast.success(translateApiMessage(r.data.message || "已提交"));
       const upd = r.data.data as { status: string; rejectionReason: string };
       setSetupData(prev => prev ? { ...prev, templates: prev.templates.map(t => t.key === tpl.key ? { ...t, status: upd.status, rejectionReason: upd.rejectionReason } : t) } : prev);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Submit failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "提交失败"));
     }
     setSubmittingTpl(null);
   };
@@ -369,58 +364,58 @@ export default function IntegrationsPage() {
     try {
       const r = await integrationApi.automation(type, { event: tpl.event, enabled, templateName: tpl.name });
       setSetupData(prev => prev ? { ...prev, automations: r.data.data } : prev);
-      toast.success(enabled ? 'Auto-send ON' : 'Auto-send OFF');
+      toast.success(translateApiMessage(enabled ? "自动发送开启" : "自动发送关闭"));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "操作失败"));
     }
   };
 
   const handleSaveEdit = async (type: string, key: string) => {
-    if (!editForm.body.trim()) { toast.error('Template body required'); return; }
+    if (!editForm.body.trim()) { toast.error(translateApiMessage("需要模板主体")); return; }
     setSavingTpl(true);
     try {
       await integrationApi.updateTemplate(type, key, editForm);
-      toast.success('Template updated');
+      toast.success(translateApiMessage("模板已更新"));
       setEditKey(null);
       await refreshSetup(type);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Update failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "更新失败"));
     }
     setSavingTpl(false);
   };
 
   const handleAddTemplate = async (type: string) => {
-    if (!addForm.event || !addForm.body.trim()) { toast.error('Event and body required'); return; }
+    if (!addForm.event || !addForm.body.trim()) { toast.error(translateApiMessage("需要事件和正文")); return; }
     setSavingTpl(true);
     try {
       await integrationApi.addTemplate(type, addForm);
-      toast.success('Template added');
+      toast.success(translateApiMessage("已添加模板"));
       setShowAddForm(false);
       setAddForm(emptyAddForm);
       await refreshSetup(type);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Add failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "添加失败"));
     }
     setSavingTpl(false);
   };
 
   const handleDeleteTemplate = async (type: string, key: string) => {
-    if (!confirm('Delete this template?')) return;
+    if (!confirm("删除此模板？")) return;
     try {
       await integrationApi.deleteTemplate(type, key);
-      toast.success('Template removed');
+      toast.success(translateApiMessage("模板已删除"));
       await refreshSetup(type);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Delete failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "删除失败"));
     }
   };
 
   const copyText = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => toast.success('Copied!')).catch(() => toast.error('Copy failed'));
+    navigator.clipboard.writeText(text).then(() => toast.success(translateApiMessage("已复制！"))).catch(() => toast.error(translateApiMessage("复制失败")));
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-6 h-6 animate-spin text-gray-400" /></div>;
@@ -431,12 +426,12 @@ export default function IntegrationsPage() {
         <div className="page-hero">
         <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-        <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
-        <p className="text-sm text-gray-500 mt-1">Connect third-party tools and services — works as soon as you add your key</p>
+        <h1 className="text-2xl font-bold text-gray-900">集成配置</h1>
+        <p className="text-sm text-gray-500 mt-1">连接第三方工具和服务 - 添加密钥后即可使用</p>
         </div>
         <button onClick={() => downloadGuidePdf(integrationDefs.map(d => d.id))}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm border bg-white text-gray-700 hover:bg-gray-50">
-          <Download className="w-4 h-4" /> Setup guide (PDF)
+          <Download className="w-4 h-4" /> 设置指南 (PDF)
         </button>
         </div>
         </div>
@@ -444,7 +439,7 @@ export default function IntegrationsPage() {
 
       <div className="relative max-w-md">
         <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search integrations..."
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={"搜索集成..."}
           className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
       </div>
 
@@ -469,27 +464,31 @@ export default function IntegrationsPage() {
                     <span className="text-xs text-gray-400 capitalize">{def.category}</span>
                   </div>
                 </div>
-                {isConnected && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">Connected</span>}
+                {isConnected && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">已连接</span>}
               </div>
               <p className="text-sm text-gray-600 mb-3">{def.description}</p>
               {isConnected && conn?.stats && (
                 <div className="text-xs text-gray-400 mb-3">
-                  {conn.stats.totalSynced > 0 && <span>Synced: {conn.stats.totalSynced} </span>}
-                  {conn.stats.lastSyncAt && <span>Last: {new Date(conn.stats.lastSyncAt).toLocaleDateString('en-IN')}</span>}
+                  {conn.stats.totalSynced > 0 && <span>已同步： {conn.stats.totalSynced} </span>}
+                  {conn.stats.lastSyncAt && <span>最后： {new Date(conn.stats.lastSyncAt).toLocaleDateString('en-IN')}</span>}
                 </div>
+              )}
+              {isConnected && conn?.stats?.lastError && (
+                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5 mb-3 break-words">{conn.stats.lastError}</div>
               )}
               <div className="flex gap-2">
                 {isConnected ? (
                   <>
+                    
                     {automationTypes.has(def.id) ? (
                       <button onClick={() => openAutomation(def.id)}
                         className="flex-1 py-2 rounded-lg text-sm font-medium bg-violet-50 text-violet-700 hover:bg-violet-100 flex items-center justify-center gap-1">
-                        <Zap className="w-3 h-3" /> Automation
+                        <Zap className="w-3 h-3" /> 自动化
                       </button>
                     ) : (
                       <button onClick={() => handleSync(def.id)} disabled={syncing === def.id}
                         className="flex-1 py-2 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 flex items-center justify-center gap-1 disabled:opacity-50">
-                        {syncing === def.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <ArrowUpDown className="w-3 h-3" />} Sync
+                        {syncing === def.id ? <RefreshCw className="w-3 h-3 animate-spin" /> : <ArrowUpDown className="w-3 h-3" />} 同步
                       </button>
                     )}
                     {def.fields.length > 0 && (
@@ -503,7 +502,7 @@ export default function IntegrationsPage() {
                   </>
                 ) : (
                   <button onClick={() => handleConnectClick(def.id)} disabled={connecting} className="w-full py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
-                    {def.fields.length === 0 && automationTypes.has(def.id) ? 'Connect & Set up' : 'Connect'}
+                    {def.fields.length === 0 && automationTypes.has(def.id) ? "连接和设置" : "连接"}
                   </button>
                 )}
               </div>
@@ -516,45 +515,40 @@ export default function IntegrationsPage() {
       {showConfig && (() => {
         const def = integrationDefs.find(d => d.id === showConfig);
         if (!def) return null;
-        const rzpWebhookUrl = `${process.env.NEXT_PUBLIC_API_URL || ''}/webhook/razorpay`;
+
         return (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowConfig(null)}>
-            <div className="bg-white rounded-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-              <div className="p-4 border-b flex items-center gap-3">
+            <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="p-4 border-b flex items-center gap-3 shrink-0">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: def.color }}>{def.icon}</div>
-                <h3 className="font-semibold text-gray-900">Connect {def.name}</h3>
+                <h3 className="font-semibold text-gray-900">连接 {def.name}</h3>
               </div>
-              <div className="p-4 space-y-4">
+              <div className="p-4 space-y-4 overflow-y-auto">
                 {def.fields.map(field => (
                   <div key={field.key}>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
                     {field.type === 'textarea' ? (
                       <textarea value={configForm[field.key] || ''} onChange={e => setConfigForm({ ...configForm, [field.key]: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg text-sm h-24 resize-y" placeholder={field.placeholder} />
+                    ) : field.type === 'select' ? (
+                      <select value={configForm[field.key] || ''} onChange={e => setConfigForm({ ...configForm, [field.key]: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg text-sm">
+                        {(field.options || []).map(o => <option key={o.value} value={o.value}>{translateDisplay(o.label)}</option>)}
+                      </select>
                     ) : (
                       <input type={field.type} value={configForm[field.key] || ''} onChange={e => setConfigForm({ ...configForm, [field.key]: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg text-sm" placeholder={field.placeholder} />
                     )}
                   </div>
                 ))}
-                {def.id === 'razorpay' && (
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-gray-700 space-y-2">
-                    <p className="font-medium text-gray-800">Auto payment-confirmation message setup</p>
-                    <p>In Razorpay Dashboard → <b>Settings → Webhooks</b> → Add New Webhook, paste this URL:</p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 font-mono break-all bg-white border rounded px-2 py-1">{rzpWebhookUrl}</code>
-                      <button type="button" onClick={() => { navigator.clipboard.writeText(rzpWebhookUrl); toast.success('Webhook URL copied'); }} className="p-1.5 rounded bg-white border hover:bg-gray-50"><Copy className="w-3.5 h-3.5" /></button>
-                    </div>
-                    <p>Enable events <b>payment_link.paid</b> + <b>payment.failed</b>, set a secret, and paste the <b>same secret</b> in the field above. Without this, the confirmation message won&apos;t auto-send after payment.</p>
-                  </div>
-                )}
+                
                 {(() => {
                   const g = guideForApp(def.id);
                   if (!g) return null;
                   return (
                     <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700"><BookOpen className="w-4 h-4" /> Setup guide</span>
+                        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700"><BookOpen className="w-4 h-4" /> 设置指南</span>
                         <button onClick={() => downloadGuidePdf([def.id])} className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline">
                           <Download className="w-3.5 h-3.5" /> PDF
                         </button>
@@ -562,16 +556,16 @@ export default function IntegrationsPage() {
                       <ol className="list-decimal ml-4 space-y-1 text-xs text-gray-600">
                         {g.steps.map((s, i) => <li key={i}>{s}</li>)}
                       </ol>
-                      {g.keysUrl && <p className="text-xs text-gray-500 mt-2">Get keys: <span className="font-mono break-all">{g.keysUrl}</span></p>}
+                      {g.keysUrl && <p className="text-xs text-gray-500 mt-2">获取密钥： <span className="font-mono break-all">{g.keysUrl}</span></p>}
                       {g.note && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mt-2">{g.note}</p>}
                     </div>
                   );
                 })()}
               </div>
-              <div className="p-4 border-t flex gap-2">
-                <button onClick={() => setShowConfig(null)} className="flex-1 py-2 rounded-lg text-sm border text-gray-600 hover:bg-gray-50">Cancel</button>
+              <div className="p-4 border-t flex gap-2 shrink-0">
+                <button onClick={() => setShowConfig(null)} className="flex-1 py-2 rounded-lg text-sm border text-gray-600 hover:bg-gray-50">取消</button>
                 <button onClick={handleConnect} disabled={connecting} className="flex-1 py-2 rounded-lg text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
-                  {connecting ? 'Connecting...' : 'Connect & Save'}
+                  {connecting ? "正在连接..." : "连接并保存"}
                 </button>
               </div>
             </div>
@@ -589,8 +583,8 @@ export default function IntegrationsPage() {
               <div className="p-4 border-b flex items-center gap-3 sticky top-0 bg-white rounded-t-xl">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: def.color }}>{def.icon}</div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{def.name} — WhatsApp Automation</h3>
-                  <p className="text-xs text-gray-500">Auto-send an approved template when an event arrives</p>
+                  <h3 className="font-semibold text-gray-900">{def.name} — WhatsApp 自动化</h3>
+                  <p className="text-xs text-gray-500">活动到来时自动发送批准的模板</p>
                 </div>
               </div>
               {loadingSetup || !setupData ? (
@@ -600,16 +594,16 @@ export default function IntegrationsPage() {
                   {setupData.webhookUrl && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {showAuto === 'facebook-leads' ? 'Meta Webhook URL (set in your Meta App → Webhooks → leadgen)' : `Your Webhook URL (paste this in ${def.name})`}
+                        {showAuto === 'facebook-leads' ? "Meta Webhook URL（在您的 Meta App → Webhooks → Leadgen 中设置）" : `您的 Webhook URL（将其粘贴到 ${def.name})`}
                       </label>
                       <div className="flex gap-2">
                         <input readOnly value={setupData.webhookUrl} className="flex-1 px-3 py-2 border rounded-lg text-xs bg-gray-50 text-gray-700 font-mono" />
                         <button onClick={() => copyText(setupData.webhookUrl)} className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"><Copy className="w-4 h-4" /></button>
                       </div>
-                      {showAuto !== 'facebook-leads' && <p className="text-xs text-gray-400 mt-1">Jaise hi {def.name} is URL par lead/event bhejega, contact save hoga aur approved template auto-send hogi.</p>}
+                      {showAuto !== 'facebook-leads' && <p className="text-xs text-gray-400 mt-1">杰斯嗨 {def.name} 是线索/事件 bhejega 的 URL，联系保存 hoga aur 批准的模板自动发送 hogi。</p>}
                       {setupData.verifyToken && (
                         <div className="mt-3">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Verify Token (paste in Meta App → Webhooks → Verify Token)</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">验证令牌（粘贴到 Meta App → Webhooks → 验证令牌）</label>
                           <div className="flex gap-2">
                             <input readOnly value={setupData.verifyToken} className="flex-1 px-3 py-2 border rounded-lg text-xs bg-gray-50 text-gray-700 font-mono" />
                             <button onClick={() => copyText(setupData.verifyToken!)} className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"><Copy className="w-4 h-4" /></button>
@@ -619,10 +613,12 @@ export default function IntegrationsPage() {
                     </div>
                   )}
 
+                  
+
                   {SETUP_HINTS[showAuto] && (
                     <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-semibold text-gray-900">How to connect {def.name}</h4>
+                        <h4 className="text-sm font-semibold text-gray-900">如何连接 {def.name}</h4>
                         <button onClick={() => downloadGuidePdf([showAuto])} className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline">
                           <Download className="w-3.5 h-3.5" /> PDF
                         </button>
@@ -639,7 +635,7 @@ export default function IntegrationsPage() {
                   )}
 
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Recommended Templates (1-click Meta approval)</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">推荐模板（一键元批准）</h4>
                     <div className="space-y-3">
                       {setupData.templates.map(tpl => {
                         const auto = setupData.automations[tpl.event];
@@ -651,23 +647,23 @@ export default function IntegrationsPage() {
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-gray-900 text-sm">{tpl.label}</span>
-                                  {tpl.status === 'approved' && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Approved</span>}
-                                  {tpl.status === 'pending' && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1"><Clock className="w-3 h-3" /> Pending approval</span>}
-                                  {tpl.status === 'rejected' && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full flex items-center gap-1"><XCircle className="w-3 h-3" /> Rejected</span>}
-                                  {tpl.status === 'not_submitted' && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Not submitted</span>}
+                                  {tpl.status === 'approved' && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> 已批准</span>}
+                                  {tpl.status === 'pending' && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1"><Clock className="w-3 h-3" /> 待批准</span>}
+                                  {tpl.status === 'rejected' && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full flex items-center gap-1"><XCircle className="w-3 h-3" /> 被拒绝</span>}
+                                  {tpl.status === 'not_submitted' && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">未提交</span>}
                                 </div>
-                                <p className="text-xs text-gray-400 mt-0.5">Event: {tpl.eventLabel}</p>
+                                <p className="text-xs text-gray-400 mt-0.5">事件： {tpl.eventLabel}</p>
                               </div>
                               <div className="shrink-0 flex items-center gap-1">
                                 {!approved && editKey !== tpl.key && (
                                   <button onClick={() => { setEditKey(tpl.key); setEditForm({ label: tpl.label, body: tpl.body }); }}
-                                    className="px-2 py-1.5 rounded-lg text-xs text-gray-500 bg-gray-100 hover:bg-gray-200 flex items-center gap-1" title="Edit template">
-                                    <Pencil className="w-3 h-3" /> Edit
+                                    className="px-2 py-1.5 rounded-lg text-xs text-gray-500 bg-gray-100 hover:bg-gray-200 flex items-center gap-1" title={"编辑模板"}>
+                                    <Pencil className="w-3 h-3" /> 编辑
                                   </button>
                                 )}
                                 {tpl.custom && (
                                   <button onClick={() => handleDeleteTemplate(showAuto, tpl.key)}
-                                    className="px-2 py-1.5 rounded-lg text-xs text-red-500 bg-red-50 hover:bg-red-100" title="Delete template">
+                                    className="px-2 py-1.5 rounded-lg text-xs text-red-500 bg-red-50 hover:bg-red-100" title={"删除模板"}>
                                     <Trash2 className="w-3 h-3" />
                                   </button>
                                 )}
@@ -675,7 +671,7 @@ export default function IntegrationsPage() {
                                   <button onClick={() => handleSubmitTemplate(showAuto, tpl)} disabled={submittingTpl === tpl.key}
                                     className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1">
                                     {submittingTpl === tpl.key ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                                    {tpl.status === 'pending' ? 'Re-submit' : 'Submit for approval'}
+                                    {tpl.status === 'pending' ? "重新提交" : "提交审批"}
                                   </button>
                                 )}
                               </div>
@@ -683,13 +679,13 @@ export default function IntegrationsPage() {
                             {editKey === tpl.key ? (
                               <div className="mt-2 space-y-2">
                                 <input value={editForm.label} onChange={e => setEditForm({ ...editForm, label: e.target.value })}
-                                  className="w-full px-3 py-2 border rounded-lg text-xs" placeholder="Template title" />
+                                  className="w-full px-3 py-2 border rounded-lg text-xs" placeholder={"模板标题"} />
                                 <textarea value={editForm.body} onChange={e => setEditForm({ ...editForm, body: e.target.value })}
-                                  className="w-full px-3 py-2 border rounded-lg text-xs h-24 resize-y" placeholder="Message body — use {{1}}, {{2}} for variables" />
+                                  className="w-full px-3 py-2 border rounded-lg text-xs h-24 resize-y" placeholder={"消息正文 — 使用 {{1}}、{{2}} 作为变量"} />
                                 <div className="flex gap-2">
                                   <button onClick={() => handleSaveEdit(showAuto, tpl.key)} disabled={savingTpl}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">{savingTpl ? 'Saving...' : 'Save'}</button>
-                                  <button onClick={() => setEditKey(null)} className="px-3 py-1.5 rounded-lg text-xs border text-gray-600 hover:bg-gray-50">Cancel</button>
+                                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">{savingTpl ? "保存中…" : "保存"}</button>
+                                  <button onClick={() => setEditKey(null)} className="px-3 py-1.5 rounded-lg text-xs border text-gray-600 hover:bg-gray-50">取消</button>
                                 </div>
                               </div>
                             ) : (
@@ -697,13 +693,13 @@ export default function IntegrationsPage() {
                             )}
                             {tpl.rejectionReason && <p className="text-xs text-red-500 mt-1">{tpl.rejectionReason}</p>}
                             <div className="mt-3 flex items-center justify-between">
-                              <span className="text-xs text-gray-500">Auto-send this template on &quot;{tpl.eventLabel}&quot;</span>
+                              <span className="text-xs text-gray-500">将此模板自动发送至“{tpl.eventLabel}“</span>
                               <button onClick={() => handleToggleAuto(showAuto, tpl, !enabled)}
                                 className={`relative w-11 h-6 rounded-full transition-colors ${enabled ? 'bg-emerald-500' : 'bg-gray-300'}`}>
                                 <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
                               </button>
                             </div>
-                            {enabled && !approved && <p className="text-xs text-amber-600 mt-1">Template approve hone ke baad hi message jayega — pehle submit karke approval ka wait karein.</p>}
+                            {enabled && !approved && <p className="text-xs text-amber-600 mt-1">模板批准 hone ke baad hi 消息 jayega — pehle 提交 karke 批准 ka 等待 karein。</p>}
                           </div>
                         );
                       })}
@@ -711,43 +707,43 @@ export default function IntegrationsPage() {
 
                     {showAddForm ? (
                       <div className="mt-3 border border-dashed rounded-xl p-4 space-y-2">
-                        <h5 className="text-sm font-medium text-gray-900">Add your own template</h5>
+                        <h5 className="text-sm font-medium text-gray-900">添加您自己的模板</h5>
                         <select value={addForm.event} onChange={e => setAddForm({ ...addForm, event: e.target.value })}
                           className="w-full px-3 py-2 border rounded-lg text-xs bg-white">
-                          <option value="">Select event...</option>
+                          <option value="">选择事件...</option>
                           {Array.from(new Set(setupData.templates.map(t => t.event))).map(ev => (
-                            <option key={ev} value={ev}>{setupData.templates.find(t => t.event === ev)?.eventLabel || ev}</option>
+                            <option key={ev} value={ev}>{translateDisplay(setupData.templates.find(t => t.event === ev)?.eventLabel || ev)}</option>
                           ))}
                         </select>
                         <input value={addForm.label} onChange={e => setAddForm({ ...addForm, label: e.target.value })}
-                          className="w-full px-3 py-2 border rounded-lg text-xs" placeholder="Template title (e.g. My Welcome Message)" />
+                          className="w-full px-3 py-2 border rounded-lg text-xs" placeholder={"模板标题（例如我的欢迎消息）"} />
                         <textarea value={addForm.body} onChange={e => setAddForm({ ...addForm, body: e.target.value })}
-                          className="w-full px-3 py-2 border rounded-lg text-xs h-24 resize-y" placeholder="Message body — use {{1}}, {{2}} for variables (e.g. Hi {{1}}, thanks for contacting us!)" />
+                          className="w-full px-3 py-2 border rounded-lg text-xs h-24 resize-y" placeholder={"消息正文 — 使用 {{1}}、{{2}} 作为变量（例如，您好 {{1}}，感谢您与我们联系！）"} />
                         <div className="flex gap-2">
                           <select value={addForm.headerType} onChange={e => setAddForm({ ...addForm, headerType: e.target.value })}
                             className="px-3 py-2 border rounded-lg text-xs bg-white">
-                            <option value="none">No header</option>
-                            <option value="text">Text header</option>
-                            <option value="image">Image header</option>
+                            <option value="none">无标题</option>
+                            <option value="text">文本标题</option>
+                            <option value="image">图像标题</option>
                           </select>
                           {addForm.headerType === 'text' && (
                             <input value={addForm.headerText} onChange={e => setAddForm({ ...addForm, headerText: e.target.value })}
-                              className="flex-1 px-3 py-2 border rounded-lg text-xs" placeholder="Header text (e.g. Order Update)" />
+                              className="flex-1 px-3 py-2 border rounded-lg text-xs" placeholder={"标题文本（例如消息提醒）"} />
                           )}
                           {addForm.headerType === 'image' && (
                             <input value={addForm.headerImage} onChange={e => setAddForm({ ...addForm, headerImage: e.target.value })}
-                              className="flex-1 px-3 py-2 border rounded-lg text-xs" placeholder="Public image URL (jpg/png)" />
+                              className="flex-1 px-3 py-2 border rounded-lg text-xs" placeholder={"公共图像 URL (jpg/png)"} />
                           )}
                         </div>
                         {addForm.buttons.map((b, i) => (
                           <div key={i} className="flex gap-2">
                             <select value={b.type} onChange={e => setAddForm({ ...addForm, buttons: addForm.buttons.map((x, j) => j === i ? { ...x, type: e.target.value } : x) })}
                               className="px-3 py-2 border rounded-lg text-xs bg-white">
-                              <option value="quick_reply">Quick reply</option>
-                              <option value="url">URL button</option>
+                              <option value="quick_reply">快速回复</option>
+                              <option value="url">URL按钮</option>
                             </select>
                             <input value={b.text} onChange={e => setAddForm({ ...addForm, buttons: addForm.buttons.map((x, j) => j === i ? { ...x, text: e.target.value } : x) })}
-                              className="flex-1 px-3 py-2 border rounded-lg text-xs" placeholder="Button text (max 25 chars)" maxLength={25} />
+                              className="flex-1 px-3 py-2 border rounded-lg text-xs" placeholder={"按钮文本（最多 25 个字符）"} maxLength={25} />
                             {b.type === 'url' && (
                               <input value={b.url} onChange={e => setAddForm({ ...addForm, buttons: addForm.buttons.map((x, j) => j === i ? { ...x, url: e.target.value } : x) })}
                                 className="flex-1 px-3 py-2 border rounded-lg text-xs" placeholder="https://..." />
@@ -758,25 +754,25 @@ export default function IntegrationsPage() {
                         ))}
                         {addForm.buttons.length < 3 && (
                           <button onClick={() => setAddForm({ ...addForm, buttons: [...addForm.buttons, { type: 'quick_reply', text: '', url: '' }] })}
-                            className="text-xs text-emerald-600 hover:underline">+ Add button</button>
+                            className="text-xs text-emerald-600 hover:underline">+ 添加按钮</button>
                         )}
                         <div className="flex gap-2">
                           <button onClick={() => handleAddTemplate(showAuto)} disabled={savingTpl}
-                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">{savingTpl ? 'Adding...' : 'Add Template'}</button>
-                          <button onClick={() => setShowAddForm(false)} className="px-3 py-1.5 rounded-lg text-xs border text-gray-600 hover:bg-gray-50">Cancel</button>
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">{savingTpl ? "添加..." : "添加模板"}</button>
+                          <button onClick={() => setShowAddForm(false)} className="px-3 py-1.5 rounded-lg text-xs border text-gray-600 hover:bg-gray-50">取消</button>
                         </div>
                       </div>
                     ) : (
                       <button onClick={() => setShowAddForm(true)}
                         className="mt-3 w-full py-2 rounded-xl text-sm border border-dashed text-gray-500 hover:bg-gray-50 flex items-center justify-center gap-1">
-                        <Plus className="w-4 h-4" /> Add your own template
+                        <Plus className="w-4 h-4" /> 添加您自己的模板
                       </button>
                     )}
                   </div>
                 </div>
               )}
               <div className="p-4 border-t">
-                <button onClick={() => setShowAuto(null)} className="w-full py-2 rounded-lg text-sm border text-gray-600 hover:bg-gray-50">Close</button>
+                <button onClick={() => setShowAuto(null)} className="w-full py-2 rounded-lg text-sm border text-gray-600 hover:bg-gray-50">关闭</button>
               </div>
             </div>
           </div>

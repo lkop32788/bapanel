@@ -1,5 +1,4 @@
 const BotFlow = require('../models/BotFlow');
-const { checkPlanLimit } = require('../utils/planLimits');
 
 const getBotFlows = async (req, res) => {
   try {
@@ -22,8 +21,6 @@ const getBotFlow = async (req, res) => {
 
 const createBotFlow = async (req, res) => {
   try {
-    const limitMsg = await checkPlanLimit(req, 'botFlows', 'BotFlow');
-    if (limitMsg) return res.status(403).json({ success: false, message: limitMsg });
     const { name, triggerKeywords = [], matchType = 'exact' } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Name is required' });
     const flow = await BotFlow.create({
@@ -59,8 +56,6 @@ const updateBotFlow = async (req, res) => {
 // @POST /api/bot-flows/generate — AI builds a full flow from a business description
 const generateBotFlow = async (req, res) => {
   try {
-    const limitMsg = await checkPlanLimit(req, 'botFlows', 'BotFlow');
-    if (limitMsg) return res.status(403).json({ success: false, message: limitMsg });
     const { business, goal, name } = req.body;
     if (!business || !goal) return res.status(400).json({ success: false, message: 'Business details and flow goal are required' });
 
@@ -158,8 +153,6 @@ const createPresetFlow = async (req, res) => {
     const key = String(req.body.preset || 'lead_nurturing');
     const def = PRESETS[key];
     if (!def) return res.status(400).json({ success: false, message: 'Unknown preset' });
-    const limitMsg = await checkPlanLimit(req, 'botFlows', 'BotFlow');
-    if (limitMsg) return res.status(403).json({ success: false, message: limitMsg });
     const flow = await BotFlow.create({
       workspace: req.workspace._id,
       name: def.name,

@@ -1,5 +1,4 @@
 const Tag = require('../models/Tag');
-const { checkPlanLimit } = require('../utils/planLimits');
 
 const getTags = async (req, res) => {
   try {
@@ -20,8 +19,7 @@ const getTags = async (req, res) => {
 
 const createTag = async (req, res) => {
   try {
-    const limitMsg = await checkPlanLimit(req, 'tags', 'Tag');
-    if (limitMsg) return res.status(403).json({ success: false, message: limitMsg });
+
     const tag = await Tag.create({ ...req.body, workspace: req.workspace._id });
     res.status(201).json({ success: true, data: tag });
   } catch (error) {

@@ -1,6 +1,7 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
-import { Phone, PhoneOff, Mic, MicOff, Loader2, ShieldQuestion } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Loader2, ShieldQuestion, Volume2, Volume1 } from 'lucide-react';
 import { aiCallingApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -53,6 +54,8 @@ interface ApiError {
 export default function CallProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<CallState>({ status: 'idle', phone: '', durationSec: 0 });
   const [muted, setMuted] = useState(false);
+  // Call audio output: false = phone/earpiece (normal call), true = loudspeaker.
+  const [speaker, setSpeaker] = useState(false);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -76,6 +79,7 @@ export default function CallProvider({ children }: { children: React.ReactNode }
     }
     answeredRef.current = false;
     setMuted(false);
+    setSpeaker(false);
   }, []);
 
   const endCall = useCallback(async (reason?: CallStatus, msg?: string) => {
@@ -192,7 +196,7 @@ export default function CallProvider({ children }: { children: React.ReactNode }
         } else if (d.status === 'completed' || d.status === 'terminated') {
           endCall('ended');
         } else if (d.status === 'failed' || d.status === 'rejected') {
-          endCall('failed', d.errorMessage || (d.status === 'rejected' ? 'Call rejected' : 'Call failed'));
+          endCall('failed', d.errorMessage || (d.status === 'rejected' ? "呼叫被拒绝" : "呼叫失败"));
         } else if (d.status === 'ringing') {
           setState(prev => (prev.status === 'connected' ? prev : { ...prev, status: 'ringing' }));
         }
@@ -201,8 +205,8 @@ export default function CallProvider({ children }: { children: React.ReactNode }
   }, [endCall]);
 
   const startCall = useCallback(async (phone: string, name?: string, agentId?: string) => {
-    if (!phone) { toast.error('No phone number'); return; }
-    if (pcRef.current) { toast.error('A call is already in progress'); return; }
+    if (!phone) { toast.error(translateApiMessage("没有电话号码")); return; }
+    if (pcRef.current) { toast.error(translateApiMessage("通话已在进行中")); return; }
 
     directionRef.current = 'out';
     setState({ status: 'requesting-mic', phone, name, durationSec: 0, permissionNeeded: false });
@@ -212,7 +216,7 @@ export default function CallProvider({ children }: { children: React.ReactNode }
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     } catch {
-      setState(prev => ({ ...prev, status: 'failed', error: 'Microphone permission denied' }));
+      setState(prev => ({ ...prev, status: 'failed', error: "麦克风权限被拒绝" }));
       return;
     }
     localStreamRef.current = stream;
@@ -238,7 +242,7 @@ export default function CallProvider({ children }: { children: React.ReactNode }
       if (!callId) throw new Error('No call id');
     } catch (err) {
       const e = err as ApiError;
-      const message = e.response?.data?.message || 'Call failed';
+      const message = e.response?.data?.message || "呼叫失败";
       cleanup();
       const permissionNeeded = /permission/i.test(message);
       setState(prev => ({ ...prev, status: 'failed', error: message, permissionNeeded }));
@@ -263,7 +267,7 @@ export default function CallProvider({ children }: { children: React.ReactNode }
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     } catch {
-      setState(prev => ({ ...prev, status: 'failed', error: 'Microphone permission denied' }));
+      setState(prev => ({ ...prev, status: 'failed', error: "麦克风权限被拒绝" }));
       return;
     }
     localStreamRef.current = stream;
@@ -302,7 +306,10 @@ export default function CallProvider({ children }: { children: React.ReactNode }
   // incoming-call card when one arrives (also works after a previous call ended).
   useEffect(() => {
     const busy: CallStatus[] = ['incoming', 'requesting-mic', 'connecting', 'ringing', 'connected'];
-    const iv = setInterval(async () => {
+    // PERF-01: poll every 15 s and only while this tab is visible (calls ring for 45 s),
+    // plus one immediate poll when the tab becomes visible again.
+    const poll = async () => {
+      if (document.visibilityState !== 'visible') return;
       if (busy.includes(stateRef.current.status) || pcRef.current) return;
       try {
         const r = await aiCallingApi.getIncoming();
@@ -313,8 +320,11 @@ export default function CallProvider({ children }: { children: React.ReactNode }
           setState({ status: 'incoming', phone: c.from, name: c.from, callId: c.callId, durationSec: 0 });
         }
       } catch { /* transient */ }
-    }, 3000);
-    return () => clearInterval(iv);
+    };
+    const iv = setInterval(poll, 15000);
+    const onVisible = () => { if (document.visibilityState === 'visible') poll(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', onVisible); };
   }, []);
 
   // Ringtone for incoming calls (WebAudio, no asset needed)
@@ -377,14 +387,104 @@ export default function CallProvider({ children }: { children: React.ReactNode }
     setMuted(next);
   };
 
+  // ----- Incoming-call ringer -------------------------------------------
+  // A short repeating tone so an incoming call is audible even when the call
+  // audio itself is silenced (speaker off). Generated with WebAudio so no
+  // asset is needed.
+  const ringRef = useRef<{ ctx: AudioContext; timer: ReturnType<typeof setInterval> } | null>(null);
+
+  const stopRinger = useCallback(() => {
+    if (!ringRef.current) return;
+    clearInterval(ringRef.current.timer);
+    try { ringRef.current.ctx.close(); } catch { /* noop */ }
+    ringRef.current = null;
+  }, []);
+
+  const startRinger = useCallback(() => {
+    if (ringRef.current) return;
+    try {
+      const ctx = new AudioContext();
+      ctx.resume().catch(() => { /* needs a gesture */ });
+      const beep = () => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 480;
+        gain.gain.value = 0.12;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.8);
+      };
+      beep();
+      const timer = setInterval(beep, 2400);
+      ringRef.current = { ctx, timer };
+    } catch { /* audio blocked */ }
+  }, []);
+
+  useEffect(() => {
+    if (state.status === 'incoming') startRinger(); else stopRinger();
+  }, [state.status, startRinger, stopRinger]);
+
+  useEffect(() => stopRinger, [stopRinger]);
+
+  // Audio output devices are only listed with labels once the user has granted
+  // audio permission, so ask for it before trying to switch the speaker.
+  const listOutputs = async (): Promise<MediaDeviceInfo[]> => {
+    let devices = await navigator.mediaDevices.enumerateDevices();
+    let outputs = devices.filter(d => d.kind === 'audiooutput');
+    if (!outputs.length || outputs.every(d => !d.label)) {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+        s.getTracks().forEach(t => t.stop());
+      } catch {
+        toast.error(translateApiMessage("允许麦克风/音频权限切换扬声器"));
+        return [];
+      }
+      devices = await navigator.mediaDevices.enumerateDevices();
+      outputs = devices.filter(d => d.kind === 'audiooutput');
+    }
+    return outputs;
+  };
+
+  // Route the call audio to the loudspeaker or back to the earpiece/handset.
+  // Browsers that cannot switch the output (iOS Safari, most Android browsers)
+  // always use the loudspeaker; there we silence the call audio instead, so the
+  // ringer and notification sounds keep working.
+  const toggleSpeaker = async () => {
+    const el = audioElRef.current as (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }) | null;
+    const next = !speaker;
+    if (!el) return;
+    if (typeof el.setSinkId !== 'function') {
+      el.muted = next;
+      setSpeaker(next);
+      toast(next
+        ? 'Call audio muted on this device \u2014 this browser cannot switch the output'
+        : 'Call audio on');
+      return;
+    }
+    try {
+      const outputs = await listOutputs();
+      if (!outputs.length) return;
+      const match = next
+        ? outputs.find(d => /speaker|loud/i.test(d.label))
+        : outputs.find(d => /earpiece|handset|receiver|headset|headphone/i.test(d.label));
+      await el.setSinkId(match?.deviceId || 'default');
+      el.muted = false;
+      setSpeaker(next);
+    } catch {
+      toast.error(translateApiMessage("无法切换音频输出"));
+    }
+  };
+
   const sendPermission = async () => {
     try {
       await aiCallingApi.requestPermission(state.phone);
-      toast.success('Permission request sent. Once the customer accepts, you can call.');
+      toast.success(translateApiMessage("已发送权限请求。客户接受后，您就可以致电。"));
       setState(prev => ({ ...prev, permissionNeeded: false }));
     } catch (err) {
       const e = err as ApiError;
-      toast.error(e.response?.data?.message || 'Permission request failed');
+      toast.error(translateApiMessage(e.response?.data?.message || "权限请求失败"));
     }
   };
 
@@ -396,12 +496,12 @@ export default function CallProvider({ children }: { children: React.ReactNode }
 
   const statusLabel: Record<CallStatus, string> = {
     idle: '',
-    incoming: 'Incoming call...',
-    'requesting-mic': 'Mic permission...',
+    incoming: "来电...",
+    'requesting-mic': "麦克风许可...",
     connecting: 'Connecting...',
     ringing: 'Ringing...',
     connected: fmt(state.durationSec),
-    ended: 'Call ended',
+    ended: "通话结束",
     failed: state.error || 'Call failed',
   };
 
@@ -412,7 +512,7 @@ export default function CallProvider({ children }: { children: React.ReactNode }
       {children}
       <audio ref={audioElRef} autoPlay />
       {visible && (
-        <div className="fixed bottom-6 right-6 z-[100] w-80 bg-white rounded-2xl shadow-2xl border overflow-hidden">
+        <div className="fixed bottom-6 right-6 z-100 w-80 bg-white rounded-2xl shadow-2xl border overflow-hidden">
           <div className={`p-5 ${state.status === 'connected' ? 'bg-emerald-600' : state.status === 'failed' ? 'bg-red-500' : state.status === 'incoming' ? 'bg-indigo-600' : 'bg-gray-800'} text-white`}>
             <div className="flex items-center gap-3">
               <div className={`w-12 h-12 rounded-full bg-white/20 flex items-center justify-center ${state.status === 'incoming' ? 'animate-pulse' : ''}`}>
@@ -433,12 +533,12 @@ export default function CallProvider({ children }: { children: React.ReactNode }
               <>
                 <button onClick={rejectIncomingCall}
                   className="w-14 h-14 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
-                  title="Reject">
+                  title={"拒绝"}>
                   <PhoneOff className="w-6 h-6" />
                 </button>
                 <button onClick={acceptIncomingCall}
                   className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600"
-                  title="Accept">
+                  title={"接受"}>
                   <Phone className="w-6 h-6" />
                 </button>
               </>
@@ -446,12 +546,17 @@ export default function CallProvider({ children }: { children: React.ReactNode }
               <>
                 <button onClick={toggleMute}
                   className={`w-12 h-12 rounded-full flex items-center justify-center ${muted ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-600'} hover:bg-gray-200`}
-                  title={muted ? 'Unmute' : 'Mute'}>
+                  title={muted ? "取消静音" : "静音"}>
                   {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </button>
+                <button onClick={toggleSpeaker}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center ${speaker ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'} hover:bg-gray-200`}
+                  title={speaker ? "扬声器打开 — 点击即可关闭" : "扬声器关闭 — 点击即可打开"}>
+                  {speaker ? <Volume2 className="w-5 h-5" /> : <Volume1 className="w-5 h-5" />}
                 </button>
                 <button onClick={() => endCall('ended')}
                   className="w-14 h-14 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
-                  title="End call">
+                  title={"结束通话"}>
                   <PhoneOff className="w-6 h-6" />
                 </button>
               </>
@@ -460,12 +565,12 @@ export default function CallProvider({ children }: { children: React.ReactNode }
                 {state.permissionNeeded && (
                   <button onClick={sendPermission}
                     className="w-full py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 flex items-center justify-center gap-2">
-                    <ShieldQuestion className="w-4 h-4" /> Request Call Permission
+                    <ShieldQuestion className="w-4 h-4" /> 请求通话权限
                   </button>
                 )}
                 <button onClick={closeCard}
                   className="w-full py-2 rounded-lg border text-sm text-gray-600 hover:bg-gray-50">
-                  Close
+                  关闭
                 </button>
               </div>
             )}

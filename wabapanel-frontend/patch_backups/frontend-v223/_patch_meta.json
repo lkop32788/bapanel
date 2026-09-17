@@ -1,0 +1,16 @@
+{
+  "version": "frontend-v223",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "public/assets/panel-dashboard.png",
+    "public/assets/dashboard-hero.png",
+    "public/assets/workflow-automation.png",
+    "public/assets/chat-interface.png"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v223.zip",
+  "zip_sha256": "337124ac3b6560a2a36e15d0dd6d005ebc2f92e392b5b832ed772a413702103e",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

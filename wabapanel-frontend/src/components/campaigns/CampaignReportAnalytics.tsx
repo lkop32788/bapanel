@@ -53,7 +53,7 @@ export default function CampaignReportAnalytics({ counts, recipients }: { counts
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div className="rounded-xl border border-gray-200 p-3">
-        <p className="text-xs font-semibold text-gray-700 mb-1">Delivery Breakdown</p>
+        <p className="text-xs font-semibold text-gray-700 mb-1">交货明细</p>
         <div className="h-40">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -73,13 +73,13 @@ export default function CampaignReportAnalytics({ counts, recipients }: { counts
         </div>
       </div>
       <div className="rounded-xl border border-gray-200 p-3 space-y-3">
-        <p className="text-xs font-semibold text-gray-700">Performance</p>
-        <RateBar label="Delivery rate" value={deliveryRate} color="#10b981" />
-        <RateBar label="Read rate" value={readRate} color="#6366f1" />
-        <RateBar label="Failure rate" value={failRate} color="#ef4444" />
+        <p className="text-xs font-semibold text-gray-700">性能</p>
+        <RateBar label={"交货率"} value={deliveryRate} color="#10b981" />
+        <RateBar label={"读取率"} value={readRate} color="#6366f1" />
+        <RateBar label={"故障率"} value={failRate} color="#ef4444" />
         {timeline.length > 1 && (
           <div>
-            <p className="text-[11px] text-gray-500 mb-1">Send timeline (per hour)</p>
+            <p className="text-[11px] text-gray-500 mb-1">发送时间线（每小时）</p>
             <div className="h-20">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={timeline}>

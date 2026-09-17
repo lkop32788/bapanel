@@ -28,7 +28,7 @@ router.get('/eligible-count', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const item = await PresetMessage.create({ name: req.body.name, body: req.body.body, mediaUrl: req.body.mediaUrl || '', headerType: req.body.headerType || 'none', headerText: req.body.headerText || '', footer: req.body.footer || '', buttons: req.body.buttons || [], listButtonText: req.body.listButtonText || '', listItems: req.body.listItems || [], cards: req.body.cards || [], carouselTemplate: req.body.carouselTemplate || '', productIds: req.body.productIds || [], workspace: req.workspace._id, createdBy: req.user._id });
+    const item = await PresetMessage.create({ name: req.body.name, body: req.body.body, mediaUrl: req.body.mediaUrl || '', headerType: req.body.headerType || 'none', headerText: req.body.headerText || '', footer: req.body.footer || '', buttons: req.body.buttons || [], listButtonText: req.body.listButtonText || '', listItems: req.body.listItems || [], cards: req.body.cards || [], carouselTemplate: req.body.carouselTemplate || '', workspace: req.workspace._id, createdBy: req.user._id });
     res.status(201).json({ success: true, data: item });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -37,7 +37,7 @@ router.put('/:id', async (req, res) => {
   try {
     const item = await PresetMessage.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id, createdBy: req.user._id },
-      { name: req.body.name, body: req.body.body, mediaUrl: req.body.mediaUrl || '', headerType: req.body.headerType || 'none', headerText: req.body.headerText || '', footer: req.body.footer || '', buttons: req.body.buttons || [], listButtonText: req.body.listButtonText || '', listItems: req.body.listItems || [], cards: req.body.cards || [], carouselTemplate: req.body.carouselTemplate || '', productIds: req.body.productIds || [] },
+      { name: req.body.name, body: req.body.body, mediaUrl: req.body.mediaUrl || '', headerType: req.body.headerType || 'none', headerText: req.body.headerText || '', footer: req.body.footer || '', buttons: req.body.buttons || [], listButtonText: req.body.listButtonText || '', listItems: req.body.listItems || [], cards: req.body.cards || [], carouselTemplate: req.body.carouselTemplate || '' },
       { new: true }
     );
     if (!item) return res.status(404).json({ success: false, message: 'Not found' });

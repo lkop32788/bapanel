@@ -1,4 +1,6 @@
 'use client';
+import { translateDisplay } from '@/lib/zhDisplay';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { Trash2, RefreshCw, Play } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -39,7 +41,7 @@ export default function DataCleanupPage() {
       setCounts(d.counts || {});
       setLabels(d.labels || {});
       setWorkspaces(d.workspaces || []);
-    } catch { toast.error('Failed to load cleanup settings'); }
+    } catch { toast.error(translateApiMessage("无法加载清理设置")); }
     setLoading(false);
   };
 
@@ -56,34 +58,34 @@ export default function DataCleanupPage() {
     setSaving(true);
     try {
       await adminApi.updateDataCleanup(settings);
-      toast.success('Cleanup settings saved');
+      toast.success(translateApiMessage("清理设置已保存"));
       load();
-    } catch { toast.error('Failed to save settings'); }
+    } catch { toast.error(translateApiMessage("无法保存设置")); }
     setSaving(false);
   };
 
   const runNow = async () => {
     const scope = selectedWs ? (workspaces.find(w => w._id === selectedWs)?.name || 'this client') : 'ALL clients';
-    if (!confirm(`Run cleanup now for ${scope}? Old records in enabled categories will be permanently deleted.`)) return;
+    if (!confirm(`立即运行清理 ${scope}？已启用类别中的旧记录将被永久删除。`)) return;
     setRunning(true);
     try {
       const res = await adminApi.runDataCleanup(selectedWs || undefined);
-      toast.success(res.data.data.summary || 'Cleanup completed');
+      toast.success(translateApiMessage(res.data.data.summary || "清理完成"));
       load();
-    } catch { toast.error('Cleanup failed'); }
+    } catch { toast.error(translateApiMessage("清理失败")); }
     setRunning(false);
   };
 
-  if (loading) return <div className="p-6 text-gray-400">Loading...</div>;
+  if (loading) return <div className="p-6 text-gray-400">加载中…</div>;
 
   return (
     <div className="p-6 max-w-3xl">
       <div className="page-hero mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Trash2 className="w-6 h-6" /> Data Cleanup
+            <Trash2 className="w-6 h-6" /> 数据清理
           </h1>
-          <p className="text-sm mt-1">Automatically delete old data to keep the server light. Runs daily at the selected hour.</p>
+          <p className="text-sm mt-1">自动删除旧数据以保持服务器轻量。每天在选定的时间运行。</p>
         </div>
         <Button variant="outline" onClick={() => load()}><RefreshCw className="w-4 h-4" /></Button>
       </div>
@@ -91,8 +93,8 @@ export default function DataCleanupPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-medium text-gray-900">Enable Auto Cleanup</p>
-            <p className="text-xs text-gray-500">When on, enabled categories below are cleaned daily.</p>
+            <p className="font-medium text-gray-900">启用自动清理</p>
+            <p className="text-xs text-gray-500">启用后，每天都会清理以下启用的类别。</p>
           </div>
           <button
             onClick={() => setSettings(s => ({ ...s, enabled: !s.enabled }))}
@@ -103,32 +105,32 @@ export default function DataCleanupPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <label className="text-sm text-gray-700">Run daily at</label>
+          <label className="text-sm text-gray-700">每天运行于</label>
           <select
             value={settings.runHour}
             onChange={e => setSettings(s => ({ ...s, runHour: Number(e.target.value) }))}
             className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white"
           >
             {Array.from({ length: 24 }, (_, h) => (
-              <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+              <option key={h} value={h}>{translateDisplay(String(h).padStart(2, '0'))}:00</option>
             ))}
           </select>
-          <span className="text-xs text-gray-400">server time</span>
+          <span className="text-xs text-gray-400">服务器时间</span>
         </div>
 
         <div className="flex items-center gap-3">
-          <label className="text-sm text-gray-700">Client</label>
+          <label className="text-sm text-gray-700">客户端</label>
           <select
             value={selectedWs}
             onChange={e => { setSelectedWs(e.target.value); load(e.target.value); }}
             className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white max-w-xs"
           >
-            <option value="">All clients</option>
+            <option value="">所有客户</option>
             {workspaces.map(w => (
-              <option key={w._id} value={w._id}>{w.name}{w.owner?.email ? ` (${w.owner.email})` : ''}</option>
+              <option key={w._id} value={w._id}>{translateDisplay(w.name)}{translateDisplay(w.owner?.email ? ` (${w.owner.email})` : '')}</option>
             ))}
           </select>
-          <span className="text-xs text-gray-400">counts &amp; Run Now use this; daily auto-run always covers all clients</span>
+          <span className="text-xs text-gray-400">计数并立即运行使用此；每日自动运行始终覆盖所有客户端</span>
         </div>
 
         <div className="border-t border-gray-100 pt-3 space-y-2">
@@ -138,16 +140,16 @@ export default function DataCleanupPage() {
               <div key={key} className="flex items-center justify-between px-3 py-2.5 border border-gray-100 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-gray-800">{labels[key]}</p>
-                  <p className="text-xs text-gray-400">{(counts[key] ?? 0).toLocaleString()} records currently</p>
+                  <p className="text-xs text-gray-400">{(counts[key] ?? 0).toLocaleString()} 当前记录</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500">Delete older than</span>
+                  <span className="text-xs text-gray-500">删除早于</span>
                   <input
                     type="number" min={1} value={cat.days}
                     onChange={e => setCat(key, { days: Number(e.target.value) })}
                     className="w-20 px-2 py-1 border border-gray-200 rounded-lg text-sm"
                   />
-                  <span className="text-xs text-gray-500">days</span>
+                  <span className="text-xs text-gray-500">天</span>
                   <button
                     onClick={() => setCat(key, { enabled: !cat.enabled })}
                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${cat.enabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
@@ -162,20 +164,20 @@ export default function DataCleanupPage() {
 
         {settings.lastRun && (
           <p className="text-xs text-gray-500">
-            Last run: {new Date(settings.lastRun).toLocaleString()} — {settings.lastRunSummary}
+            上次运行： {new Date(settings.lastRun).toLocaleString()} — {settings.lastRunSummary}
           </p>
         )}
 
         <div className="flex justify-between pt-2">
           <Button variant="outline" onClick={runNow} disabled={running}>
-            <Play className="w-4 h-4 mr-1" /> {running ? 'Running...' : 'Run Now'}
+            <Play className="w-4 h-4 mr-1" /> {running ? "正在运行..." : "立即运行"}
           </Button>
-          <Button onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Settings'}</Button>
+          <Button onClick={save} disabled={saving}>{saving ? "保存中…" : "保存设置"}</Button>
         </div>
       </div>
 
       <p className="text-xs text-gray-400 mt-3">
-        Note: contacts, active conversations, billing records and subscriptions are never auto-deleted.
+        注意：联系人、活动对话、账单记录和订阅永远不会自动删除。
       </p>
     </div>
   );

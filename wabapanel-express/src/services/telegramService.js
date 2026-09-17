@@ -72,9 +72,7 @@ async function handleUpdate(workspace, update, io) {
       .processIncoming({ workspace, conversation, contact, phone: chatId, text: msg.text })
       .catch((e) => console.error('[telegram] automation error:', e.message));
   }
-  require('./apiWebhookDispatcher').dispatch(workspace, 'message.received', {
-    conversation_id: conversation._id, contact_id: contact._id, channel: 'telegram', text: msg.text || '',
-  }).catch(() => {});
+
 }
 
 module.exports = { setWebhook, getMe, sendMessage, sendMedia, handleUpdate };

@@ -37,7 +37,6 @@ const igAutoDmSchema = new mongoose.Schema({
   // Save the commenter as a contact (they may have no chat yet) with these tags/stage.
   createContact: { type: Boolean, default: false },
   tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' }],
-  stage: { type: mongoose.Schema.Types.ObjectId, ref: 'Stage', default: null },
 
   // Opening DM (private reply to the comment).
   openingText: { type: String, default: '' },

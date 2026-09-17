@@ -1,10 +1,12 @@
 'use client';
+import { translateDisplay } from '@/lib/zhDisplay';
 import React, { useState, useEffect, useCallback } from 'react';
+
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import { StatCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import { Send, CheckCheck, Eye, AlertCircle, MessageSquare, Users, Phone, Megaphone, Wallet, TrendingUp, Download, Clock, Timer } from 'lucide-react';
+import { Send, CheckCheck, Eye, AlertCircle, MessageSquare, Users, Phone, Megaphone, TrendingUp, Download, Clock, Timer } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
 import api from '@/lib/api';
 import useBranding from '@/lib/useBranding';
@@ -21,9 +23,9 @@ interface DashData {
   callChart?: { _id: string; count: number; seconds: number }[];
   contactChart?: { _id: string; count: number }[];
   newContacts?: number;
-  spend?: number;
+  
   unreadCount?: number;
-  walletBalance?: number;
+  
   hourlyActivity?: { hour: number; count: number }[];
   weekdayActivity?: { day: number; count: number }[];
   topCustomers?: { _id: string; name?: string; phone?: string; total: number; inbound: number; outbound: number; lastAt: string }[];
@@ -33,29 +35,29 @@ interface DashData {
 }
 
 const RANGES = [
-  { value: 7, label: '7 Days' },
-  { value: 30, label: '30 Days' },
-  { value: 90, label: '90 Days' },
+  { value: 7, label: "7 天" },
+  { value: 30, label: "30 天" },
+  { value: 90, label: "90 天" },
 ];
 
 const PIE_COLORS = ['#10B981', '#F59E0B', '#3B82F6', '#8B5CF6', '#EF4444', '#6B7280', '#EC4899', '#14B8A6'];
 const WEEKDAYS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const SOURCE_LABELS: Record<string, string> = {
-  manual: 'Manual / Chat',
-  template: 'Meta Template',
-  preset: 'Preset (Inbox)',
-  preset_campaign: 'Preset Campaign',
-  campaign: 'Broadcast Campaign',
-  drip: 'Drip Campaign',
-  keyword_auto_reply: 'Keyword Auto-Reply',
-  ai_auto_reply: 'AI Auto-Reply',
-  ai_call: 'AI Call',
-  ai_call_summary: 'AI Call Summary',
-  ai_handoff: 'AI Handoff',
-  preset_button_value: 'Button Auto-Reply',
-  welcome: 'Welcome Message',
-  out_of_office: 'Out of Office',
+  manual: "手册/聊天",
+  template: "元模板",
+  preset: "预设（收件箱）",
+  preset_campaign: "预设活动",
+  campaign: "广播活动",
+  drip: "滴水活动",
+  keyword_auto_reply: "关键字自动回复",
+  ai_auto_reply: "人工智能自动回复",
+  ai_call: "人工智能呼叫",
+  ai_call_summary: "人工智能通话摘要",
+  ai_handoff: "人工智能切换",
+  preset_button_value: "按钮自动回复",
+  welcome: "欢迎辞",
+  out_of_office: "不在办公室",
   automation: 'Automation',
 };
 
@@ -75,6 +77,9 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<DashData | null>(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   const [campStatus, setCampStatus] = useState('all');
   const [campType, setCampType] = useState('all');
   const [showAllCamps, setShowAllCamps] = useState(false);
@@ -82,11 +87,13 @@ export default function AnalyticsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/dashboard/client?days=${days}`);
+      const res = await api.get(range
+        ? `/dashboard/client?from=${range.from}&to=${range.to}`
+        : `/dashboard/client?days=${days}`);
       setData(res.data.data);
     } catch { /* empty */ }
     setLoading(false);
-  }, [days]);
+  }, [days, range]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -135,43 +142,54 @@ export default function AnalyticsPage() {
     (campStatus === 'all' || cp.status === campStatus) && (campType === 'all' || cp.type === campType));
   const visibleCamps = showAllCamps ? filteredCamps : filteredCamps.slice(0, 10);
 
+  const rangeLabel = range
+    ? (range.from === range.to ? range.from : `${range.from} to ${range.to}`)
+    : `last ${days} days`;
+
+  const applyCustom = () => {
+    if (!customFrom || !customTo) return;
+    const from = customFrom <= customTo ? customFrom : customTo;
+    const to = customFrom <= customTo ? customTo : customFrom;
+    setRange({ from, to });
+  };
+
   const exportCSV = () => {
     if (!data) return;
     const lines: string[] = [];
     const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    lines.push(`${brand.name} Analytics Export,Last ${days} days,Generated ${new Date().toLocaleString('en-IN')}`);
+    lines.push(`${brand.name} 分析导出，${rangeLabel}，生成 ${new Date().toLocaleString('en-IN')}`);
     lines.push('');
     lines.push('SUMMARY');
-    lines.push(`Total Messages,${totalMessages}`);
-    lines.push(`Delivered,${totalDelivered},Delivery Rate,${deliveryRate}%`);
-    lines.push(`Read,${totalRead},Read Rate,${readRate}%`);
-    lines.push(`Failed,${totalFailed},Fail Rate,${failRate}%`);
-    lines.push(`Contacts,${data.contacts},New Contacts,${data.newContacts || 0}`);
-    lines.push(`Conversations,${data.conversations?.total || 0},Active,${data.conversations?.active || 0}`);
-    lines.push(`AI Calls,${data.aiCalls?.total || 0},Minutes,${data.aiCalls?.minutes || 0}`);
-    lines.push(`Spend,₹${(data.spend || 0).toFixed(2)},Wallet Balance,₹${(data.walletBalance || 0).toFixed(2)}`);
-    lines.push(`Avg Response Time (min),${data.responseTime?.avgMinutes || 0},Median (min),${data.responseTime?.medianMinutes || 0}`);
+    lines.push(`消息总数，${totalMessages}`);
+    lines.push(`已交付，${totalDelivered}，交货率，${deliveryRate}%`);
+    lines.push(`读，${totalRead}，读取速率，${readRate}%`);
+    lines.push(`失败，${totalFailed}，失败率，${failRate}%`);
+    lines.push(`联系人，${data.contacts}，新联系人，${data.newContacts || 0}`);
+    lines.push(`对话，${data.conversations?.total || 0}，活跃，${data.conversations?.active || 0}`);
+    lines.push(`人工智能呼叫，${data.aiCalls?.total || 0}，分钟，${data.aiCalls?.minutes || 0}`);
+    
+    lines.push(`平均响应时间（分钟），${data.responseTime?.avgMinutes || 0}，中位数（分钟），${data.responseTime?.medianMinutes || 0}`);
     lines.push('');
     lines.push('DAILY MESSAGES');
-    lines.push('Date,Sent,Received,Total');
+    lines.push("日期、发送、接收、总计");
     (data.messageChart || []).forEach(d => lines.push(`${d._id},${d.sent},${d.received},${d.total}`));
     lines.push('');
-    lines.push('MESSAGE TYPES (OUTBOUND)');
-    lines.push('Type,Count');
+    lines.push("消息类型（出站）");
+    lines.push("类型，计数");
     (data.typeBreakdown || []).forEach(t => lines.push(`${esc(sourceLabel(t.source))},${t.count}`));
     lines.push('');
     lines.push('TOP CUSTOMERS');
-    lines.push('Name,Phone,Total Messages,Received,Sent,Last Activity');
+    lines.push("姓名、电话、消息总数、已接收、已发送、上次活动");
     (data.topCustomers || []).forEach(t => lines.push(`${esc(t.name)},${esc(t.phone)},${t.total},${t.inbound},${t.outbound},${new Date(t.lastAt).toLocaleString('en-IN')}`));
     lines.push('');
     lines.push('CAMPAIGNS');
-    lines.push('Name,Type,Status,Sent,Delivered,Read,Failed,Skipped,Created');
+    lines.push("名称、类型、状态、已发送、已送达、已读、失败、已跳过、已创建");
     (data.campaignTable || []).forEach(cp => lines.push(`${esc(cp.name)},${cp.type},${cp.status},${cp.stats?.sent || 0},${cp.stats?.delivered || 0},${cp.stats?.read || 0},${cp.stats?.failed || 0},${cp.stats?.skipped || 0},${new Date(cp.createdAt).toLocaleDateString('en-IN')}`));
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `analytics-${days}days-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `analytics-${range ? `${range.from}_${range.to}` : `${days}days`}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -188,38 +206,55 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <div className="page-hero flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="text-gray-500 text-sm mt-1">Complete performance overview</p>
+          <h1 className="text-2xl font-bold text-gray-900">数据分析</h1>
+          <p className="text-gray-500 text-sm mt-1">完整的性能概述· {rangeLabel}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex bg-gray-100 rounded-lg p-1">
             {RANGES.map(r => (
-              <button key={r.value} onClick={() => setDays(r.value)}
-                className={`px-3 py-1.5 text-sm rounded-md font-medium ${days === r.value ? 'bg-white shadow text-emerald-700' : 'text-gray-500 hover:text-gray-700'}`}>
+              <button key={r.value} onClick={() => { setRange(null); setDays(r.value); }}
+                className={`px-3 py-1.5 text-sm rounded-md font-medium ${!range && days === r.value ? 'bg-white shadow text-emerald-700' : 'text-gray-500 hover:text-gray-700'}`}>
                 {r.label}
               </button>
             ))}
           </div>
+          <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 ${range ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 bg-white'}`}>
+            <input type="date" value={customFrom} max={customTo || undefined}
+              onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+              onChange={e => setCustomFrom(e.target.value)}
+              className="text-sm px-1.5 py-1 rounded border border-gray-200 text-gray-700" />
+            <span className="text-gray-400 text-xs">to</span>
+            <input type="date" value={customTo} min={customFrom || undefined}
+              onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+              onChange={e => setCustomTo(e.target.value)}
+              className="text-sm px-1.5 py-1 rounded border border-gray-200 text-gray-700" />
+            <button onClick={applyCustom} disabled={!customFrom || !customTo}
+              className="px-2.5 py-1 text-sm rounded-md bg-emerald-600 text-white font-medium disabled:opacity-40">申请</button>
+            {range && (
+              <button onClick={() => { setRange(null); setCustomFrom(''); setCustomTo(''); }}
+                className="px-2 py-1 text-sm rounded-md text-gray-500 hover:text-gray-700">清除</button>
+            )}
+          </div>
           <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">
-            <Download className="w-4 h-4" /> Export CSV
+            <Download className="w-4 h-4" /> 导出 CSV
           </button>
         </div>
       </div>
 
       {/* Message metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <L href="/client/chat"><StatCard title="Total Messages" value={totalMessages.toLocaleString()} icon={<Send className="w-6 h-6" />} change={`last ${days} days`} color="emerald" /></L>
-        <L href="/client/chat"><StatCard title="Delivery Rate" value={`${deliveryRate}%`} icon={<CheckCheck className="w-6 h-6" />} change={`${(totalDelivered + totalRead).toLocaleString()} delivered`} color="blue" /></L>
-        <L href="/client/chat"><StatCard title="Read Rate" value={`${readRate}%`} icon={<Eye className="w-6 h-6" />} change={`${totalRead.toLocaleString()} read`} color="purple" /></L>
-        <L href="/client/chat"><StatCard title="Fail Rate" value={`${failRate}%`} icon={<AlertCircle className="w-6 h-6" />} change={`${totalFailed.toLocaleString()} failed`} color="red" /></L>
+        <L href="/client/chat"><StatCard title={"消息总数"} value={totalMessages.toLocaleString()} icon={<Send className="w-6 h-6" />} change={rangeLabel} color="emerald" /></L>
+        <L href="/client/chat"><StatCard title={"交货率"} value={`${deliveryRate}%`} icon={<CheckCheck className="w-6 h-6" />} change={`${(totalDelivered + totalRead).toLocaleString()} delivered`} color="blue" /></L>
+        <L href="/client/chat"><StatCard title={"读取率"} value={`${readRate}%`} icon={<Eye className="w-6 h-6" />} change={`${totalRead.toLocaleString()} read`} color="purple" /></L>
+        <L href="/client/chat"><StatCard title={"失败率"} value={`${failRate}%`} icon={<AlertCircle className="w-6 h-6" />} change={`${totalFailed.toLocaleString()} failed`} color="red" /></L>
       </div>
 
       {/* Business metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <L href="/client/contacts"><StatCard title="Contacts" value={(data?.contacts || 0).toLocaleString()} icon={<Users className="w-6 h-6" />} change={`+${data?.newContacts || 0} new`} color="blue" /></L>
-        <L href="/client/chat"><StatCard title="Conversations" value={(data?.conversations?.total || 0).toLocaleString()} icon={<MessageSquare className="w-6 h-6" />} change={`${data?.conversations?.active || 0} active`} color="emerald" /></L>
-        <L href="/client/ai-calling"><StatCard title="AI Calls" value={(data?.aiCalls?.total || 0).toLocaleString()} icon={<Phone className="w-6 h-6" />} change={`${data?.aiCalls?.minutes || 0} minutes`} color="purple" /></L>
-        <L href="/client/transactions"><StatCard title="Spend" value={`₹${(data?.spend || 0).toFixed(2)}`} icon={<Wallet className="w-6 h-6" />} change={`last ${days} days`} color="orange" /></L>
+        <L href="/client/contacts"><StatCard title={"联系人"} value={(data?.contacts || 0).toLocaleString()} icon={<Users className="w-6 h-6" />} change={`+${data?.newContacts || 0} new`} color="blue" /></L>
+        <L href="/client/chat"><StatCard title={"对话"} value={(data?.conversations?.total || 0).toLocaleString()} icon={<MessageSquare className="w-6 h-6" />} change={`${data?.conversations?.active || 0} active`} color="emerald" /></L>
+        <L href="/client/ai-calling"><StatCard title={"人工智能呼叫"} value={(data?.aiCalls?.total || 0).toLocaleString()} icon={<Phone className="w-6 h-6" />} change={`${data?.aiCalls?.minutes || 0} minutes`} color="purple" /></L>
+        
       </div>
 
       {/* Response time */}
@@ -227,20 +262,20 @@ export default function AnalyticsPage() {
         <L href="/client/chat"><Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center"><Timer className="w-5 h-5 text-emerald-600" /></div>
-            <div><p className="text-xs text-gray-500">Avg Response Time</p><p className="text-xl font-bold text-gray-900">{fmtMins(data?.responseTime?.avgMinutes || 0)}</p></div>
+            <div><p className="text-xs text-gray-500">平均响应时间</p><p className="text-xl font-bold text-gray-900">{fmtMins(data?.responseTime?.avgMinutes || 0)}</p></div>
           </div>
         </Card></L>
         <L href="/client/chat"><Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><Clock className="w-5 h-5 text-blue-600" /></div>
-            <div><p className="text-xs text-gray-500">Median Response Time</p><p className="text-xl font-bold text-gray-900">{fmtMins(data?.responseTime?.medianMinutes || 0)}</p></div>
+            <div><p className="text-xs text-gray-500">中值响应时间</p><p className="text-xl font-bold text-gray-900">{fmtMins(data?.responseTime?.medianMinutes || 0)}</p></div>
           </div>
         </Card></L>
         <Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center"><TrendingUp className="w-5 h-5 text-purple-600" /></div>
             <div>
-              <p className="text-xs text-gray-500">Best Time to Send</p>
+              <p className="text-xs text-gray-500">最佳发送时间</p>
               <p className="text-xl font-bold text-gray-900">{bestHour ? `${fmtHour(bestHour.hour)}${bestDay ? ` · ${WEEKDAYS[bestDay.day]}` : ''}` : '—'}</p>
             </div>
           </div>
@@ -250,7 +285,7 @@ export default function AnalyticsPage() {
       {chartData.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Volume</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">留言量</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
@@ -272,7 +307,7 @@ export default function AnalyticsPage() {
             </div>
           </Card>
           <Card>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Breakdown</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">每日细目</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
@@ -292,7 +327,7 @@ export default function AnalyticsPage() {
         <Card>
           <div className="text-center py-12">
             <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No message data in this period.</p>
+            <p className="text-gray-500">此期间没有消息数据。</p>
           </div>
         </Card>
       )}
@@ -300,8 +335,8 @@ export default function AnalyticsPage() {
       {/* Best time to send */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">Customer Replies by Hour (IST)</h3>
-          <p className="text-xs text-gray-400 mb-4">The hours when you get the most replies — the best time to send</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">按小时划分的客户回复 (IST)</h3>
+          <p className="text-xs text-gray-400 mb-4">收到最多回复的时间 — 发送的最佳时间</p>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={hourlyData}>
@@ -315,8 +350,8 @@ export default function AnalyticsPage() {
           </div>
         </Card>
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">Customer Replies by Day</h3>
-          <p className="text-xs text-gray-400 mb-4">Which days of the week your customers are most active</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">客户每日回复</h3>
+          <p className="text-xs text-gray-400 mb-4">您的客户在一周中哪几天最活跃</p>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weekdayData}>
@@ -334,7 +369,7 @@ export default function AnalyticsPage() {
       {/* Message type breakdown + top customers */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Outbound Message Types</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">出站消息类型</h3>
           <div className="h-80">
             {typeData.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -346,20 +381,20 @@ export default function AnalyticsPage() {
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                 </PieChart>
               </ResponsiveContainer>
-            ) : <div className="h-full flex items-center justify-center text-gray-400 text-sm">No outbound messages yet</div>}
+            ) : <div className="h-full flex items-center justify-center text-gray-400 text-sm">尚无出站消息</div>}
           </div>
         </Card>
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customers</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">顶级客户</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
-                  <th className="pb-2 font-medium">Customer</th>
-                  <th className="pb-2 font-medium text-right">Total</th>
-                  <th className="pb-2 font-medium text-right">Received</th>
-                  <th className="pb-2 font-medium text-right">Sent</th>
-                  <th className="pb-2 font-medium text-right">Last Active</th>
+                  <th className="pb-2 font-medium">客户</th>
+                  <th className="pb-2 font-medium text-right">总计</th>
+                  <th className="pb-2 font-medium text-right">已收到</th>
+                  <th className="pb-2 font-medium text-right">已发送</th>
+                  <th className="pb-2 font-medium text-right">最后活跃</th>
                 </tr>
               </thead>
               <tbody>
@@ -374,7 +409,7 @@ export default function AnalyticsPage() {
                     <td className="py-2 text-right text-emerald-600">{t.outbound}</td>
                     <td className="py-2 text-right text-xs text-gray-400">{fmtDate(t.lastAt)}</td>
                   </tr>
-                )) : <tr><td colSpan={5} className="py-8 text-center text-gray-400">No data yet</td></tr>}
+                )) : <tr><td colSpan={5} className="py-8 text-center text-gray-400">尚无数据</td></tr>}
               </tbody>
             </table>
           </div>
@@ -384,17 +419,17 @@ export default function AnalyticsPage() {
       {/* Campaign comparison table */}
       <Card>
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Campaign Performance</h3>
+          <h3 className="text-lg font-semibold text-gray-900">活动表现</h3>
           <div className="flex items-center gap-2">
             <select value={campStatus} onChange={e => { setCampStatus(e.target.value); setShowAllCamps(false); }}
               className="px-2 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 bg-white">
-              <option value="all">All Status</option>
-              {campStatuses.map(st => <option key={st} value={st}>{st}</option>)}
+              <option value="all">所有状态</option>
+              {campStatuses.map(st => <option key={st} value={st}>{translateDisplay(st)}</option>)}
             </select>
             <select value={campType} onChange={e => { setCampType(e.target.value); setShowAllCamps(false); }}
               className="px-2 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 bg-white">
-              <option value="all">All Types</option>
-              {campTypes.map(tp => <option key={tp} value={tp}>{tp}</option>)}
+              <option value="all">所有类型</option>
+              {campTypes.map(tp => <option key={tp} value={tp}>{translateDisplay(tp)}</option>)}
             </select>
           </div>
         </div>
@@ -402,15 +437,15 @@ export default function AnalyticsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
-                <th className="pb-2 font-medium">Campaign</th>
-                <th className="pb-2 font-medium">Type</th>
-                <th className="pb-2 font-medium">Status</th>
-                <th className="pb-2 font-medium text-right">Sent</th>
-                <th className="pb-2 font-medium text-right">Delivered</th>
-                <th className="pb-2 font-medium text-right">Read</th>
-                <th className="pb-2 font-medium text-right">Failed</th>
-                <th className="pb-2 font-medium text-right">Read Rate</th>
-                <th className="pb-2 font-medium text-right">Created</th>
+                <th className="pb-2 font-medium">营销活动</th>
+                <th className="pb-2 font-medium">类型</th>
+                <th className="pb-2 font-medium">状态</th>
+                <th className="pb-2 font-medium text-right">已发送</th>
+                <th className="pb-2 font-medium text-right">已交付</th>
+                <th className="pb-2 font-medium text-right">读</th>
+                <th className="pb-2 font-medium text-right">操作失败</th>
+                <th className="pb-2 font-medium text-right">读取率</th>
+                <th className="pb-2 font-medium text-right">已创建</th>
               </tr>
             </thead>
             <tbody>
@@ -421,7 +456,7 @@ export default function AnalyticsPage() {
                 return (
                   <tr key={cp._id} onClick={() => router.push(cp.type === 'preset' ? '/client/save-money/campaigns' : '/client/broadcasts')} className="border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50">
                     <td className="py-2 font-medium text-gray-900">{cp.name}</td>
-                    <td className="py-2 text-gray-500">{cp.type}</td>
+                    <td className="py-2 text-gray-500">{translateDisplay(cp.type)}</td>
                     <td className="py-2"><Badge variant={cp.status === 'completed' || cp.status === 'running' ? 'success' : cp.status === 'failed' ? 'danger' : 'default'}>{cp.status}</Badge></td>
                     <td className="py-2 text-right">{sent}</td>
                     <td className="py-2 text-right">{cp.stats?.delivered || 0}</td>
@@ -431,14 +466,14 @@ export default function AnalyticsPage() {
                     <td className="py-2 text-right text-xs text-gray-400">{fmtDate(cp.createdAt)}</td>
                   </tr>
                 );
-              }) : <tr><td colSpan={9} className="py-8 text-center text-gray-400">No campaigns found</td></tr>}
+              }) : <tr><td colSpan={9} className="py-8 text-center text-gray-400">未找到广告系列</td></tr>}
             </tbody>
           </table>
         </div>
         {filteredCamps.length > 10 && (
           <div className="mt-3 text-center">
             <button onClick={() => setShowAllCamps(v => !v)} className="text-sm text-emerald-600 font-medium hover:underline">
-              {showAllCamps ? 'Show less' : `Show all (${filteredCamps.length})`}
+              {showAllCamps ? "显示较少" : `显示全部 (${filteredCamps.length})`}
             </button>
           </div>
         )}
@@ -446,7 +481,7 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Growth</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">联系增长</h3>
           <div className="h-64">
             {contactData.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -458,12 +493,12 @@ export default function AnalyticsPage() {
                   <Area type="monotone" dataKey="contacts" stroke="#8B5CF6" fill="#EDE9FE" name="New Contacts" />
                 </AreaChart>
               </ResponsiveContainer>
-            ) : <div className="h-full flex items-center justify-center text-gray-400 text-sm">No new contacts in this period</div>}
+            ) : <div className="h-full flex items-center justify-center text-gray-400 text-sm">此期间没有新联系人</div>}
           </div>
         </Card>
 
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Calls</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">人工智能呼叫</h3>
           <div className="h-64">
             {callData.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -477,12 +512,12 @@ export default function AnalyticsPage() {
                   <Bar dataKey="minutes" fill="#10B981" name="Minutes" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : <div className="h-full flex items-center justify-center text-gray-400 text-sm">No AI calls in this period</div>}
+            ) : <div className="h-full flex items-center justify-center text-gray-400 text-sm">此期间没有AI呼叫</div>}
           </div>
         </Card>
 
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Campaigns by Status</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">活动（按状态）</h3>
           <div className="h-64">
             {campaignPie.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -494,7 +529,7 @@ export default function AnalyticsPage() {
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
-            ) : <div className="h-full flex items-center justify-center text-gray-400 text-sm">No campaigns yet</div>}
+            ) : <div className="h-full flex items-center justify-center text-gray-400 text-sm">尚无活动</div>}
           </div>
         </Card>
       </div>
@@ -504,27 +539,22 @@ export default function AnalyticsPage() {
         <L href="/client/broadcasts"><Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center"><Megaphone className="w-5 h-5 text-purple-600" /></div>
-            <div><p className="text-xs text-gray-500">Campaign Messages Sent</p><p className="text-xl font-bold text-gray-900">{c?.sentTotal || 0}</p></div>
+            <div><p className="text-xs text-gray-500">已发送活动消息</p><p className="text-xl font-bold text-gray-900">{c?.sentTotal || 0}</p></div>
           </div>
         </Card></L>
         <L href="/client/broadcasts"><Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center"><TrendingUp className="w-5 h-5 text-emerald-600" /></div>
-            <div><p className="text-xs text-gray-500">Total Campaigns</p><p className="text-xl font-bold text-gray-900">{c?.total || 0}</p></div>
+            <div><p className="text-xs text-gray-500">活动总数</p><p className="text-xl font-bold text-gray-900">{c?.total || 0}</p></div>
           </div>
         </Card></L>
         <L href="/client/ai-calling"><Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><Phone className="w-5 h-5 text-blue-600" /></div>
-            <div><p className="text-xs text-gray-500">AI Calls Completed</p><p className="text-xl font-bold text-gray-900">{data?.aiCalls?.completed || 0}</p></div>
+            <div><p className="text-xs text-gray-500">人工智能通话已完成</p><p className="text-xl font-bold text-gray-900">{data?.aiCalls?.completed || 0}</p></div>
           </div>
         </Card></L>
-        <L href="/client/wallet"><Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center"><Wallet className="w-5 h-5 text-orange-600" /></div>
-            <div><p className="text-xs text-gray-500">Wallet Balance</p><p className="text-xl font-bold text-gray-900">₹{(data?.walletBalance || 0).toFixed(2)}</p></div>
-          </div>
-        </Card></L>
+        
       </div>
     </div>
   );

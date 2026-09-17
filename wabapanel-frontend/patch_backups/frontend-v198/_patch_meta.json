@@ -1,0 +1,15 @@
+{
+  "version": "frontend-v198",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/app/client/channels/page.tsx",
+    "src/app/globals.css",
+    "src/instrumentation.ts"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v198.zip",
+  "zip_sha256": "f06d41d0b21fd4ce678cdebc8c118d06b15628dab2315b15a5ca6ae2042bdc73",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

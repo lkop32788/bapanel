@@ -1,0 +1,15 @@
+{
+  "version": "frontend-v203",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/app/client/chat/page.tsx",
+    "src/app/client/broadcasts/page.tsx",
+    "src/lib/socket.ts"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v203.zip",
+  "zip_sha256": "6dc5ae7cee0e00a1b17f26c05207e8e63208d53f28f09f401907ea47f9d9b911",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

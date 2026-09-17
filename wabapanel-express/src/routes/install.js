@@ -15,7 +15,7 @@ router.get('/status', (req, res) => {
   res.json({ success: true, installed: isInstalled() });
 });
 
-// Run the seed script (plans, permissions, settings, default admin) in a child process.
+// Run the seed script (permissions, settings, default admin) in a child process.
 function runSeed() {
   return new Promise((resolve, reject) => {
     const child = spawn('node', ['src/seed.js'], { cwd: ROOT, env: process.env });
@@ -43,11 +43,9 @@ router.post('/complete', async (req, res) => {
 
     // 2. Set the super-admin credentials to the ones provided.
     const User = require('../models/User');
-    const Plan = require('../models/Plan');
-    const freePlan = await Plan.findOne({ price: 0 });
     let admin = await User.findOne({ role: 'super_admin' });
     if (!admin) {
-      admin = new User({ role: 'super_admin', status: 'active', plan: freePlan ? freePlan._id : undefined });
+      admin = new User({ role: 'super_admin', status: 'active' });
     }
     admin.name = adminName || 'Administrator';
     admin.email = String(adminEmail).toLowerCase().trim();

@@ -1,13 +1,9 @@
 const User = require('../models/User');
-const Plan = require('../models/Plan');
-const Payment = require('../models/Payment');
-const WalletTransaction = require('../models/WalletTransaction');
 const MetaPricing = require('../models/MetaPricing');
 const SystemSettings = require('../models/SystemSettings');
 const Permission = require('../models/Permission');
 const LandingPage = require('../models/LandingPage');
 const Template = require('../models/Template');
-const Inquiry = require('../models/Inquiry');
 const ShortLink = require('../models/ShortLink');
 const QuickReply = require('../models/QuickReply');
 const FAQ = require('../models/FAQ');
@@ -19,7 +15,7 @@ const { sendPaginated } = require('../utils/apiResponse');
 // ======================== USERS ========================
 const getUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, status, role, plan } = req.query;
+    const { page = 1, limit = 20, search, status, role } = req.query;
     // Platform staff only — vendors have their own page and agents are managed inside each workspace.
     const query = { role: { $in: ['user', 'admin', 'super_admin'] } };
     if (search) {
@@ -30,12 +26,10 @@ const getUsers = async (req, res) => {
     }
     if (status) query.status = status;
     if (role) query.role = role;
-    if (plan) query.plan = plan;
 
     const total = await User.countDocuments(query);
     const users = await User.find(query)
       .select('-password')
-      .populate('plan', 'name price')
       .sort('-createdAt')
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -48,7 +42,7 @@ const getUsers = async (req, res) => {
 
 const getUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password').populate('plan');
+    const user = await User.findById(req.params.id).select('-password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json({ success: true, data: user });
   } catch (error) {
@@ -100,122 +94,6 @@ const deleteUser = async (req, res) => {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json({ success: true, message: 'User deleted' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ======================== PLANS ========================
-const getPlans = async (req, res) => {
-  try {
-    const plans = await Plan.find().sort('price').lean();
-    // subscriberCount = number of active vendors currently on each plan
-    const grouped = await User.aggregate([
-      { $match: { plan: { $ne: null }, status: { $ne: 'deleted' } } },
-      { $group: { _id: '$plan', n: { $sum: 1 } } },
-    ]);
-    const countByPlan = {};
-    grouped.forEach((g) => { if (g._id) countByPlan[String(g._id)] = g.n; });
-    plans.forEach((p) => { p.subscriberCount = countByPlan[String(p._id)] || 0; });
-    res.json({ success: true, data: plans });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const createPlan = async (req, res) => {
-  try {
-    const plan = await Plan.create(req.body);
-    res.status(201).json({ success: true, data: plan });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const updatePlan = async (req, res) => {
-  try {
-    const plan = await Plan.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
-    res.json({ success: true, data: plan });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const deletePlan = async (req, res) => {
-  try {
-    await Plan.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Plan deleted' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ======================== PAYMENTS ========================
-const getPayments = async (req, res) => {
-  try {
-    const { page = 1, limit = 20, gateway, status } = req.query;
-    const filter = {};
-    if (gateway) filter.gateway = gateway;
-    if (status) filter.status = status;
-    const total = await Payment.countDocuments(filter);
-    const payments = await Payment.find(filter)
-      .populate('user', 'name email')
-      .populate('plan', 'name price')
-      .sort('-createdAt')
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
-    sendPaginated(res, payments, total, page, limit);
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ======================== WALLET ========================
-const getWalletLedger = async (req, res) => {
-  try {
-    const { page = 1, limit = 20, userId } = req.query;
-    const query = userId ? { user: userId } : {};
-    const total = await WalletTransaction.countDocuments(query);
-    const transactions = await WalletTransaction.find(query)
-      .populate('user', 'name email')
-      .populate('performedBy', 'name')
-      .sort('-createdAt')
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
-    sendPaginated(res, transactions, total, page, limit);
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const adjustWallet = async (req, res) => {
-  try {
-    const { userId, amount, type, description } = req.body;
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-    if (type === 'credit') {
-      user.walletBalance += amount;
-    } else {
-      if (user.walletBalance < amount) {
-        return res.status(400).json({ success: false, message: 'Insufficient balance' });
-      }
-      user.walletBalance -= amount;
-    }
-    await user.save();
-
-    await WalletTransaction.create({
-      user: userId,
-      type,
-      amount,
-      balanceAfter: user.walletBalance,
-      description: description || 'Admin adjustment',
-      category: 'admin_adjustment',
-      performedBy: req.user._id,
-    });
-
-    res.json({ success: true, data: { balance: user.walletBalance } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -343,7 +221,7 @@ const getSettings = async (req, res) => {
         from: settings.smtp?.from || '',
         fromName: settings.smtp?.fromName || '',
         encryption: settings.smtp?.encryption || 'tls',
-        templates: settings.emailTemplates || {},
+        templates: settings.toObject().emailTemplates || {},
       },
       google: {
         clientId: settings.google?.clientId || '',
@@ -360,24 +238,6 @@ const getSettings = async (req, res) => {
         maxFileSize: String(settings.limits?.maxFileSize || 16),
         maxGroupSize: String(settings.limits?.maxGroupMembers || 256),
         maxBroadcastSize: String(10000),
-      },
-      wallet: {
-        enabled: settings.wallet?.isEnabled !== false,
-        minTopUp: String(settings.wallet?.minTopup || 100),
-        maxTopUp: String(100000),
-        templateRates: {
-          marketing: String(settings.wallet?.templateRates?.marketing || 0),
-          utility: String(settings.wallet?.templateRates?.utility || 0),
-          authentication: String(settings.wallet?.templateRates?.authentication || 0),
-        },
-      },
-      invoice: {
-        companyName: settings.invoice?.companyName || '',
-        address: settings.invoice?.address || '',
-        gstin: settings.invoice?.gstin || '',
-        phone: settings.invoice?.phone || '',
-        email: settings.invoice?.email || '',
-        footerNote: settings.invoice?.footerNote || '',
       },
       maintenance: {
         enabled: settings.maintenance?.isEnabled || false,
@@ -469,24 +329,6 @@ const updateSettings = async (req, res) => {
           if (data.maxGroupSize !== undefined) settings.limits.maxGroupMembers = parseInt(data.maxGroupSize) || 256;
           if (data.maxBroadcastSize !== undefined) settings.limits.maxBroadcastSize = parseInt(data.maxBroadcastSize) || 10000;
         },
-        wallet: () => {
-          if (!settings.wallet) settings.wallet = {};
-          if (data.enabled !== undefined) settings.wallet.isEnabled = data.enabled;
-          if (data.minTopUp !== undefined) settings.wallet.minTopup = parseInt(data.minTopUp) || 100;
-          if (data.maxTopUp !== undefined) settings.wallet.maxTopup = parseInt(data.maxTopUp) || 100000;
-          if (data.templateRates) {
-            settings.wallet.templateRates = settings.wallet.templateRates || {};
-            if (data.templateRates.marketing !== undefined) settings.wallet.templateRates.marketing = parseFloat(data.templateRates.marketing) || 0;
-            if (data.templateRates.utility !== undefined) settings.wallet.templateRates.utility = parseFloat(data.templateRates.utility) || 0;
-            if (data.templateRates.authentication !== undefined) settings.wallet.templateRates.authentication = parseFloat(data.templateRates.authentication) || 0;
-          }
-        },
-        invoice: () => {
-          if (!settings.invoice) settings.invoice = {};
-          for (const f of ['companyName', 'address', 'gstin', 'phone', 'email', 'footerNote']) {
-            if (data[f] !== undefined) settings.invoice[f] = data[f];
-          }
-        },
         maintenance: () => {
           if (!settings.maintenance) settings.maintenance = {};
           if (data.enabled !== undefined) settings.maintenance.isEnabled = data.enabled;
@@ -571,32 +413,6 @@ const createGlobalTemplate = async (req, res) => {
   }
 };
 
-// ======================== INQUIRIES ========================
-const getInquiries = async (req, res) => {
-  try {
-    const { page = 1, limit = 20, status } = req.query;
-    const query = status ? { status } : {};
-    const total = await Inquiry.countDocuments(query);
-    const inquiries = await Inquiry.find(query)
-      .sort('-createdAt')
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
-    sendPaginated(res, inquiries, total, page, limit);
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const updateInquiry = async (req, res) => {
-  try {
-    const inquiry = await Inquiry.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!inquiry) return res.status(404).json({ success: false, message: 'Inquiry not found' });
-    res.json({ success: true, data: inquiry });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 // ======================== SHORT LINKS (Admin) ========================
 const getAdminShortLinks = async (req, res) => {
   try {
@@ -621,78 +437,6 @@ const createQuickReply = async (req, res) => {
   try {
     const reply = await QuickReply.create({ ...req.body, isGlobal: true, createdBy: req.user._id });
     res.status(201).json({ success: true, data: reply });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ======================== GATEWAYS ========================
-const getGateways = async (req, res) => {
-  try {
-    let settings = await SystemSettings.findOne();
-    if (!settings) settings = await SystemSettings.create({});
-    res.json({ success: true, data: settings.paymentGateways, international: settings.gatewayInternational || {} });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const updateGateway = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const validGateways = ['stripe', 'razorpay', 'paypal', 'manual', 'paytm', 'phonepe', 'cashfree', 'payu', 'instamojo', 'paystack', 'flutterwave', 'payoneer', 'mollie', 'square', 'twocheckout', 'braintree', 'authorizenet', 'mercadopago'];
-    if (!validGateways.includes(id)) {
-      return res.status(400).json({ success: false, message: 'Invalid gateway: ' + id });
-    }
-
-    let settings = await SystemSettings.findOne();
-    if (!settings) settings = new SystemSettings();
-
-    const body = { ...req.body };
-    // "allowInternational" lives in a separate top-level map, not the typed gateway subdoc.
-    if (Object.prototype.hasOwnProperty.call(body, 'allowInternational')) {
-      const intl = settings.gatewayInternational && typeof settings.gatewayInternational === 'object' ? { ...settings.gatewayInternational } : {};
-      intl[id] = !!body.allowInternational;
-      settings.gatewayInternational = intl;
-      settings.markModified('gatewayInternational');
-      delete body.allowInternational;
-    }
-    settings.paymentGateways[id] = { ...settings.paymentGateways[id]?.toObject?.() || {}, ...body };
-    await settings.save();
-
-    res.json({ success: true, data: settings.paymentGateways, international: settings.gatewayInternational || {} });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// @POST /admin/gateways/:id/test — validate the (typed or saved) gateway keys with a live, non-charging call.
-const testGateway = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const b = req.body || {};
-    // Map the admin form fields to the config shape gatewayLinks expects.
-    const cfgMap = {
-      razorpay: { keyId: b.keyId, keySecret: b.keySecret },
-      stripe: { secretKey: b.secretKey },
-      payu: { merchantKey: b.publicKey, merchantSalt: b.secretKey, mode: b.mode || 'live' },
-      paypal: { clientId: b.clientId, apiSecret: b.clientSecret },
-      cashfree: { clientId: b.publicKey, apiSecret: b.secretKey },
-      phonepe: { merchantId: b.publicKey, apiSecret: b.secretKey },
-      paystack: { apiKey: b.secretKey },
-      instamojo: { apiKey: b.publicKey, authToken: b.secretKey },
-      flutterwave: { apiKey: b.secretKey },
-      mollie: { apiKey: b.secretKey },
-      mercadopago: { apiKey: b.secretKey },
-      manual: {},
-    };
-    const cfg = cfgMap[id];
-    const { testGatewayCredentials } = require('../services/gatewayLinks');
-    if (cfg === undefined) {
-      return res.json({ success: true, data: { ok: false, unsupported: true, message: 'Live credential test is not available for this gateway yet — it is validated at checkout.' } });
-    }
-    const result = await testGatewayCredentials(id, cfg);
-    res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -892,87 +636,6 @@ const deleteLanguage = async (req, res) => {
   }
 };
 
-// ======================== CURRENCIES ========================
-const getCurrencies = async (req, res) => {
-  try {
-    let settings = await SystemSettings.findOne();
-    if (!settings) settings = await SystemSettings.create({});
-    res.json({ success: true, data: settings.currencies || [] });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const createCurrency = async (req, res) => {
-  try {
-    let settings = await SystemSettings.findOne();
-    if (!settings) settings = new SystemSettings();
-    settings.currencies.push(req.body);
-    await settings.save();
-    res.status(201).json({ success: true, data: settings.currencies });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const deleteCurrency = async (req, res) => {
-  try {
-    let settings = await SystemSettings.findOne();
-    if (!settings) return res.status(404).json({ success: false, message: 'Settings not found' });
-    settings.currencies = settings.currencies.filter(c => c._id.toString() !== req.params.id);
-    await settings.save();
-    res.json({ success: true, data: settings.currencies });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const updateCurrency = async (req, res) => {
-  try {
-    let settings = await SystemSettings.findOne();
-    if (!settings) return res.status(404).json({ success: false, message: 'Settings not found' });
-    const cur = settings.currencies.id(req.params.id);
-    if (!cur) return res.status(404).json({ success: false, message: 'Currency not found' });
-    const { name, code, symbol, rate, isActive, isDefault } = req.body;
-    if (name !== undefined) cur.name = name;
-    if (code !== undefined) cur.code = code;
-    if (symbol !== undefined) cur.symbol = symbol;
-    if (rate !== undefined) cur.rate = Number(rate) || 0;
-    if (isActive !== undefined) cur.isActive = !!isActive;
-    if (isDefault === true) { settings.currencies.forEach(c => { c.isDefault = false; }); cur.isDefault = true; }
-    await settings.save();
-    res.json({ success: true, data: settings.currencies });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Bulk-insert a standard world currency list (skips codes already present).
-const seedCurrencies = async (req, res) => {
-  try {
-    let settings = await SystemSettings.findOne();
-    if (!settings) settings = new SystemSettings();
-    const existing = new Set((settings.currencies || []).map(c => (c.code || '').toUpperCase()));
-    const WORLD = require('../config/worldCurrencies');
-    let added = 0;
-    WORLD.forEach((c) => {
-      const code = (c.code || '').toUpperCase();
-      if (!code || existing.has(code)) return;
-      existing.add(code);
-      settings.currencies.push({ code, name: c.name, symbol: c.symbol, rate: c.rate || 0, isActive: true, isDefault: false });
-      added += 1;
-    });
-    if (!settings.currencies.some(c => c.isDefault)) {
-      const inr = settings.currencies.find(c => (c.code || '').toUpperCase() === 'INR') || settings.currencies[0];
-      if (inr) inr.isDefault = true;
-    }
-    await settings.save();
-    res.json({ success: true, data: settings.currencies, added });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 const updateLanguage = async (req, res) => {
   try {
     let settings = await SystemSettings.findOne();
@@ -1013,41 +676,6 @@ const seedLanguages = async (req, res) => {
     }
     await settings.save();
     res.json({ success: true, data: settings.languages, added });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ======================== TAXES ========================
-const getTaxes = async (req, res) => {
-  try {
-    let settings = await SystemSettings.findOne();
-    if (!settings) settings = await SystemSettings.create({});
-    res.json({ success: true, data: settings.taxes || [], currency: settings.wallet?.currency || 'INR' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const createTax = async (req, res) => {
-  try {
-    let settings = await SystemSettings.findOne();
-    if (!settings) settings = new SystemSettings();
-    settings.taxes.push(req.body);
-    await settings.save();
-    res.status(201).json({ success: true, data: settings.taxes });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const deleteTax = async (req, res) => {
-  try {
-    let settings = await SystemSettings.findOne();
-    if (!settings) return res.status(404).json({ success: false, message: 'Settings not found' });
-    settings.taxes = settings.taxes.filter(t => t._id.toString() !== req.params.id);
-    await settings.save();
-    res.json({ success: true, data: settings.taxes });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -1195,55 +823,6 @@ const deleteGlobalTemplate = async (req, res) => {
   }
 };
 
-// ======================== INQUIRY REPLY/DELETE ========================
-const replyInquiry = async (req, res) => {
-  try {
-    const inquiry = await Inquiry.findById(req.params.id);
-    if (!inquiry) return res.status(404).json({ success: false, message: 'Inquiry not found' });
-
-    const { message, subject } = req.body;
-    const settings = await SystemSettings.findOne();
-
-    if (settings?.smtp?.host && settings?.smtp?.user) {
-      const transporter = nodemailer.createTransport({
-        host: settings.smtp.host,
-        port: settings.smtp.port || 587,
-        secure: (settings.smtp.port || 587) === 465,
-        family: 4,
-        auth: {
-          user: settings.smtp.user,
-          pass: settings.smtp.pass,
-        },
-      });
-
-      await transporter.sendMail({
-        from: `"${settings.smtp.fromName || settings.appName || 'Support'}" <${settings.smtp.from || settings.smtp.user}>`,
-        to: inquiry.email,
-        subject: subject || `Re: ${inquiry.subject || 'Your inquiry'}`,
-        html: message,
-      });
-    }
-
-    inquiry.status = 'resolved';
-    inquiry.notes = (inquiry.notes ? inquiry.notes + '\n' : '') + `Reply sent: ${message}`;
-    await inquiry.save();
-
-    res.json({ success: true, data: inquiry });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const deleteInquiry = async (req, res) => {
-  try {
-    const inquiry = await Inquiry.findByIdAndDelete(req.params.id);
-    if (!inquiry) return res.status(404).json({ success: false, message: 'Inquiry not found' });
-    res.json({ success: true, message: 'Inquiry deleted' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 // ======================== QUICK REPLY UPDATE/DELETE ========================
 const updateQuickReply = async (req, res) => {
   try {
@@ -1291,7 +870,7 @@ const getVendors = async (req, res) => {
     if (status) query.status = status;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [vendors, total] = await Promise.all([
-      User.find(query).select('-password').populate('plan', 'name').sort('-createdAt').skip(skip).limit(parseInt(limit)),
+      User.find(query).select('-password').sort('-createdAt').skip(skip).limit(parseInt(limit)),
       User.countDocuments(query),
     ]);
     // attach 30d message usage per vendor (via their workspaces)
@@ -1307,16 +886,9 @@ const getVendors = async (req, res) => {
       { $group: { _id: '$workspace', n: { $sum: 1 } } },
     ]);
     const byWs = {}; counts.forEach((c) => { byWs[String(c._id)] = c.n; });
-    const WalletTransaction = require('../models/WalletTransaction');
-    const spends = await WalletTransaction.aggregate([
-      { $match: { user: { $in: ids }, type: 'debit' } },
-      { $group: { _id: '$user', total: { $sum: '$amount' } } },
-    ]);
-    const spendByUser = {}; spends.forEach((s) => { spendByUser[String(s._id)] = s.total; });
     const enriched = vendors.map((v) => {
       const o = v.toObject();
       o.messages30d = (wsByOwner[String(v._id)] || []).reduce((a, w) => a + (byWs[String(w)] || 0), 0);
-      o.totalSpend = spendByUser[String(v._id)] || 0;
       return o;
     });
     sendPaginated(res, enriched, total, parseInt(page), parseInt(limit));
@@ -1327,7 +899,7 @@ const getVendors = async (req, res) => {
 
 const getVendor = async (req, res) => {
   try {
-    const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' }).select('-password').populate('plan', 'name');
+    const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' }).select('-password');
     if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
     res.json({ success: true, data: vendor });
   } catch (error) {
@@ -1337,7 +909,7 @@ const getVendor = async (req, res) => {
 
 const createVendor = async (req, res) => {
   try {
-    const { name, email, password, phone, companyName, website, address, gstNumber, vendorNotes, plan, walletBillingExempt } = req.body;
+    const { name, email, password, phone, companyName, website, address, gstNumber, vendorNotes } = req.body;
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) return res.status(400).json({ success: false, message: 'Email already registered' });
     const vendor = await User.create({
@@ -1345,8 +917,7 @@ const createVendor = async (req, res) => {
       role: 'vendor', status: 'active',
       companyName: companyName || '', website: website || '',
       address: address || '', gstNumber: gstNumber || '',
-      vendorNotes: vendorNotes || '', plan: plan || undefined,
-      walletBillingExempt: walletBillingExempt !== undefined ? !!walletBillingExempt : true,
+      vendorNotes: vendorNotes || '',
     });
     // Create a default workspace so the client panel (WhatsApp connect, etc.) works
     const Workspace = require('../models/Workspace');
@@ -1369,7 +940,7 @@ const updateVendor = async (req, res) => {
   try {
     const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' });
     if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
-    const { name, phone, companyName, website, address, gstNumber, vendorNotes, status, plan, password, walletBillingExempt, walletTemplateRates, showRateCard } = req.body;
+    const { name, phone, companyName, website, address, gstNumber, vendorNotes, status, password } = req.body;
     if (name !== undefined) vendor.name = name;
     if (phone !== undefined) vendor.phone = phone;
     if (companyName !== undefined) vendor.companyName = companyName;
@@ -1378,17 +949,7 @@ const updateVendor = async (req, res) => {
     if (gstNumber !== undefined) vendor.gstNumber = gstNumber;
     if (vendorNotes !== undefined) vendor.vendorNotes = vendorNotes;
     if (status !== undefined) vendor.status = status;
-    if (plan !== undefined) vendor.plan = plan || undefined;
     if (password) vendor.password = password;
-    if (walletBillingExempt !== undefined) vendor.walletBillingExempt = walletBillingExempt;
-    if (showRateCard !== undefined) vendor.showRateCard = !!showRateCard;
-    if (walletTemplateRates !== undefined) {
-      vendor.walletTemplateRates = {
-        marketing: walletTemplateRates.marketing != null ? Number(walletTemplateRates.marketing) : null,
-        utility: walletTemplateRates.utility != null ? Number(walletTemplateRates.utility) : null,
-        authentication: walletTemplateRates.authentication != null ? Number(walletTemplateRates.authentication) : null,
-      };
-    }
     await vendor.save();
     const result = vendor.toObject();
     delete result.password;
@@ -1425,79 +986,6 @@ const loginAsVendor = async (req, res) => {
   }
 };
 
-const approveManualPayment = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const payment = await Payment.findById(id);
-    if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
-    if (payment.gateway !== 'manual') return res.status(400).json({ success: false, message: 'Not a manual payment' });
-    if (payment.status === 'completed') return res.status(400).json({ success: false, message: 'Payment already approved' });
-
-    const user = await User.findById(payment.user);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-    if (payment.type === 'wallet_topup') {
-      user.walletBalance += payment.amount;
-      await user.save();
-      await WalletTransaction.create({
-        user: user._id,
-        type: 'credit',
-        amount: payment.amount,
-        balanceAfter: user.walletBalance,
-        description: 'Manual wallet top-up approved by admin',
-        category: 'topup',
-        reference: payment._id.toString(),
-        performedBy: req.user._id,
-      });
-    } else if (payment.type === 'subscription') {
-      const paidPlan = await Plan.findById(payment.plan);
-      let endDate = null;
-      if (paidPlan && paidPlan.price > 0 && paidPlan.interval !== 'lifetime') {
-        const days = { monthly: 30, quarterly: 90, yearly: 365 }[['monthly', 'quarterly', 'yearly'].includes(payment.metadata?.cycle) ? payment.metadata.cycle : 'monthly'];
-        endDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-      }
-      user.plan = payment.plan;
-      user.planExpiry = endDate;
-      await user.save();
-      await Subscription.updateMany({ vendor: user._id, status: 'active' }, { status: 'expired' });
-      await Subscription.create({ vendor: user._id, plan: payment.plan, status: 'active', endDate, assignedBy: 'auto', payment: payment._id, notes: 'Manual payment approved' });
-      if (payment.metadata?.couponCode) {
-        const Coupon = require('../models/Coupon');
-        await Coupon.updateOne({ code: payment.metadata.couponCode }, { $inc: { usedCount: 1 } });
-      }
-    }
-
-    payment.status = 'completed';
-    payment.reviewedBy = req.user._id;
-    payment.reviewedAt = new Date();
-    await payment.save();
-
-    res.json({ success: true, message: 'Payment approved', data: payment });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const rejectManualPayment = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const payment = await Payment.findById(id);
-    if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
-    if (payment.gateway !== 'manual') return res.status(400).json({ success: false, message: 'Not a manual payment' });
-    if (payment.status === 'completed') return res.status(400).json({ success: false, message: 'Cannot reject a completed payment' });
-
-    payment.status = 'failed';
-    payment.rejectionReason = req.body.reason || 'Rejected by admin';
-    payment.reviewedBy = req.user._id;
-    payment.reviewedAt = new Date();
-    await payment.save();
-
-    res.json({ success: true, message: 'Payment rejected', data: payment });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 const sendTestEmail = async (req, res) => {
   try {
     const { to } = req.body;
@@ -1526,221 +1014,10 @@ const sendTestEmail = async (req, res) => {
   }
 };
 
-// ======================== SUBSCRIPTIONS ========================
-const Subscription = require('../models/Subscription');
-
-const getSubscriptions = async (req, res) => {
-  try {
-    const { status, search } = req.query;
-    const query = {};
-    if (status) query.status = status;
-    const subs = await Subscription.find(query)
-      .populate('vendor', 'name email companyName phone')
-      .populate('plan', 'name price interval')
-      .sort('-createdAt').limit(200);
-    // Include vendors that have no subscription record yet (e.g. self-signups
-    // on a free/trial plan) as synthetic rows so every vendor is visible here.
-    const coveredVendors = new Set(subs.map(s => s.vendor && String(s.vendor._id)).filter(Boolean));
-    const vendorsNoSub = await User.find({ role: 'vendor', _id: { $nin: Array.from(coveredVendors) } })
-      .select('name email companyName phone plan planExpiry createdAt status')
-      .populate('plan', 'name price interval');
-    const synthetic = vendorsNoSub.map(v => ({
-      _id: `nosub-${v._id}`,
-      vendor: { _id: v._id, name: v.name, email: v.email, companyName: v.companyName, phone: v.phone },
-      plan: v.plan || null,
-      status: v.status === 'active' ? 'active' : 'expired',
-      startDate: v.createdAt,
-      endDate: v.planExpiry || null,
-      autoRenew: false,
-      assignedBy: 'auto',
-      noSubscription: true,
-    }));
-    const all = [...subs, ...(status ? synthetic.filter(s => s.status === status) : synthetic)];
-    // If search, filter by vendor name/email
-    let filtered = all;
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = all.filter(s => s.vendor && (
-        s.vendor.name?.toLowerCase().includes(q) ||
-        s.vendor.email?.toLowerCase().includes(q) ||
-        s.vendor.companyName?.toLowerCase().includes(q)
-      ));
-    }
-    res.json({ success: true, data: filtered });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const createSubscription = async (req, res) => {
-  try {
-    const { vendorId, planId, endDate, autoRenew, notes } = req.body;
-    const vendor = await User.findOne({ _id: vendorId, role: 'vendor' });
-    if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
-    const plan = await Plan.findById(planId);
-    if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
-    // Expire any existing active subscription
-    await Subscription.updateMany({ vendor: vendorId, status: 'active' }, { status: 'expired' });
-    const sub = await Subscription.create({
-      vendor: vendorId, plan: planId, status: 'active',
-      startDate: new Date(), endDate: endDate || null,
-      autoRenew: autoRenew || false, assignedBy: 'manual', notes: notes || '',
-    });
-    // Update vendor's plan and expiry
-    vendor.plan = planId;
-    vendor.planExpiry = endDate || null;
-    await vendor.save();
-    const populated = await Subscription.findById(sub._id).populate('vendor', 'name email').populate('plan', 'name price interval');
-    res.status(201).json({ success: true, data: populated });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const updateSubscription = async (req, res) => {
-  try {
-    const sub = await Subscription.findById(req.params.id);
-    if (!sub) return res.status(404).json({ success: false, message: 'Subscription not found' });
-    const { status, planId, endDate, autoRenew, notes } = req.body;
-    if (planId && String(planId) !== String(sub.plan)) {
-      const plan = await Plan.findById(planId);
-      if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
-      sub.plan = planId;
-      await User.findByIdAndUpdate(sub.vendor, { plan: planId });
-    }
-    if (status !== undefined) sub.status = status;
-    if (endDate !== undefined) sub.endDate = endDate;
-    if (autoRenew !== undefined) sub.autoRenew = autoRenew;
-    if (notes !== undefined) sub.notes = notes;
-    await sub.save();
-    // Sync vendor plan expiry
-    if (sub.status === 'active') {
-      await User.findByIdAndUpdate(sub.vendor, { planExpiry: sub.endDate });
-    }
-    const populated = await Subscription.findById(sub._id).populate('vendor', 'name email').populate('plan', 'name price interval');
-    res.json({ success: true, data: populated });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const deleteSubscription = async (req, res) => {
-  try {
-    const sub = await Subscription.findByIdAndDelete(req.params.id);
-    if (!sub) return res.status(404).json({ success: false, message: 'Not found' });
-    res.json({ success: true, message: 'Subscription deleted' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ======================== INVOICES ========================
-const Invoice = require('../models/Invoice');
-
-const getInvoices = async (req, res) => {
-  try {
-    const { status, search } = req.query;
-    const query = {};
-    if (status) query.status = status;
-    if (search) {
-      query.$or = [
-        { invoiceNumber: { $regex: search, $options: 'i' } },
-        { vendorName: { $regex: search, $options: 'i' } },
-        { vendorEmail: { $regex: search, $options: 'i' } },
-      ];
-    }
-    const invoices = await Invoice.find(query).populate('vendor', 'name email companyName').sort('-createdAt').limit(200);
-    res.json({ success: true, data: invoices });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const createInvoice = async (req, res) => {
-  try {
-    const { vendorId, items, gstRate, dueDate, notes } = req.body;
-    const vendor = await User.findById(vendorId);
-    if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
-    const settings = await SystemSettings.findOne().lean();
-    const subtotal = items.reduce((sum, i) => sum + (i.quantity || 1) * i.unitPrice, 0);
-    const rate = gstRate != null ? gstRate : 18;
-    const gstAmount = Math.round(subtotal * rate / 100 * 100) / 100;
-    // Generate invoice number
-    const count = await Invoice.countDocuments();
-    const invoiceNumber = 'INV-' + String(count + 1).padStart(5, '0');
-    const invoice = await Invoice.create({
-      invoiceNumber, vendor: vendorId, items,
-      subtotal, gstRate: rate, gstAmount, total: subtotal + gstAmount,
-      dueDate: dueDate || null, notes: notes || '', status: 'draft',
-      companyName: settings?.companyName || settings?.appName || 'WABA Panel',
-      companyGst: settings?.gstNumber || '',
-      companyAddress: settings?.address || '',
-      vendorName: vendor.name, vendorEmail: vendor.email,
-      vendorGst: vendor.gstNumber || '', vendorAddress: vendor.address || '',
-    });
-    res.status(201).json({ success: true, data: invoice });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const updateInvoice = async (req, res) => {
-  try {
-    const invoice = await Invoice.findById(req.params.id);
-    if (!invoice) return res.status(404).json({ success: false, message: 'Not found' });
-    const { status, items, gstRate, dueDate, notes, paidAt } = req.body;
-    if (status) invoice.status = status;
-    if (items) {
-      invoice.items = items;
-      invoice.subtotal = items.reduce((sum, i) => sum + (i.quantity || 1) * i.unitPrice, 0);
-      const rate = gstRate != null ? gstRate : invoice.gstRate;
-      invoice.gstRate = rate;
-      invoice.gstAmount = Math.round(invoice.subtotal * rate / 100 * 100) / 100;
-      invoice.total = invoice.subtotal + invoice.gstAmount;
-    }
-    if (dueDate !== undefined) invoice.dueDate = dueDate;
-    if (notes !== undefined) invoice.notes = notes;
-    if (paidAt) invoice.paidAt = paidAt;
-    await invoice.save();
-    res.json({ success: true, data: invoice });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const deleteInvoice = async (req, res) => {
-  try {
-    await Invoice.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Invoice deleted' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const getInvoicePdf = async (req, res) => {
-  try {
-    const invoice = await Invoice.findById(req.params.id);
-    if (!invoice) return res.status(404).json({ success: false, message: 'Not found' });
-    // Return HTML invoice for PDF generation/print
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ${invoice.invoiceNumber}</title>
-<style>body{font-family:Arial,sans-serif;padding:40px;color:#333}h1{color:#059669;margin:0}.header{display:flex;justify-content:space-between;border-bottom:2px solid #059669;padding-bottom:20px;margin-bottom:30px}.meta{text-align:right}.info{display:flex;justify-content:space-between;margin-bottom:30px}.box{background:#f9fafb;padding:15px;border-radius:8px;width:45%}table{width:100%;border-collapse:collapse;margin-top:20px}th{background:#f3f4f6;padding:10px;text-align:left;font-size:13px}td{padding:10px;border-bottom:1px solid #e5e7eb;font-size:13px}.totals{text-align:right;margin-top:20px}.totals div{margin:5px 0}.total-final{font-size:18px;font-weight:bold;color:#059669}.status{display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:bold}</style></head><body>
-<div class="header"><div><h1>${invoice.companyName || 'WABA Panel'}</h1><p style="margin:5px 0;font-size:13px;color:#666">${invoice.companyAddress || ''}</p>${invoice.companyGst ? '<p style="font-size:12px;color:#666">GST: ' + invoice.companyGst + '</p>' : ''}</div><div class="meta"><h2 style="margin:0">INVOICE</h2><p style="margin:5px 0;font-size:14px"><strong>${invoice.invoiceNumber}</strong></p><p style="font-size:12px;color:#666">Date: ${new Date(invoice.createdAt).toLocaleDateString('en-IN')}</p>${invoice.dueDate ? '<p style="font-size:12px;color:#666">Due: ' + new Date(invoice.dueDate).toLocaleDateString('en-IN') + '</p>' : ''}<p><span class="status" style="background:${invoice.status === 'paid' ? '#d1fae5;color:#059669' : invoice.status === 'sent' ? '#dbeafe;color:#2563eb' : '#f3f4f6;color:#666'}">${invoice.status.toUpperCase()}</span></p></div></div>
-<div class="info"><div class="box"><h4 style="margin:0 0 8px;color:#059669">Bill To</h4><p style="margin:3px 0;font-weight:bold">${invoice.vendorName}</p><p style="margin:3px 0;font-size:13px">${invoice.vendorEmail}</p><p style="margin:3px 0;font-size:13px">${invoice.vendorAddress || ''}</p>${invoice.vendorGst ? '<p style="margin:3px 0;font-size:12px">GST: ' + invoice.vendorGst + '</p>' : ''}</div></div>
-<table><thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr></thead><tbody>${invoice.items.map((item, i) => '<tr><td>' + (i + 1) + '</td><td>' + item.description + '</td><td>' + (item.quantity || 1) + '</td><td>₹' + item.unitPrice.toLocaleString('en-IN') + '</td><td>₹' + item.amount.toLocaleString('en-IN') + '</td></tr>').join('')}</tbody></table>
-<div class="totals"><div>Subtotal: <strong>₹${invoice.subtotal.toLocaleString('en-IN')}</strong></div><div>GST (${invoice.gstRate}%): <strong>₹${invoice.gstAmount.toLocaleString('en-IN')}</strong></div><div class="total-final">Total: ₹${invoice.total.toLocaleString('en-IN')}</div></div>
-${invoice.notes ? '<div style="margin-top:30px;padding:15px;background:#f9fafb;border-radius:8px"><h4 style="margin:0 0 8px">Notes</h4><p style="margin:0;font-size:13px">' + invoice.notes + '</p></div>' : ''}
-</body></html>`;
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 // ======================== VENDOR DETAIL ========================
 const getVendorDetail = async (req, res) => {
   try {
-    const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' }).select('-password').populate('plan', 'name price interval');
+    const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' }).select('-password');
     if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
     const Workspace = require('../models/Workspace');
     const Message = require('../models/Message');
@@ -1760,229 +1037,13 @@ const getVendorDetail = async (req, res) => {
       Conversation.countDocuments({ workspace: { $in: wsIds } }),
       Message.find({ workspace: { $in: wsIds } }).sort('-createdAt').limit(5).select('body type createdAt'),
     ]);
-    const subs = await Subscription.find({ vendor: vendor._id }).populate('plan', 'name price interval').sort('-createdAt').limit(5);
-    const invoices = await Invoice.find({ vendor: vendor._id }).sort('-createdAt').limit(5);
-    const walletTxns = await WalletTransaction.find({ user: vendor._id }).sort('-createdAt').limit(10);
     res.json({
       success: true, data: {
         vendor: vendor.toObject(),
         stats: { totalMessages, messages30d, messages7d, totalContacts, totalCampaigns, totalConversations },
-        recentMessages, subscriptions: subs, invoices, walletTransactions: walletTxns,
+        recentMessages,
       },
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ======================== BLOG ========================
-const BlogPost = require('../models/BlogPost');
-
-const getBlogPosts = async (req, res) => {
-  try {
-    const { status } = req.query;
-    const query = {};
-    if (status) query.status = status;
-    const posts = await BlogPost.find(query).populate('author', 'name').sort('-createdAt');
-    res.json({ success: true, data: posts });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const createBlogPost = async (req, res) => {
-  try {
-    const { title, content, excerpt, coverImage, status, tags, metaTitle, metaDescription } = req.body;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const post = await BlogPost.create({
-      title, slug, content, excerpt: excerpt || '', coverImage: coverImage || '',
-      author: req.user._id, status: status || 'draft',
-      tags: tags || [], metaTitle: metaTitle || '', metaDescription: metaDescription || '',
-      publishedAt: status === 'published' ? new Date() : null,
-    });
-    res.status(201).json({ success: true, data: post });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const updateBlogPost = async (req, res) => {
-  try {
-    const post = await BlogPost.findById(req.params.id);
-    if (!post) return res.status(404).json({ success: false, message: 'Not found' });
-    const { title, content, excerpt, coverImage, status, tags, metaTitle, metaDescription } = req.body;
-    if (title !== undefined) { post.title = title; post.slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
-    if (content !== undefined) post.content = content;
-    if (excerpt !== undefined) post.excerpt = excerpt;
-    if (coverImage !== undefined) post.coverImage = coverImage;
-    if (status !== undefined) { post.status = status; if (status === 'published' && !post.publishedAt) post.publishedAt = new Date(); }
-    if (tags !== undefined) post.tags = tags;
-    if (metaTitle !== undefined) post.metaTitle = metaTitle;
-    if (metaDescription !== undefined) post.metaDescription = metaDescription;
-    await post.save();
-    res.json({ success: true, data: post });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const deleteBlogPost = async (req, res) => {
-  try {
-    await BlogPost.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Blog post deleted' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ======================== PLAN REMINDERS ========================
-const checkExpiringPlans = async (req, res) => {
-  try {
-    const daysAhead = parseInt(req.query.days) || 7;
-    const futureDate = new Date(Date.now() + daysAhead * 86400000);
-    const expiring = await User.find({
-      role: 'vendor', status: 'active',
-      planExpiry: { $lte: futureDate, $gte: new Date() },
-    }).select('name email companyName planExpiry').populate('plan', 'name price');
-    const expired = await User.find({
-      role: 'vendor', status: 'active',
-      planExpiry: { $lt: new Date(), $ne: null },
-    }).select('name email companyName planExpiry').populate('plan', 'name price');
-    res.json({ success: true, data: { expiring, expired } });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const sendPlanReminder = async (req, res) => {
-  try {
-    const { vendorId, message } = req.body;
-    const vendor = await User.findById(vendorId);
-    if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
-    // Send email notification
-    const settings = await SystemSettings.findOne().lean();
-    const smtpHost = settings?.smtpHost || 'smtp.gmail.com';
-    const smtpPort = settings?.smtpPort || 587;
-    const smtpUser = settings?.smtpUser || '';
-    const smtpPass = settings?.smtpPass || '';
-    const fromEmail = settings?.smtpFromEmail || smtpUser;
-    const fromName = settings?.smtpFromName || settings?.appName || 'WABA Panel';
-    if (!smtpUser) return res.status(400).json({ success: false, message: 'SMTP not configured' });
-    const transporter = nodemailer.createTransport({ host: smtpHost, port: smtpPort, secure: smtpPort === 465, family: 4, auth: { user: smtpUser, pass: smtpPass } });
-    await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
-      to: vendor.email,
-      subject: 'Plan Expiry Reminder',
-      html: message || `<p>Hi ${vendor.name},</p><p>Your plan is expiring soon. Please renew to continue using all features.</p><p>Thank you,<br>${fromName}</p>`,
-    });
-    res.json({ success: true, message: 'Reminder sent to ' + vendor.email });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-
-// ======================== AUTO PLAN REMINDER ========================
-const getAutoReminderSettings = async (req, res) => {
-  try {
-    const settings = await SystemSettings.findOne().lean();
-    res.json({ success: true, data: settings?.planAutoReminder || { enabled: false, daysBefore: [7, 3, 1], lastRunAt: null, sentLog: [] } });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const updateAutoReminderSettings = async (req, res) => {
-  try {
-    const { enabled, daysBefore } = req.body;
-    const update = {};
-    if (enabled !== undefined) update['planAutoReminder.enabled'] = enabled;
-    if (daysBefore !== undefined) update['planAutoReminder.daysBefore'] = daysBefore;
-    await SystemSettings.findOneAndUpdate({}, { $set: update }, { upsert: true });
-    res.json({ success: true, message: 'Auto reminder settings updated' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const runAutoReminder = async () => {
-  try {
-    const settings = await SystemSettings.findOne();
-    if (!settings?.planAutoReminder?.enabled) return { skipped: true };
-    if (!settings?.smtp?.host || !settings?.smtp?.user) return { skipped: true, reason: 'SMTP not configured' };
-
-    const daysBefore = settings.planAutoReminder.daysBefore || [7, 3, 1];
-    const sentLog = settings.planAutoReminder.sentLog || [];
-    const today = new Date(); today.setHours(0,0,0,0);
-    let sentCount = 0;
-
-    for (const days of daysBefore) {
-      const targetDate = new Date(Date.now() + days * 86400000);
-      const startOfDay = new Date(targetDate); startOfDay.setHours(0,0,0,0);
-      const endOfDay = new Date(targetDate); endOfDay.setHours(23,59,59,999);
-
-      const vendors = await User.find({
-        role: 'vendor', status: 'active',
-        planExpiry: { $gte: startOfDay, $lte: endOfDay },
-      }).populate('plan', 'name');
-
-      for (const vendor of vendors) {
-        // Check if already sent today for this vendor+days combo
-        const alreadySent = sentLog.some(l => l.vendorId === String(vendor._id) && l.daysLeft === days && new Date(l.sentAt) >= today);
-        if (alreadySent) continue;
-
-        // Use planExpiry email template if available
-        const template = settings.emailTemplates?.planExpiry;
-        if (template && !template.enabled) continue;
-
-        const appName = settings.appName || 'WABA Panel';
-        const subject = (template?.subject || 'Plan Expiring Soon - {{appName}}').replace(/\{\{appName\}\}/g, appName);
-        let body = (template?.body || '<p>Hi {{userName}},</p><p>Your plan expires in {{daysLeft}} days.</p>')
-          .replace(/\{\{userName\}\}/g, vendor.name)
-          .replace(/\{\{appName\}\}/g, appName)
-          .replace(/\{\{planName\}\}/g, vendor.plan?.name || 'N/A')
-          .replace(/\{\{expiryDate\}\}/g, new Date(vendor.planExpiry).toLocaleDateString('en-IN'))
-          .replace(/\{\{appUrl\}\}/g, settings.appUrl || '');
-        // Add days left info
-        body = body.replace(/\{\{daysLeft\}\}/g, String(days));
-
-        try {
-          const transporter = require('nodemailer').createTransport({
-            host: settings.smtp.host, port: settings.smtp.port || 587,
-            secure: (settings.smtp.port || 587) === 465,
-            family: 4,
-            auth: { user: settings.smtp.user, pass: settings.smtp.pass },
-          });
-          const fromName = settings.smtp.fromName || appName;
-          await transporter.sendMail({
-            from: `"${fromName}" <${settings.smtp.from || settings.smtp.user}>`,
-            to: vendor.email, subject, html: body,
-          });
-          sentLog.push({ vendorId: String(vendor._id), sentAt: new Date(), daysLeft: days });
-          sentCount++;
-        } catch (mailErr) {
-          console.error('[Plan Reminder] Mail error for', vendor.email, mailErr.message);
-        }
-      }
-    }
-
-    // Keep only last 7 days of sent log
-    const weekAgo = new Date(Date.now() - 7 * 86400000);
-    const trimmedLog = sentLog.filter(l => new Date(l.sentAt) >= weekAgo);
-    await SystemSettings.findOneAndUpdate({}, { $set: { 'planAutoReminder.lastRunAt': new Date(), 'planAutoReminder.sentLog': trimmedLog } });
-
-    if (sentCount > 0) console.log('[Plan Reminder] Sent', sentCount, 'auto reminders');
-    return { sentCount };
-  } catch (error) {
-    console.error('[Plan Reminder] Error:', error.message);
-    return { error: error.message };
-  }
-};
-
-const triggerAutoReminder = async (req, res) => {
-  try {
-    const result = await runAutoReminder();
-    res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -2059,63 +1120,6 @@ const updateSiteContent = async (req, res) => {
   }
 };
 
-// ==================== PAYMENT INVOICE (PDF + EMAIL) ====================
-const { buildPlanInvoicePdf } = require('../services/planInvoicePdf');
-const buildAdminPaymentPdf = (payment) => buildPlanInvoicePdf(payment);
-const getPaymentInvoicePdf = async (req, res) => {
-  try {
-    const payment = await Payment.findById(req.params.id).populate('plan', 'name');
-    if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
-    const built = await buildAdminPaymentPdf(payment);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="invoice-${built.invoiceNo}.pdf"`);
-    res.send(built.buffer);
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-const emailPaymentInvoices = async (req, res) => {
-  try {
-    const { ids } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ success: false, message: 'No payments selected' });
-    const settings = await SystemSettings.findOne().lean();
-    const smtp = settings && settings.smtp;
-    if (!smtp || !smtp.host || !smtp.user) {
-      return res.status(400).json({ success: false, message: 'SMTP is not configured (Admin > Settings > SMTP)' });
-    }
-    const nodemailer = require('nodemailer');
-    const transporter = nodemailer.createTransport({
-      host: smtp.host, port: smtp.port || 587, secure: (smtp.port || 587) === 465,
-      family: 4,
-      auth: { user: smtp.user, pass: smtp.pass },
-    });
-    const errors = [];
-    let sent = 0;
-    for (const id of ids.slice(0, 50)) {
-      try {
-        const payment = await Payment.findById(id).populate('plan', 'name');
-        if (!payment) { errors.push(`${id}: payment not found`); continue; }
-        const built = await buildAdminPaymentPdf(payment);
-        if (!built.email) { errors.push(`${built.invoiceNo}: vendor has no email`); continue; }
-        await transporter.sendMail({
-          from: smtp.fromName ? `"${smtp.fromName}" <${smtp.from || smtp.user}>` : (smtp.from || smtp.user),
-          to: built.email,
-          subject: `Invoice ${built.invoiceNo} - ${(settings && settings.appName) || 'WabaPanel'}`,
-          text: `Please find attached invoice ${built.invoiceNo} for a total of Rs. ${Number(payment.amount || 0).toFixed(2)}.`,
-          attachments: [{ filename: `invoice-${built.invoiceNo}.pdf`, content: built.buffer }],
-        });
-        sent++;
-      } catch (e) {
-        errors.push(`${id}: ${e.message}`);
-      }
-    }
-    res.json({ success: true, sent, errors });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
 // @GET /api/admin/feature-controls — vendors + their feature overrides + catalog
 const getFeatureControls = async (req, res) => {
   try {
@@ -2124,8 +1128,7 @@ const getFeatureControls = async (req, res) => {
     // Only show add-ons the panel is licensed for; base features always listed.
     const catalog = FEATURE_CATALOG.filter((f) => !f.addon || panelAddons[f.key] === true);
     const vendors = await User.find({ role: 'vendor' })
-      .select('name email companyName status featureOverrides plan')
-      .populate('plan', 'name')
+      .select('name email companyName status featureOverrides')
       .sort('-createdAt');
     res.json({ success: true, data: { catalog, vendors } });
   } catch (error) {
@@ -2245,33 +1248,22 @@ module.exports = {
   getFeatureControls, updateFeatureControls,
   getVendorAiAssignments, updateVendorAiAssignment, pushKnowledgeToVendors,
   getDataCleanup, updateDataCleanup, runDataCleanup,
-  getPlans, createPlan, updatePlan, deletePlan,
-  getPayments, getPaymentInvoicePdf, emailPaymentInvoices, getWalletLedger, adjustWallet, approveManualPayment, rejectManualPayment,
   getMetaPricing, updateMetaPricing,
   getPermissions, updatePermissions,
   getSettings, updateSettings,
   getLandingPage, updateLandingPage,
   getSiteContent, updateSiteContent,
   getGlobalTemplates, createGlobalTemplate, updateGlobalTemplate, deleteGlobalTemplate,
-  getInquiries, updateInquiry, replyInquiry, deleteInquiry,
   getAdminShortLinks, deleteAdminShortLink,
   getQuickReplies, createQuickReply, updateQuickReply, deleteQuickReply,
-  getGateways, updateGateway, testGateway,
   getAISettings, updateAISettings,
   getLanguages, createLanguage, deleteLanguage, updateLanguage, seedLanguages,
-  getCurrencies, createCurrency, deleteCurrency, updateCurrency, seedCurrencies,
-  getTaxes, createTax, deleteTax,
   getFAQs, createFAQ, updateFAQ, deleteFAQ,
   getTestimonials, createTestimonial, updateTestimonial, deleteTestimonial,
   getPages, createPage, updatePage, deletePage,
   getVendors, getVendor, createVendor, updateVendor, deleteVendor, loginAsVendor,
   sendTestEmail,
-  getSubscriptions, createSubscription, updateSubscription, deleteSubscription,
-  getInvoices, createInvoice, updateInvoice, deleteInvoice, getInvoicePdf,
   getVendorDetail,
-  getBlogPosts, createBlogPost, updateBlogPost, deleteBlogPost,
-  checkExpiringPlans, sendPlanReminder,
-  getAutoReminderSettings, updateAutoReminderSettings, triggerAutoReminder, runAutoReminder,
   getKnowledgeArticles, createKnowledgeArticle, updateKnowledgeArticle, deleteKnowledgeArticle,
 };
 

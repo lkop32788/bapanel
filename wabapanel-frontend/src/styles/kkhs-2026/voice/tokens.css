@@ -1,0 +1,204 @@
+/* ==========================================================================
+   WabaPanel New UI — Voice v3 tokens
+   --------------------------------------------------------------------------
+   Loaded after the 2026 theme, so these values win. Two jobs:
+     1. define the Voice v3 palette, type and motion as --v-* variables;
+     2. re-point the existing theme variables at them, so every page that
+        already uses the old tokens picks up the new colours with no edit.
+   Every rule stays inside the html[data-kkhs="on"] scope. Flag off = no effect.
+   ========================================================================== */
+
+html[data-kkhs="on"] {
+  /* ---- accent (one value to rebrand) ---- */
+  --v-accent: #2857e0;
+  --v-accent-h: #1f47c4;
+  --v-accent-soft: #e9eefc;
+  --v-grad: linear-gradient(135deg, #2f5df0, #2246c9 55%, #5b3fd1);
+  --v-grad-shadow: 0 30px 70px -30px rgb(40 87 224 / .9);
+
+  /* ---- sidebar ---- */
+  --v-side-grad: linear-gradient(180deg, #1c2f8f, #2242c4 38%, #1a2a83 72%, #121c5c);
+  --v-side-ink: #fff;
+  --v-side-ink-2: rgb(255 255 255 / .74);
+  --v-side-ink-3: rgb(255 255 255 / .6);
+  --v-side-pill: rgb(255 255 255 / .14);
+  --v-side-line: rgb(255 255 255 / .18);
+  --v-side-open-bg: #fff;
+  --v-side-open-ink: #111214;
+  --v-side-w: 272px;
+
+  /* ---- neutrals ---- */
+  --v-canvas: #f3f4f8;
+  --v-sunken: #e9ebf2;
+  --v-surface: #fdfdfd;
+  --v-ink: #111214;
+  --v-ink-2: #5b6170;
+  --v-ink-3: #8b909c;
+  --v-hair: rgb(17 18 20 / .06);
+  --v-hair-2: rgb(17 18 20 / .10);
+  --v-hair-3: rgb(17 18 20 / .16);
+  --v-shell: rgb(17 18 20 / .035);
+
+  /* ---- palette (six hues) ---- */
+  --v-blue: #2857e0;   --v-blue-soft: #e9eefc;
+  --v-violet: #6d4fd6; --v-violet-soft: #f0ecff;
+  --v-teal: #0e9f8a;   --v-teal-soft: #e3f6f2;
+  --v-orange: #e8730c; --v-orange-soft: #fff0e3;
+  --v-pink: #d63b7a;   --v-pink-soft: #fde9f1;
+  --v-amber: #d19a12;  --v-amber-soft: #fff5dc;
+
+  /* ---- status ---- */
+  --v-ok: #1f9d55;   --v-ok-soft: #e4f5ea;
+  --v-live: #12a66f; --v-live-soft: #e1f6ec;
+  --v-warn: #b86a12; --v-warn-soft: #fdf1e2;
+  --v-bad: #d0353f;  --v-bad-soft: #fde8e9;
+  --v-hot: #dd5c0c;
+
+  /* ---- motion ---- */
+  --v-ease: cubic-bezier(.23, 1, .32, 1);
+  --v-ease-menu: cubic-bezier(.32, .72, 0, 1);
+  --v-float: 0 12px 40px -18px rgb(17 18 20 / .18);
+
+  /* ---- type ---- */
+  --v-font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --v-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ---- re-point the 2026 theme tokens at the Voice palette ---- */
+  --k-font: var(--v-font);
+  --k-mono: var(--v-mono);
+  --k-canvas: var(--v-canvas);
+  --k-surface: var(--v-surface);
+  --k-sunken: var(--v-sunken);
+  --k-hover: #e3e6ef;
+  --k-line: var(--v-hair-2);
+  --k-line-2: var(--v-hair-3);
+  --k-ink: var(--v-ink);
+  --k-ink-2: var(--v-ink-2);
+  --k-ink-3: var(--v-ink-3);
+  --k-brand: var(--v-accent);
+  --k-brand-2: var(--v-accent-h);
+  --k-brand-w: var(--v-accent-soft);
+  --k-ok: var(--v-ok);        --k-ok-w: var(--v-ok-soft);
+  --k-warn: var(--v-warn);    --k-warn-w: var(--v-warn-soft);
+  --k-bad: var(--v-bad);      --k-bad-w: var(--v-bad-soft);
+  --k-info: var(--v-blue);    --k-info-w: var(--v-blue-soft);
+  --k-purple: var(--v-violet); --k-purple-w: var(--v-violet-soft);
+  --k-bubble-in: #fff;
+  --k-bubble-out: var(--v-accent-soft);
+  --k-r-sm: 10px;
+  --k-r-md: 12px;
+  --k-r-lg: 18px;
+  --k-shadow: var(--v-float);
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar colour presets. The picker sets data-side on <html> and saves the
+   choice in the browser; nothing is stored on the server.
+   -------------------------------------------------------------------------- */
+html[data-kkhs="on"][data-side="blue"] { }
+
+html[data-kkhs="on"][data-side="violet"] {
+  --v-side-grad: linear-gradient(180deg, #3b1f8f, #5b3fd1 38%, #3a2493 72%, #241660);
+  --v-accent: #6d4fd6; --v-accent-h: #5a3fc0; --v-accent-soft: #f0ecff;
+  --v-grad: linear-gradient(135deg, #7a5cf0, #5b3fd1 55%, #2f5df0);
+  --v-grad-shadow: 0 30px 70px -30px rgb(109 79 214 / .9);
+}
+html[data-kkhs="on"][data-side="teal"] {
+  --v-side-grad: linear-gradient(180deg, #05493f, #0e9f8a 42%, #0a6d5f 74%, #04352e);
+  --v-accent: #0e9f8a; --v-accent-h: #0b8574; --v-accent-soft: #e3f6f2;
+  --v-grad: linear-gradient(135deg, #2fc0aa, #0e9f8a 55%, #0b6f82);
+  --v-grad-shadow: 0 30px 70px -30px rgb(14 159 138 / .9);
+}
+html[data-kkhs="on"][data-side="sunset"] {
+  --v-side-grad: linear-gradient(180deg, #7a2a12, #e8730c 44%, #b8430f 74%, #5e1f10);
+  --v-accent: #e8730c; --v-accent-h: #c85f08; --v-accent-soft: #fff0e3;
+  --v-grad: linear-gradient(135deg, #ff9640, #e8730c 55%, #d63b7a);
+  --v-grad-shadow: 0 30px 70px -30px rgb(232 115 12 / .9);
+}
+html[data-kkhs="on"][data-side="night"] {
+  --v-side-grad: linear-gradient(180deg, #14161d, #23262f 40%, #16181f 72%, #0c0d12);
+  --v-accent: #2857e0; --v-accent-h: #1f47c4; --v-accent-soft: #e9eefc;
+}
+html[data-kkhs="on"][data-side="slate"] {
+  --v-side-grad: linear-gradient(180deg, #2b3340, #3f4959 40%, #2c3441 72%, #1b212a);
+  --v-accent: #4f5868; --v-accent-h: #3c4452; --v-accent-soft: #eceef3;
+  --v-grad: linear-gradient(135deg, #7d8798, #4f5868 55%, #343c49);
+  --v-grad-shadow: 0 30px 70px -30px rgb(79 88 104 / .9);
+}
+html[data-kkhs="on"][data-side="light"] {
+  --v-side-grad: linear-gradient(180deg, #ffffff, #f4f6fb 60%, #eef1f8);
+  --v-side-ink: #111214;
+  --v-side-ink-2: #5b6170;
+  --v-side-ink-3: #8b909c;
+  --v-side-pill: rgb(17 18 20 / .06);
+  --v-side-line: rgb(17 18 20 / .10);
+  --v-side-open-bg: var(--v-accent);
+  --v-side-open-ink: #fff;
+}
+html[data-kkhs="on"][data-side="custom"] {
+  --v-side-grad: linear-gradient(180deg, var(--v-c1, #1c2f8f), var(--v-c2, #2242c4) 38%, var(--v-c3, #1a2a83) 72%, var(--v-c4, #121c5c));
+  --v-accent: var(--v-c-accent, #2857e0);
+  --v-accent-h: var(--v-c3, #1f47c4);
+  --v-accent-soft: var(--v-c-soft, #e9eefc);
+  --v-grad: linear-gradient(135deg, var(--v-c2, #2f5df0), var(--v-c-accent, #2246c9) 55%, var(--v-c3, #5b3fd1));
+}
+
+/* The admin console keeps its own colour so an operator can never mistake it
+   for a customer account. It is still switchable from the picker. */
+html[data-kkhs="on"][data-kkhs-panel="admin"]:not([data-side]) {
+  --v-side-grad: linear-gradient(180deg, #3b1f8f, #5b3fd1 38%, #3a2493 72%, #241660);
+  --v-accent: #6d4fd6; --v-accent-h: #5a3fc0; --v-accent-soft: #f0ecff;
+  --v-grad: linear-gradient(135deg, #7a5cf0, #5b3fd1 55%, #2f5df0);
+  --v-grad-shadow: 0 30px 70px -30px rgb(109 79 214 / .9);
+}
+
+/* The panel's own white-label colour still wins when a partner has set one. */
+html[data-kkhs="on"].brand-themed:not([data-side]) {
+  --v-accent: var(--brand, #2857e0);
+  --v-accent-h: color-mix(in srgb, var(--brand, #2857e0) 82%, #000);
+  --v-accent-soft: color-mix(in srgb, var(--brand, #2857e0) 10%, #fff);
+  --v-grad: linear-gradient(135deg, color-mix(in srgb, var(--brand, #2857e0) 86%, #fff), var(--brand, #2857e0) 55%, color-mix(in srgb, var(--brand, #2857e0) 70%, #5b3fd1));
+  --v-side-grad: linear-gradient(180deg, color-mix(in srgb, var(--brand, #2857e0) 55%, #000), var(--brand, #2857e0) 38%, color-mix(in srgb, var(--brand, #2857e0) 62%, #000) 72%, color-mix(in srgb, var(--brand, #2857e0) 35%, #000));
+}
+
+/* A per-user accent picked in the theme menu still wins over everything. */
+html[data-kkhs="on"][data-kkhs-accent] {
+  --v-accent: var(--k-accent);
+  --v-accent-h: color-mix(in srgb, var(--k-accent) 82%, #000);
+  --v-accent-soft: color-mix(in srgb, var(--k-accent) 10%, #fff);
+  --v-grad: linear-gradient(135deg, color-mix(in srgb, var(--k-accent) 86%, #fff), var(--k-accent) 55%, color-mix(in srgb, var(--k-accent) 70%, #5b3fd1));
+}
+
+/* -------------------------------------------------------------- dark ---- */
+html[data-kkhs="on"].dark,
+html[data-kkhs="on"][data-theme="dark"] {
+  --v-canvas: #0c0e13;
+  --v-sunken: #161a22;
+  --v-surface: #12151c;
+  --v-ink: #e9ecf3;
+  --v-ink-2: #a2a9b8;
+  --v-ink-3: #7c8496;
+  --v-hair: rgb(255 255 255 / .07);
+  --v-hair-2: rgb(255 255 255 / .12);
+  --v-hair-3: rgb(255 255 255 / .18);
+  --v-shell: rgb(255 255 255 / .04);
+  --v-accent: #6a90ff;
+  --v-accent-h: #8aa8ff;
+  --v-accent-soft: #18213c;
+  --v-blue-soft: #18213c; --v-violet-soft: #221a3a; --v-teal-soft: #0d2b28;
+  --v-orange-soft: #2c1c0e; --v-pink-soft: #2c1420; --v-amber-soft: #2a2211;
+  --v-ok-soft: #0f2a1c; --v-live-soft: #0f2a20; --v-warn-soft: #2a1f10; --v-bad-soft: #2c1417;
+  --v-float: 0 14px 44px -18px rgb(0 0 0 / .75);
+  --k-bubble-in: #171b24;
+  --k-bubble-out: #1b2540;
+}
+
+/* The admin console keeps violet even on a panel that has its own brand colour,
+   so an operator can always tell the console from a customer account. */
+html[data-kkhs="on"][data-kkhs-panel="admin"]:not([data-side]),
+html[data-kkhs="on"][data-kkhs-panel="admin"].brand-themed:not([data-side]) {
+  --v-side-grad: linear-gradient(180deg, #3b1f8f, #5b3fd1 38%, #3a2493 72%, #241660);
+  --v-accent: #6d4fd6; --v-accent-h: #5a3fc0; --v-accent-soft: #f0ecff;
+  --v-grad: linear-gradient(135deg, #7a5cf0, #5b3fd1 55%, #2f5df0);
+  --v-grad-shadow: 0 30px 70px -30px rgb(109 79 214 / .9);
+}

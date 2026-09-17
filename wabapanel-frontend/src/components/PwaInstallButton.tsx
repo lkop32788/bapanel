@@ -47,21 +47,21 @@ export default function PwaInstallButton() {
 
   return (
     <div className="relative">
-      <button onClick={handleClick} title="Install WabaPanel as an app"
+      <button onClick={handleClick} title={"将此面板安装为应用程序"}
         className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-full transition-colors">
         <Download className="w-4 h-4" />
-        <span className="hidden sm:inline">Install App</span>
+        <span className="hidden sm:inline">安装应用程序</span>
       </button>
       {showHelp && !canPrompt && (
         <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl ring-1 ring-gray-100 dark:ring-gray-700 z-50 p-4">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5"><Smartphone className="w-4 h-4" /> Install App</h4>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5"><Smartphone className="w-4 h-4" /> 安装应用程序</h4>
             <button onClick={() => setShowHelp(false)}><X className="w-4 h-4 text-gray-400" /></button>
           </div>
           <ul className="text-xs text-gray-600 dark:text-gray-300 space-y-1.5 list-disc pl-4">
-            <li><b>iPhone / iPad (Safari):</b> Tap the Share button, then &quot;Add to Home Screen&quot;.</li>
-            <li><b>Android (Chrome):</b> Tap the ⋮ menu, then &quot;Install app&quot; or &quot;Add to Home screen&quot;.</li>
-            <li><b>Desktop (Chrome / Edge):</b> Click the install icon in the address bar.</li>
+            <li><b>iPhone / iPad (Safari):</b> 点击“共享”按钮，然后点击“添加到主屏幕”。</li>
+            <li><b>安卓（Chrome）：</b> 点击 ⋮ 菜单，然后点击“安装应用程序”或“添加到主屏幕”。</li>
+            <li><b>桌面（Chrome / Edge）：</b> 单击地址栏中的安装图标。</li>
           </ul>
         </div>
       )}

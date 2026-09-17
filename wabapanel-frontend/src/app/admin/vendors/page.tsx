@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Ban, CheckCircle, LogIn, Store, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -15,15 +16,15 @@ import toast from 'react-hot-toast';
 interface Vendor {
   _id: string; name: string; email: string; phone: string; status: string;
   companyName: string; website: string; address: string; gstNumber: string; vendorNotes: string;
-  plan?: { name: string }; createdAt: string; lastLogin?: string; walletBillingExempt?: boolean; showRateCard?: boolean;
-  messages30d?: number; walletBalance?: number; totalSpend?: number;
-  walletTemplateRates?: { marketing?: number | null; utility?: number | null; authentication?: number | null };
+   createdAt: string; lastLogin?: string;  
+  messages30d?: number;  
+  
 }
 
 const emptyForm = {
   name: '', email: '', password: '', phone: '', companyName: '', website: '',
-  address: '', gstNumber: '', vendorNotes: '', status: 'active', walletBillingExempt: true, showRateCard: true,
-  rateMarketing: '', rateUtility: '', rateAuthentication: '',
+  address: '', gstNumber: '', vendorNotes: '', status: 'active',  
+    
 };
 
 export default function VendorsPage() {
@@ -54,25 +55,21 @@ export default function VendorsPage() {
   const handleSave = async () => {
     try {
       if (editVendor) {
-        const { rateMarketing, rateUtility, rateAuthentication, ...rest } = form;
+        const rest = form;
         const updateData: Record<string, unknown> = { ...rest };
         if (!updateData.password) delete updateData.password;
-        updateData.walletTemplateRates = {
-          marketing: rateMarketing === '' ? null : parseFloat(rateMarketing),
-          utility: rateUtility === '' ? null : parseFloat(rateUtility),
-          authentication: rateAuthentication === '' ? null : parseFloat(rateAuthentication),
-        };
+        
         await adminApi.updateVendor(editVendor._id, updateData);
       } else {
-        if (!form.password) { toast.error('Password is required'); return; }
+        if (!form.password) { toast.error(translateApiMessage("需要密码")); return; }
         await adminApi.createVendor(form);
       }
-      toast.success(editVendor ? 'Vendor updated' : 'Vendor created');
+      toast.success(translateApiMessage(editVendor ? "商户已更新" : "商户已创建"));
       setShowModal(false);
       fetchVendors();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "操作失败"));
     }
   };
 
@@ -80,31 +77,32 @@ export default function VendorsPage() {
     const newStatus = current === 'active' ? 'suspended' : 'active';
     try {
       await adminApi.updateVendor(vendorId, { status: newStatus });
-      toast.success('Status updated');
+      toast.success(translateApiMessage("状态已更新"));
       fetchVendors();
-    } catch { toast.error('Failed'); }
+    } catch { toast.error(translateApiMessage("操作失败")); }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this vendor? This cannot be undone.')) return;
+    if (!confirm("删除该商户？此操作无法撤消。")) return;
     try {
       await adminApi.deleteVendor(id);
-      toast.success('Vendor deleted');
+      toast.success(translateApiMessage("商户已删除"));
       fetchVendors();
-    } catch { toast.error('Failed'); }
+    } catch { toast.error(translateApiMessage("操作失败")); }
   };
 
   const handleLoginAs = async (vendor: Vendor) => {
     try {
       const res = await adminApi.loginAsVendor(vendor._id);
-      const { token, user } = res.data.data;
-      // Open vendor's client panel in new tab with token
-      const url = `/auth/login?token=${token}&name=${encodeURIComponent(user.name)}`;
-      window.open(url, '_blank');
-      toast.success(`Logged in as ${vendor.name}`);
+      const { token } = res.data.data;
+      // ADM-14: hand the token over in a one-time storage key (never in the URL); same tab,
+      // the login page keeps the admin token as adminToken for switching back.
+      localStorage.setItem('impersonateToken', token);
+      toast.success(translateApiMessage(`登录身份 ${vendor.name}`));
+      window.location.assign('/auth/login?impersonate=1');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to login as vendor');
+      toast.error(translateApiMessage(error.response?.data?.message || "无法以商户身份登录"));
     }
   };
 
@@ -114,10 +112,8 @@ export default function VendorsPage() {
       name: v.name, email: v.email, password: '', phone: v.phone || '',
       companyName: v.companyName || '', website: v.website || '',
       address: v.address || '', gstNumber: v.gstNumber || '',
-      vendorNotes: v.vendorNotes || '', status: v.status, walletBillingExempt: v.walletBillingExempt || false, showRateCard: v.showRateCard !== false,
-      rateMarketing: v.walletTemplateRates?.marketing != null ? String(v.walletTemplateRates.marketing) : '',
-      rateUtility: v.walletTemplateRates?.utility != null ? String(v.walletTemplateRates.utility) : '',
-      rateAuthentication: v.walletTemplateRates?.authentication != null ? String(v.walletTemplateRates.authentication) : '',
+      vendorNotes: v.vendorNotes || '', status: v.status,  
+
     });
     setShowModal(true);
   };
@@ -129,7 +125,7 @@ export default function VendorsPage() {
   };
 
   const columns = [
-    { key: 'vendor', title: 'Vendor', render: (v: Vendor) => (
+    { key: 'vendor', title: "商户", render: (v: Vendor) => (
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center text-xs font-semibold text-purple-600">
           <Store className="w-4 h-4" />
@@ -140,39 +136,38 @@ export default function VendorsPage() {
         </div>
       </div>
     )},
-    { key: 'company', title: 'Company', render: (v: Vendor) => (
+    { key: 'company', title: "公司", render: (v: Vendor) => (
       <div>
         <p className="text-sm">{v.companyName || '-'}</p>
         {v.phone && <p className="text-xs text-gray-400">{v.phone}</p>}
       </div>
     )},
-    { key: 'plan', title: 'Plan', render: (v: Vendor) => v.plan?.name || 'Free' },
-    { key: 'status', title: 'Status', render: (v: Vendor) => (
+    
+    { key: 'status', title: "状态", render: (v: Vendor) => (
       <Badge variant={v.status === 'active' ? 'success' : v.status === 'suspended' ? 'danger' : 'default'}>{v.status}</Badge>
     )},
-    { key: 'usage', title: 'Messages (30d)', render: (v: Vendor) => (v.messages30d ?? 0).toLocaleString() },
-    { key: 'wallet', title: 'Wallet', render: (v: Vendor) => `\u20B9${(v.walletBalance || 0).toLocaleString()}` },
-    { key: 'spend', title: 'Total Spend', render: (v: Vendor) => `\u20B9${(v.totalSpend || 0).toLocaleString()}` },
-    { key: 'last', title: 'Last Login', render: (v: Vendor) => v.lastLogin ? new Date(v.lastLogin).toLocaleDateString() : '—' },
-    { key: 'date', title: 'Joined', render: (v: Vendor) => {
+    { key: 'usage', title: "消息（30 天）", render: (v: Vendor) => (v.messages30d ?? 0).toLocaleString() },
+
+    { key: 'last', title: "上次登录", render: (v: Vendor) => v.lastLogin ? new Date(v.lastLogin).toLocaleDateString() : '—' },
+    { key: 'date', title: "已加入", render: (v: Vendor) => {
       const days = Math.floor((Date.now() - new Date(v.createdAt).getTime()) / 86400000);
       return <div><p className="text-sm">{new Date(v.createdAt).toLocaleDateString()}</p><p className="text-xs text-gray-400">{days} day{days === 1 ? '' : 's'} ago</p></div>;
     } },
     { key: 'actions', title: '', render: (v: Vendor) => (
       <div className="flex gap-1">
-        <button onClick={() => router.push(`/admin/vendors/${v._id}`)} className="p-1.5 hover:bg-blue-50 rounded" title="View Details">
+        <button onClick={() => router.push(`/admin/vendors/${v._id}`)} className="p-1.5 hover:bg-blue-50 rounded" title={"查看详情"}>
           <Eye className="w-4 h-4 text-blue-500" />
         </button>
-        <button onClick={() => handleLoginAs(v)} className="p-1.5 hover:bg-emerald-50 rounded" title="Login as this Vendor">
+        <button onClick={() => handleLoginAs(v)} className="p-1.5 hover:bg-emerald-50 rounded" title={"以该商户身份登录"}>
           <LogIn className="w-4 h-4 text-emerald-500" />
         </button>
-        <button onClick={() => openEdit(v)} className="p-1.5 hover:bg-gray-100 rounded" title="Edit">
+        <button onClick={() => openEdit(v)} className="p-1.5 hover:bg-gray-100 rounded" title={"编辑"}>
           <Edit className="w-4 h-4 text-gray-400" />
         </button>
-        <button onClick={() => handleToggleStatus(v._id, v.status)} className="p-1.5 hover:bg-gray-100 rounded" title={v.status === 'active' ? 'Suspend' : 'Activate'}>
+        <button onClick={() => handleToggleStatus(v._id, v.status)} className="p-1.5 hover:bg-gray-100 rounded" title={v.status === 'active' ? "暂停" : "启用"}>
           {v.status === 'active' ? <Ban className="w-4 h-4 text-yellow-500" /> : <CheckCircle className="w-4 h-4 text-emerald-500" />}
         </button>
-        <button onClick={() => handleDelete(v._id)} className="p-1.5 hover:bg-red-50 rounded" title="Delete">
+        <button onClick={() => handleDelete(v._id)} className="p-1.5 hover:bg-red-50 rounded" title={"删除"}>
           <Trash2 className="w-4 h-4 text-red-400" />
         </button>
       </div>
@@ -183,15 +178,15 @@ export default function VendorsPage() {
     <div className="space-y-6">
       <div className="page-hero flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Vendors</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage vendor accounts separately from regular users</p>
+          <h1 className="text-2xl font-bold text-gray-900">商户管理</h1>
+          <p className="text-sm text-gray-500 mt-1">与普通用户分开管理商户账户</p>
         </div>
-        <Button icon={<Plus className="w-4 h-4" />} onClick={openNew}>Add Vendor</Button>
+        <Button icon={<Plus className="w-4 h-4" />} onClick={openNew}>添加商户</Button>
       </div>
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input type="text" autoComplete="off" placeholder="Search vendors by name, email or company..." value={search} onChange={(e) => { setPage(1); setSearch(e.target.value); }}
+        <input type="text" autoComplete="off" placeholder={"按名称、电子邮件或公司搜索商户..."} value={search} onChange={(e) => { setPage(1); setSearch(e.target.value); }}
           className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
       </div>
 
@@ -200,57 +195,38 @@ export default function VendorsPage() {
       {pages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            Showing page {page} of {pages} &middot; {total} vendors total
+            显示页面 {page} of {pages} · {total} 商户总计
           </p>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
+            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>上一页</Button>
             <span className="text-sm font-medium text-gray-700">{page} / {pages}</span>
-            <Button variant="secondary" disabled={page >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))}>Next</Button>
+            <Button variant="secondary" disabled={page >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))}>下一步</Button>
           </div>
         </div>
       )}
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editVendor ? 'Edit Vendor' : 'Add Vendor'}>
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editVendor ? "编辑商户" : "添加商户"}>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-            <Input label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91..." />
+            <Input label={"名称"} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <Input label={"电话"} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91..." />
           </div>
-          <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required disabled={!!editVendor} />
-          <Input label={editVendor ? 'New Password (leave blank to keep)' : 'Password'} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required={!editVendor} />
+          <Input label={"邮箱"} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required disabled={!!editVendor} />
+          <Input label={editVendor ? "新密码（留空保留）" : "密码"} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required={!editVendor} />
           <hr className="border-gray-200" />
-          <Input label="Company Name" value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />
-          <Input label="Website" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://" />
-          <Input label="GST Number" value={form.gstNumber} onChange={(e) => setForm({ ...form, gstNumber: e.target.value })} />
-          <Input label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          <Textarea label="Notes" value={form.vendorNotes} onChange={(e) => setForm({ ...form, vendorNotes: e.target.value })} />
+          <Input label={"公司名称"} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />
+          <Input label={"网站"} value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://" />
+          <Input label={"商品及服务税号"} value={form.gstNumber} onChange={(e) => setForm({ ...form, gstNumber: e.target.value })} />
+          <Input label={"地址"} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          <Textarea label={"注释"} value={form.vendorNotes} onChange={(e) => setForm({ ...form, vendorNotes: e.target.value })} />
           {editVendor && (
-            <Select label="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
-              options={[{ value: 'active', label: 'Active' }, { value: 'suspended', label: 'Suspended' }, { value: 'inactive', label: 'Inactive' }]} />
+            <Select label={"状态"} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
+              options={[{ value: 'active', label: "启用" }, { value: 'suspended', label: "暂停" }, { value: 'inactive', label: "停用" }]} />
           )}
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 p-2 bg-amber-50 rounded border border-amber-200">
-            <input type="checkbox" checked={form.walletBillingExempt} onChange={(e) => setForm({ ...form, walletBillingExempt: e.target.checked })} />
-            No Wallet / Unlimited (no wallet deduction for this customer&apos;s messages)
-          </label>
-          {!form.walletBillingExempt && (
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 p-2 bg-emerald-50 rounded border border-emerald-200">
-              <input type="checkbox" checked={form.showRateCard} onChange={(e) => setForm({ ...form, showRateCard: e.target.checked })} />
-              Show Message Rate Card on this customer&apos;s dashboard
-            </label>
-          )}
-          {editVendor && !form.walletBillingExempt && (
-            <div className="p-3 bg-blue-50 rounded border border-blue-200 space-y-2">
-              <p className="text-sm font-medium text-gray-700">Custom Template Rates (₹) — separate rates for this vendor. Leave blank to use global rates.</p>
-              <div className="grid grid-cols-3 gap-3">
-                <Input label="Marketing" type="number" step="0.01" placeholder="Global" value={form.rateMarketing} onChange={(e) => setForm({ ...form, rateMarketing: e.target.value })} />
-                <Input label="Utility" type="number" step="0.01" placeholder="Global" value={form.rateUtility} onChange={(e) => setForm({ ...form, rateUtility: e.target.value })} />
-                <Input label="Authentication" type="number" step="0.01" placeholder="Global" value={form.rateAuthentication} onChange={(e) => setForm({ ...form, rateAuthentication: e.target.value })} />
-              </div>
-            </div>
-          )}
+
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button onClick={handleSave}>{editVendor ? 'Update' : 'Create Vendor'}</Button>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>取消</Button>
+            <Button onClick={handleSave}>{editVendor ? "更新" : "创建商户"}</Button>
           </div>
         </div>
       </Modal>

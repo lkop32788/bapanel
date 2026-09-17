@@ -4,10 +4,7 @@ const User = require('../models/User');
 const FEATURE_CATALOG = [
   // Main
   { key: 'analytics', label: 'Analytics', path: '/client/analytics', group: 'Main' },
-  { key: 'crm', label: 'Pipeline Board / CRM', path: '/client/pipelines', group: 'Main' },
   { key: 'mediaLibrary', label: 'Media Library', path: '/client/media-library', group: 'Main' },
-  { key: 'ctwaAds', label: 'CTWA Ads', path: '/client/ctwa-ads', group: 'Main' },
-  { key: 'apiAccess', label: 'API & Developers', path: '/client/api-docs', group: 'Main' },
   // Inbox
   { key: 'chat', label: 'WhatsApp Inbox / Chat', path: '/client/chat', group: 'Inbox' },
   { key: 'whatsappQr', label: 'WhatsApp QR Inbox', path: '/client/channels', group: 'Inbox' },
@@ -37,8 +34,6 @@ const FEATURE_CATALOG = [
   { key: 'followups', label: 'AI Follow-ups', path: '/client/followups', group: 'Automation' },
   { key: 'quickReplies', label: 'Quick Replies', path: '/client/quick-replies', group: 'Automation' },
   { key: 'keywords', label: 'Keyword Triggers', path: '/client/keywords', group: 'Automation' },
-  { key: 'appointments', label: 'Appointments', path: '/client/appointments', group: 'Automation' },
-  { key: 'tickets', label: 'Tickets', path: '/client/tickets', group: 'Automation' },
   { key: 'predefinedActions', label: 'Predefined Actions', path: '/client/predefined-actions', group: 'Automation' },
   // AI
   { key: 'aiChatbot', label: 'AI Chatbot', path: '/client/ai-settings', group: 'AI' },
@@ -47,50 +42,24 @@ const FEATURE_CATALOG = [
   // Leads & Commerce
   { key: 'leads', label: 'All Leads / Facebook Leads', path: '/client/leads', group: 'Leads & Commerce' },
   { key: 'forms', label: 'Lead Gen Forms', path: '/client/forms', group: 'Leads & Commerce' },
-  { key: 'ecommerce', label: 'Catalogs / Orders / E-Commerce', path: '/client/catalogs', group: 'Leads & Commerce' },
   { key: 'shortLinks', label: 'Short Links', path: '/client/short-links', group: 'Leads & Commerce' },
   // Settings
   { key: 'teams', label: 'Teams / Agents', path: '/client/teams', group: 'Settings' },
   { key: 'integrations', label: 'Integrations', path: '/client/integrations', group: 'Settings' },
-  { key: 'chatAppearance', label: 'Chat Appearance', path: '/client/chat-appearance', group: 'Settings' },
   { key: 'auditLog', label: 'Audit Log', path: '/client/audit-log', group: 'Settings' },
-  // Add-ons (opt-in: OFF by default; needs a panel store-license + a per-client admin toggle)
+  // Add-ons (opt-in: OFF by default; needs a per-client admin toggle)
   { key: 'igAutoDm', label: 'Instagram Auto DM', path: '/client/instagram-auto-dm', group: 'Add-ons', addon: true },
 ];
 
 const FEATURE_KEYS = FEATURE_CATALOG.map((f) => f.key);
-// Add-on keys are opt-in: hidden/blocked unless both the panel is licensed (store) and the admin enables it.
+// Add-ons remain opt-in through the administrator's per-client feature controls.
 const ADDON_KEYS = new Set(FEATURE_CATALOG.filter((f) => f.addon).map((f) => f.key));
 
-// Add-ons the store licenses through its own feature-lock keys (lock value 1 = not licensed).
-const STORE_LOCK_KEYS = { smartBroadcast: 'smart_broadcast' };
-
-// Add-ons the store alone controls, keyed on the panel's own (domain-specific) store locks:
-// licensed only when the store explicitly unlocks them, so a missing lock keeps the add-on off.
-const STRICT_STORE_LOCK_KEYS = { igAutoDm: 'instagram_auto_dm' };
-
-// Panel-level add-on license (controlled by the store via SystemSettings.addons or its feature locks).
-// Missing = not licensed.
-const getPanelAddons = async () => {
-  if (!ADDON_KEYS.size) return {};
-  try {
-    const SystemSettings = require('../models/SystemSettings');
-    const st = await SystemSettings.findOne().select('addons kkhsFeatureLocks kkhsAddonLocks').lean();
-    const addons = { ...((st && st.addons) || {}) };
-    const locks = (st && st.kkhsFeatureLocks) || {};
-    const addonLocks = (st && st.kkhsAddonLocks) || {};
-    for (const [key, lockKey] of Object.entries(STORE_LOCK_KEYS)) {
-      if (addons[key] === undefined) addons[key] = locks[lockKey] !== 1;
-    }
-    for (const [key, lockKey] of Object.entries(STRICT_STORE_LOCK_KEYS)) {
-      addons[key] = addonLocks[lockKey] === 0;
-    }
-    return addons;
-  } catch { return {}; }
-};
+// No store license or cached remote lock is required for panel add-ons.
+const getPanelAddons = async () => Object.fromEntries([...ADDON_KEYS].map((key) => [key, true]));
 
 // Resolves the effective feature map for a workspace owner.
-// Normal features: missing key = enabled. Add-ons: enabled only when licensed AND admin-enabled.
+// Normal features: missing key = enabled. Add-ons: enabled only when admin-enabled.
 const getOwnerFeatures = async (ownerId) => {
   const owner = await User.findById(ownerId).select('featureOverrides').lean();
   const overrides = (owner && owner.featureOverrides) || {};

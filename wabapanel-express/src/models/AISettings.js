@@ -26,12 +26,9 @@ const aiSettingsSchema = new mongoose.Schema({
   features: {
     voiceToText: { type: Boolean, default: false },
     voiceReplyVoice: { type: String, enum: ['openai', 'calling_agent'], default: 'openai' },
-    leadScoring: { type: Boolean, default: false },
     autoSummary: { type: Boolean, default: false },
     sentiment: { type: Boolean, default: false },
     autoTranslate: { type: Boolean, default: false },
-    autoTicket: { type: Boolean, default: false },
-    ticketKeywords: { type: [String], default: ['complaint', 'refund', 'problem', 'issue', 'not working'] },
   },
   targetingRules: {
     mode: { type: String, enum: ['all', 'selected'], default: 'all' },

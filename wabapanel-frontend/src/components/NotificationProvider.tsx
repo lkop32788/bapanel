@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { getSocket } from '@/lib/socket';
 import { pushApi } from '@/lib/api';
+import useBranding from '@/lib/useBranding';
 
 interface IncomingMsg {
   message?: { direction?: string; text?: string; type?: string };
@@ -33,6 +34,10 @@ function playTone() {
 
 export default function NotificationProvider() {
   const lastPlayed = useRef(0);
+  const brand = useBranding();
+  const icon = brand.appIcon || brand.favicon || brand.logo || '/favicon.ico';
+  // Every notification carries the panel's own name, never a generic sender.
+  const titled = (text: string) => (brand.name ? `${brand.name} — ${text}` : text);
 
   useEffect(() => {
     const registerPush = async () => {
@@ -76,7 +81,7 @@ export default function NotificationProvider() {
         if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
           const body = msg.text ? msg.text.slice(0, 120) : `New ${msg.type || 'message'} received`;
           try {
-            const n = new Notification('New WhatsApp message', { body, icon: '/favicon.ico', tag: data.conversationId || 'wabapanel' });
+            const n = new Notification(titled('New WhatsApp message'), { body, icon, tag: data.conversationId || 'wabapanel' });
             n.onclick = () => { window.focus(); window.location.href = '/client/chat?channel=whatsapp'; };
           } catch { /* ignore */ }
         }
@@ -85,7 +90,7 @@ export default function NotificationProvider() {
       const onCampaignFailed = (data: { name?: string; error?: string }) => {
         playTone();
         if ('Notification' in window && Notification.permission === 'granted') {
-          try { new Notification('Campaign failed', { body: `${data?.name || 'Campaign'}: ${data?.error || 'send failed'}`, icon: '/favicon.ico' }); } catch { /* ignore */ }
+          try { new Notification(titled('Campaign failed'), { body: `${data?.name || 'Campaign'}: ${data?.error || 'send failed'}`, icon }); } catch { /* ignore */ }
         }
       };
 
@@ -94,37 +99,17 @@ export default function NotificationProvider() {
         if ('Notification' in window && Notification.permission === 'granted') {
           const who = data?.contact?.name || data?.contact?.phone || 'customer';
           try {
-            const n = new Notification('Reminder: ' + who, { body: data?.text || '', icon: '/favicon.ico' });
+            const n = new Notification(titled('Reminder: ' + who), { body: data?.text || '', icon });
             n.onclick = () => { window.focus(); window.location.href = '/client/chat?channel=whatsapp'; };
           } catch { /* ignore */ }
         }
       };
-      const onPaymentPaid = (data: { amount?: number }) => {
-        playTone();
-        if ('Notification' in window && Notification.permission === 'granted') {
-          try {
-            const n = new Notification('Payment received', { body: `Payment link of \u20B9${data?.amount || ''} has been paid`, icon: '/favicon.ico' });
-            n.onclick = () => { window.focus(); window.location.href = '/client/chat?channel=whatsapp'; };
-          } catch { /* ignore */ }
-        }
-      };
-      const onTicketUpdate = (data: { title?: string; body?: string; ticketNumber?: string }) => {
-        playTone();
-        if ('Notification' in window && Notification.permission === 'granted') {
-          try {
-            const n = new Notification(data?.title || 'Support ticket update', { body: `${data?.ticketNumber ? data.ticketNumber + ': ' : ''}${data?.body || ''}`, icon: '/favicon.ico' });
-            n.onclick = () => { window.focus(); window.location.href = '/client/support'; };
-          } catch { /* ignore */ }
-        }
-      };
-      socket.on('support_ticket_update', onTicketUpdate);
-      socket.on('payment_link_paid', onPaymentPaid);
+
       socket.on('reminder_due', onReminder);
       socket.on('new_message', onNewMessage);
       socket.on('campaign_failed', onCampaignFailed);
       detach = () => {
-        socket.off('support_ticket_update', onTicketUpdate);
-        socket.off('payment_link_paid', onPaymentPaid);
+
         socket.off('reminder_due', onReminder);
         socket.off('new_message', onNewMessage);
         socket.off('campaign_failed', onCampaignFailed);
@@ -137,7 +122,7 @@ export default function NotificationProvider() {
       return () => { clearInterval(iv); if (detach) detach(); };
     }
     return () => { if (detach) detach(); };
-  }, []);
+  }, [icon]);
 
   return null;
 }

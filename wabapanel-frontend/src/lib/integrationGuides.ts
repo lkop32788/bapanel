@@ -9,235 +9,127 @@ export interface IntegrationGuide {
 }
 
 export const INTEGRATION_GUIDES: Record<string, IntegrationGuide> = {
-  'google-calendar': {
-    keysUrl: 'https://console.cloud.google.com/',
-    steps: [
-      'Google Cloud Console → create/select a project.',
-      'APIs & Services → Library → enable "Google Calendar API".',
-      'APIs & Services → Credentials → Create credentials → Service account → create it.',
-      'Open the service account → Keys → Add key → JSON → download the file.',
-      'In Google Calendar → your calendar → Settings → Share with the service account email (Make changes to events).',
-      'Copy the Calendar ID from calendar Settings ("Integrate calendar").',
-      'Paste the full JSON here in "Service Account JSON Key" and the Calendar ID, then Connect.',
-    ],
-  },
   'google-sheets': {
     keysUrl: 'https://console.cloud.google.com/',
     steps: [
-      'Google Cloud Console → create/select a project.',
-      'APIs & Services → Library → enable "Google Sheets API".',
-      'Credentials → Create credentials → Service account → open it → Keys → Add key → JSON → download.',
-      'Open the downloaded JSON and copy the "client_email" value (it ends with ...iam.gserviceaccount.com — this is NOT your Gmail).',
-      'Open your Google Sheet → Share → paste that service account (client_email) → give Editor access → Send. (Sharing with your own Gmail will NOT work.)',
-      'Copy the Sheet ID from the URL: docs.google.com/spreadsheets/d/<SHEET_ID>/edit',
-      'Paste the JSON and Sheet ID here, then Connect. If you get "caller does not have permission", the sheet is not shared with the client_email above.',
+      "Google Cloud Console → 创建/选择一个项目。",
+      "API 和服务 → 库 → 启用“Google Sheets API”。",
+      "凭证 → 创建凭证 → 服务账户 → 打开它 → 密钥 → 添加密钥 → JSON → 下载。",
+      "打开下载的 JSON 并复制“client_email”值（以 ...iam.gserviceaccount.com 结尾 — 这不是您的 Gmail）。",
+      "打开您的 Google 表格 → 共享 → 粘贴该服务账户 (client_email) → 授予编辑器访问权限 → 发送。 （无法与您自己的 Gmail 共享。）",
+      "从以下网址复制工作表 ID：docs.google.com/spreadsheets/d/<SHEET_ID>/edit",
+      "将 JSON 和工作表 ID 粘贴到此处，然后进行连接。如果您收到“呼叫者没有权限”，则该工作表不会与上面的 client_email 共享。",
     ],
-  },
-  shopify: {
-    keysUrl: 'https://admin.shopify.com/',
-    steps: [
-      'Shopify admin → Settings → Apps and sales channels → Develop apps.',
-      'Click "Allow custom app development" (one-time), then "Create an app".',
-      'Open the app → Configuration → Admin API integration → enable scopes: read_orders, read_customers, read_products.',
-      'API credentials tab → Install app → reveal the "Admin API access token" (starts with shpat_).',
-      'Store URL = your *.myshopify.com domain (NOT your custom domain like www.yoursite.com).',
-      'Paste the myshopify Store URL and the shpat_ token here, then Connect.',
-    ],
-    note: 'Use the Admin API access token (shpat_...), not the API secret key (shpss_). Store URL must be the *.myshopify.com host.',
-  },
-  woocommerce: {
-    keysUrl: '',
-    steps: [
-      'WordPress admin → WooCommerce → Settings → Advanced → REST API.',
-      'Click "Add key" → Description any → Permissions: Read → Generate API key.',
-      'Copy the Consumer key (ck_...) and Consumer secret (cs_...).',
-      'Store URL = your site root, e.g. https://yourstore.com (WooCommerce/WordPress must be reachable).',
-      'Paste Store URL, Consumer Key and Consumer Secret here, then Connect.',
-    ],
-    note: 'Pretty permalinks must be enabled (Settings → Permalinks) so the /wp-json REST API works.',
   },
   hubspot: {
     keysUrl: 'https://app.hubspot.com/',
     steps: [
-      'HubSpot → Settings (gear) → Integrations → Private Apps.',
-      'Create a private app → Scopes → enable crm.objects.contacts (read/write).',
-      'Create the app → copy the access token (starts with pat-).',
-      'Paste the token here, then Connect.',
+      "HubSpot → 设置（齿轮）→ 集成 → 私人应用程序。",
+      "创建私有应用程序 → 范围 → 启用 crm.objects.contacts（读/写）。",
+      "创建应用程序 → 复制访问令牌（以 pat- 开头）。",
+      "将令牌粘贴到此处，然后连接。",
     ],
   },
   mailchimp: {
     keysUrl: 'https://admin.mailchimp.com/account/api/',
     steps: [
-      'Mailchimp → Account → Extras → API keys.',
-      'Create a key and copy it — it ends with a data-center suffix like -us21.',
-      'Paste the full key (including the -usXX part) here, then Connect.',
+      "Mailchimp → 账户 → 附加 → API 密钥。",
+      "创建一个密钥并复制它 - 它以数据中心后缀（如 -us21）结尾。",
+      "将完整密钥（包括 -usXX 部分）粘贴到此处，然后连接。",
     ],
-    note: 'The key MUST include its data center suffix (e.g. ...-us21), otherwise it will not connect.',
-  },
-  razorpay: {
-    keysUrl: 'https://dashboard.razorpay.com/app/keys',
-    steps: [
-      'Razorpay Dashboard → Settings → API Keys → Generate Key.',
-      'Copy the Key ID (rzp_live_... or rzp_test_...) and Key Secret (shown once).',
-      'Paste Key ID and Key Secret here, then Connect.',
-      '(Optional) For payment auto-delivery add a webhook in Razorpay → Settings → Webhooks.',
-    ],
-  },
-  stripe: {
-    keysUrl: 'https://dashboard.stripe.com/apikeys',
-    steps: [
-      'Stripe Dashboard → Developers → API keys.',
-      'Copy the Secret key (sk_live_... or sk_test_...).',
-      'Paste the Secret key here, then Connect.',
-    ],
+    note: "密钥必须包含其数据中心后缀（例如...-us21），否则它将无法连接。",
   },
   'google-analytics': {
     keysUrl: 'https://analytics.google.com/',
     steps: [
-      'Google Analytics → Admin → Data Streams → open your web stream.',
-      'Copy the Measurement ID (G-XXXXXXXXXX).',
-      'Paste it here, then Connect.',
+      "Google Analytics → 管理 → 数据流 → 打开您的网络流。",
+      "复制测量 ID (G-XXXXXXXXXX)。",
+      "将其粘贴到此处，然后连接。",
     ],
   },
   webhook: {
     steps: [
-      'Get the URL on your server that should receive events.',
-      'Paste it here as the Webhook URL, then Connect.',
-      'We will POST JSON payloads to this URL on panel events.',
+      "获取服务器上应接收事件的 URL。",
+      "将其粘贴到此处作为 Webhook URL，然后连接。",
+      "我们将在面板事件上将 JSON 有效负载 POST 到此 URL。",
     ],
   },
   zapier: {
     keysUrl: 'https://zapier.com/app/zaps',
     steps: [
-      'Zapier → Create Zap → Trigger: "Webhooks by Zapier" → Catch Hook.',
-      'Copy the custom webhook URL Zapier gives you.',
-      'Paste it here, then Connect.',
+      "Zapier → 创建 Zap → 触发器：“Zapier 的 Webhooks”→ Catch Hook。",
+      "复制 Zapier 为您提供的自定义 Webhook URL。",
+      "将其粘贴到此处，然后连接。",
     ],
   },
   make: {
     keysUrl: 'https://www.make.com/',
     steps: [
-      'Make → new scenario → add "Webhooks → Custom webhook" module.',
-      'Copy the generated webhook URL.',
-      'Paste it here, then Connect.',
+      "制作 → 新场景 → 添加“Webhooks → 自定义 webhook”模块。",
+      "复制生成的 Webhook URL。",
+      "将其粘贴到此处，然后连接。",
     ],
   },
   pabbly: {
     keysUrl: 'https://connect.pabbly.com/',
     steps: [
-      'Pabbly Connect → new workflow → Trigger: Webhook.',
-      'Copy the webhook URL.',
-      'Paste it here, then Connect.',
+      "Pabbly Connect → 新工作流程 → 触发器：Webhook。",
+      "复制 Webhook URL。",
+      "将其粘贴到此处，然后连接。",
     ],
   },
   n8n: {
     steps: [
-      'n8n → new workflow → add a "Webhook" node → copy its Production URL.',
-      'Paste it here, then Connect.',
+      "n8n → 新工作流程 → 添加“Webhook”节点 → 复制其生产 URL。",
+      "将其粘贴到此处，然后连接。",
     ],
   },
   ifttt: {
     keysUrl: 'https://ifttt.com/maker_webhooks',
     steps: [
-      'IFTTT → Webhooks service → Documentation → copy your key.',
-      'Build the URL: https://maker.ifttt.com/trigger/{event}/with/key/{your_key}',
-      'Paste it here, then Connect.',
-    ],
-  },
-  calendly: {
-    keysUrl: 'https://calendly.com/integrations/api_webhooks',
-    steps: [
-      'Calendly → Integrations → API & Webhooks → Personal access tokens.',
-      'Generate a token and copy it.',
-      'Paste it here, then Connect.',
+      "IFTTT → Webhooks 服务 → 文档 → 复制您的密钥。",
+      "构建 URL：https://maker.ifttt.com/trigger/{event}/with/key/{your_key}",
+      "将其粘贴到此处，然后连接。",
     ],
   },
   salesforce: {
     keysUrl: 'https://login.salesforce.com/',
     steps: [
-      'Salesforce → Setup → App Manager → New Connected App (enable OAuth).',
-      'Generate/obtain an OAuth access token for the API user.',
-      'Instance URL = https://yourorg.my.salesforce.com',
-      'Paste Instance URL and Access Token here, then Connect.',
+      "Salesforce → 设置 → 应用程序管理器 → 新连接的应用程序（启用 OAuth）。",
+      "为 API 用户生成/获取 OAuth 访问令牌。",
+      "实例 URL = https://yourorg.my.salesforce.com",
+      "将实例 URL 和访问令牌粘贴到此处，然后连接。",
     ],
   },
   'zoho-crm': {
     keysUrl: 'https://api-console.zoho.com/',
     steps: [
-      'Zoho API Console → Self Client → generate an OAuth access token with ZohoCRM scope.',
-      'API Domain = https://www.zohoapis.com (or .in / .eu for your region).',
-      'Paste the Access Token and API Domain here, then Connect.',
+      "Zoho API 控制台 → 自客户端 → 生成具有 ZohoCRM 范围的 OAuth 访问令牌。",
+      "API 域 = https://www.zohoapis.com（或您所在地区的 .in / .eu）。",
+      "将访问令牌和 API 域粘贴到此处，然后连接。",
     ],
   },
   pipedrive: {
     keysUrl: 'https://app.pipedrive.com/settings/api',
     steps: [
-      'Pipedrive → Settings → Personal preferences → API → copy your API token.',
-      'Company Domain = the part before .pipedrive.com (e.g. "yourcompany").',
-      'Paste the API token and Company Domain here, then Connect.',
+      "Pipedrive → 设置 → 个人偏好 → API → 复制您的 API 令牌。",
+      "公司域 = .pipedrive.com 之前的部分（例如“yourcompany”）。",
+      "将 API 令牌和公司域粘贴到此处，然后进行连接。",
     ],
   },
   bitrix24: {
     steps: [
-      'Bitrix24 → Developer resources → Other → Inbound webhook.',
-      'Give it CRM permissions and copy the generated URL.',
-      'Paste it here, then Connect.',
-    ],
-  },
-  paypal: {
-    keysUrl: 'https://developer.paypal.com/dashboard/applications/live',
-    steps: [
-      'PayPal Developer Dashboard → Apps & Credentials → Live → Create App.',
-      'Copy the Client ID and Client Secret.',
-      'Paste Client ID and Client Secret here, then Connect.',
-    ],
-  },
-  paytm: {
-    keysUrl: 'https://dashboard.paytm.com/',
-    steps: [
-      'Paytm Business Dashboard → Developer Settings → API Keys.',
-      'Copy the Merchant ID (MID) and Merchant Key.',
-      'Paste MID and Merchant Key here, then Connect.',
-    ],
-  },
-  phonepe: {
-    keysUrl: 'https://business.phonepe.com/',
-    steps: [
-      'PhonePe Business → Developer settings.',
-      'Copy the Merchant ID, Salt Key and Salt Index.',
-      'Paste all three here, then Connect.',
-    ],
-  },
-  cashfree: {
-    keysUrl: 'https://merchant.cashfree.com/merchants/developers',
-    steps: [
-      'Cashfree Dashboard → Developers → API Keys.',
-      'Copy the App ID and Secret Key.',
-      'Paste App ID and Secret Key here, then Connect.',
-    ],
-  },
-  paystack: {
-    keysUrl: 'https://dashboard.paystack.com/#/settings/developers',
-    steps: [
-      'Paystack Dashboard → Settings → API Keys & Webhooks.',
-      'Copy the Secret Key (sk_live_...).',
-      'Paste it here, then Connect.',
-    ],
-  },
-  mercadopago: {
-    keysUrl: 'https://www.mercadopago.com/developers/panel',
-    steps: [
-      'Mercado Pago Developers → your app → Credentials.',
-      'Copy the Access Token (APP_USR-...).',
-      'Paste it here, then Connect.',
+      "Bitrix24 → 开发人员资源 → 其他 → 入站 webhook。",
+      "授予其 CRM 权限并复制生成的 URL。",
+      "将其粘贴到此处，然后连接。",
     ],
   },
   openai: {
     keysUrl: 'https://platform.openai.com/api-keys',
     steps: [
-      'OpenAI Platform → API keys → Create new secret key → copy it (sk-...).',
-      'Paste the API key here.',
-      '(Optional) For a custom GPT server, add the Endpoint URL and Model, then Connect.',
+      "OpenAI Platform → API 密钥 → 创建新的密钥 → 复制它 (sk-...)。",
+      "将 API 密钥粘贴到此处。",
+      "（可选）对于自定义 GPT 服务器，添加端点 URL 和模型，然后添加连接。",
     ],
   },
 };

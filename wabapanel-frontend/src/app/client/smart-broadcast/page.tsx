@@ -1,4 +1,6 @@
 'use client';
+import { translateDisplay } from '@/lib/zhDisplay';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Zap, Plus, Trash2, RefreshCw, Send, AlertTriangle, FileText, BarChart3, Pencil, Upload, Square } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -123,8 +125,8 @@ export default function SmartBroadcastPage() {
   }, [tab, reports]);
 
   const stopCampaign = async (id: string) => {
-    try { await smartBroadcastApi.stopCampaign(id); toast.success('Campaign stopped'); loadReports(); }
-    catch { toast.error('Stop failed'); }
+    try { await smartBroadcastApi.stopCampaign(id); toast.success(translateApiMessage("活动已停止")); loadReports(); }
+    catch { toast.error(translateApiMessage("停止失败")); }
   };
 
   const approvedTemplates = templates.filter((t) => t.status === 'approved');
@@ -182,8 +184,8 @@ export default function SmartBroadcastPage() {
       const url = res.data?.data?.url || res.data?.url || '';
       if (target === 'template') setForm((f) => ({ ...f, headerMediaUrl: url }));
       else setSendForm((f) => ({ ...f, headerMediaUrl: url }));
-      toast.success('Uploaded');
-    } catch { toast.error('Upload failed'); }
+      toast.success(translateApiMessage("已上传"));
+    } catch { toast.error(translateApiMessage("上传失败")); }
     setUploading(false);
     e.target.value = '';
   };
@@ -192,15 +194,15 @@ export default function SmartBroadcastPage() {
     setForm((f) => ({ ...f, buttons: f.buttons.map((b, j) => (j === i ? { ...b, ...patch } : b)) }));
 
   const saveTemplate = async () => {
-    if (!form.name || !form.body) { toast.error('Name and body are required'); return; }
+    if (!form.name || !form.body) { toast.error(translateApiMessage("姓名和正文为必填项")); return; }
     if (['image', 'video', 'document'].includes(form.headerType) && !form.headerMediaUrl) {
-      toast.error('Upload the header media or paste its URL'); return;
+      toast.error(translateApiMessage("上传标题媒体或粘贴其 URL")); return;
     }
     let buttons = form.buttons.filter((b) => b.text);
     // Opt-out “Stop” quick-reply button: add if requested and not already present.
     if (form.optOutButton && !buttons.some(isStopButton)) {
-      if (buttons.length >= 3) { toast.error('Remove a button first — max 3 buttons (opt-out Stop needs one slot)'); return; }
-      buttons = [...buttons, { type: 'quick_reply', text: 'Stop', value: '' }];
+      if (buttons.length >= 3) { toast.error(translateApiMessage("首先删除一个按钮 - 最多 3 个按钮（选择退出停止需要一个插槽）")); return; }
+      buttons = [...buttons, { type: 'quick_reply', text: "停止", value: '' }];
     }
     // Opt-out footer line (Meta footer max 60 chars).
     let footer = form.footer || '';
@@ -220,26 +222,26 @@ export default function SmartBroadcastPage() {
       };
       if (editingId) await smartBroadcastApi.updateTemplate(editingId, payload);
       else await smartBroadcastApi.createTemplate(payload);
-      toast.success('Submitted to Meta — approval pending');
+      toast.success(translateApiMessage("已提交给 Meta — 等待批准"));
       setShowCreate(false);
       load();
     } catch (e) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to submit';
-      toast.error(msg);
+      toast.error(translateApiMessage(msg));
       load();
     }
     setSavingTpl(false);
   };
 
   const deleteTemplate = async (id: string) => {
-    if (!confirm('Delete this smart template?')) return;
-    try { await smartBroadcastApi.deleteTemplate(id); toast.success('Deleted'); load(); }
-    catch { toast.error('Delete failed'); }
+    if (!confirm("删除此智能模板？")) return;
+    try { await smartBroadcastApi.deleteTemplate(id); toast.success(translateApiMessage("已删除")); load(); }
+    catch { toast.error(translateApiMessage("删除失败")); }
   };
 
   const send = async () => {
-    if (!sendForm.templateId) { toast.error('Select an approved template'); return; }
-    if ((selectedTemplate?.smartVarCount ?? 0) > 0 && !sendForm.message.trim()) { toast.error('Write your message'); return; }
+    if (!sendForm.templateId) { toast.error(translateApiMessage("选择批准的模板")); return; }
+    if ((selectedTemplate?.smartVarCount ?? 0) > 0 && !sendForm.message.trim()) { toast.error(translateApiMessage("写下您的信息")); return; }
     const numbers = sendForm.numbersText.split(/[\s,;|]+/).map((n) => n.replace(/\D/g, '')).filter((n) => n.length >= 10);
     setSending(true);
     try {
@@ -254,13 +256,13 @@ export default function SmartBroadcastPage() {
         targetNumbers: sendForm.targetType === 'numbers' ? numbers : [],
         senderNumberId: sendForm.senderNumberId || '',
       });
-      toast.success('Smart broadcast started');
+      toast.success(translateApiMessage("智能直播启动"));
       setVarVals(Array((selectedTemplate?.smartVarCount ?? 0)).fill(''));
       setSendForm({ ...sendForm, name: '', message: '', numbersText: '', headerMediaUrl: '' });
       setTab('reports');
     } catch (e) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Send failed';
-      toast.error(msg);
+      toast.error(translateApiMessage(msg));
     }
     setSending(false);
   };
@@ -279,8 +281,8 @@ export default function SmartBroadcastPage() {
     <div className="p-6">
       <div className="page-hero mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Zap className="w-6 h-6" /> Smart Broadcast</h1>
-          <p className="text-sm mt-1">Send using approved utility templates — you write the message, the panel fills the template variables at send time.</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Zap className="w-6 h-6" /> 智能广播</h1>
+          <p className="text-sm mt-1">使用批准的实用模板发送 - 您编写消息，面板在发送时填充模板变量。</p>
         </div>
         <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4" /></Button>
       </div>
@@ -289,11 +291,11 @@ export default function SmartBroadcastPage() {
         <div className="flex items-start gap-2">
           <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
           <div>
-            <b>Advanced feature — use responsibly.</b> Meta may re-categorize, pause or restrict a template/number if content does not match the utility category. The sending WhatsApp number carries this risk. Send slowly, keep opt-outs, and stop if a template is paused.
+            <b>高级功能——负责任地使用。</b> 如果内容与实用程序类别不匹配，则元可以重新分类、暂停或限制模板/编号。发送 WhatsApp 号码会带来这种风险。缓慢发送，保持选择退出，并在模板暂停时停止。
             {!acknowledged && (
               <label className="mt-2 flex items-center gap-2 font-medium cursor-pointer">
                 <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} />
-                I understand the risk and take responsibility for my messages.
+                我了解风险并对我的消息负责。
               </label>
             )}
           </div>
@@ -301,26 +303,26 @@ export default function SmartBroadcastPage() {
       </div>
 
       <div className="flex gap-2 mb-5">
-        <TabBtn id="templates" label="Utility Templates" icon={<FileText className="w-4 h-4" />} />
-        <TabBtn id="send" label="New Campaign" icon={<Send className="w-4 h-4" />} />
-        <TabBtn id="reports" label="Reports" icon={<BarChart3 className="w-4 h-4" />} />
+        <TabBtn id="templates" label={"实用模板"} icon={<FileText className="w-4 h-4" />} />
+        <TabBtn id="send" label={"新活动"} icon={<Send className="w-4 h-4" />} />
+        <TabBtn id="reports" label={"报告"} icon={<BarChart3 className="w-4 h-4" />} />
       </div>
 
       {tab === 'templates' && (
         <div>
           <div className="flex justify-end mb-3">
-            <Button onClick={openCreate} disabled={!acknowledged}><Plus className="w-4 h-4 mr-1" /> New Utility Template</Button>
+            <Button onClick={openCreate} disabled={!acknowledged}><Plus className="w-4 h-4 mr-1" /> 新实用程序模板</Button>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-gray-500">
-                <tr><th className="p-3">Name</th><th className="p-3">Variables</th><th className="p-3">Header</th><th className="p-3">Status</th><th className="p-3">Reason</th><th className="p-3"></th></tr>
+                <tr><th className="p-3">名称</th><th className="p-3">变量</th><th className="p-3">标头</th><th className="p-3">状态</th><th className="p-3">原因</th><th className="p-3"></th></tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="p-6 text-center text-gray-400">Loading…</td></tr>
+                  <tr><td colSpan={6} className="p-6 text-center text-gray-400">加载中…</td></tr>
                 ) : templates.length === 0 ? (
-                  <tr><td colSpan={6} className="p-6 text-center text-gray-400">No smart templates yet. Create one and submit to Meta.</td></tr>
+                  <tr><td colSpan={6} className="p-6 text-center text-gray-400">还没有智能模板。创建一个并提交给 Meta。</td></tr>
                 ) : templates.map((t) => (
                   <tr key={t._id} className="border-t border-gray-100">
                     <td className="p-3 font-medium">{t.name}</td>
@@ -329,7 +331,7 @@ export default function SmartBroadcastPage() {
                     <td className="p-3"><Badge variant={statusColor(t.status)}>{t.status}</Badge></td>
                     <td className="p-3 text-xs text-gray-500 max-w-xs truncate">{t.rejectionReason || '—'}</td>
                     <td className="p-3 text-right whitespace-nowrap">
-                      <button onClick={() => openEdit(t)} disabled={!acknowledged} className="text-gray-500 hover:text-gray-800 mr-3" title="Edit & resubmit"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => openEdit(t)} disabled={!acknowledged} className="text-gray-500 hover:text-gray-800 mr-3" title={"编辑并重新提交"}><Pencil className="w-4 h-4" /></button>
                       <button onClick={() => deleteTemplate(t._id)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
                     </td>
                   </tr>
@@ -344,115 +346,115 @@ export default function SmartBroadcastPage() {
         <div className="grid gap-5 lg:grid-cols-2 items-start">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             {approvedTemplates.length === 0 ? (
-              <p className="text-sm text-gray-500">No approved utility templates yet. Create one in the <b>Utility Templates</b> tab and wait for Meta approval.</p>
+              <p className="text-sm text-gray-500">尚未获得批准的实用程序模板。创建一个在 <b>实用模板</b> 选项卡并等待元批准。</p>
             ) : (
               <div className="space-y-4">
-                <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Campaign name (optional)"
+                <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={"活动名称（可选）"}
                   value={sendForm.name} onChange={(e) => setSendForm({ ...sendForm, name: e.target.value })} />
                 <div>
-                  <label className="block text-sm font-medium mb-1">Approved Template</label>
+                  <label className="block text-sm font-medium mb-1">批准的模板</label>
                   <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={sendForm.templateId} onChange={(e) => selectTemplate(e.target.value)}>
-                    <option value="">Select template…</option>
-                    {approvedTemplates.map((t) => <option key={t._id} value={t._id}>{t.name} ({t.smartVarCount} fields)</option>)}
+                    <option value="">选择模板...</option>
+                    {approvedTemplates.map((t) => <option key={t._id} value={t._id}>{translateDisplay(t.name)} ({translateDisplay(t.smartVarCount)} 字段）</option>)}
                   </select>
                 </div>
                 {selectedTemplate && !['image', 'video', 'document'].includes(selectedTemplate.header?.type || '') && (
-                  <p className="text-xs text-gray-400">This template was approved without a media header, so media cannot be attached at send time. To send media, create/edit a template with an Image/Video/Document header.</p>
+                  <p className="text-xs text-gray-400">该模板在没有媒体标头的情况下获得批准，因此无法在发送时附加媒体。要发送媒体，请创建/编辑带有图像/视频/文档标题的模板。</p>
                 )}
                 {selectedTemplate && ['image', 'video', 'document'].includes(selectedTemplate.header?.type || '') && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">Header {selectedTemplate.header?.type} (this send)</label>
+                    <label className="block text-sm font-medium mb-1">标头 {translateDisplay(selectedTemplate.header?.type)} （本次发送）</label>
                     <div className="flex gap-2 items-center">
-                      <input className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Media URL (default: template media)"
+                      <input className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={"媒体 URL（默认：模板媒体）"}
                         value={sendForm.headerMediaUrl} onChange={(e) => setSendForm({ ...sendForm, headerMediaUrl: e.target.value })} />
                       <label className="cursor-pointer inline-flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-                        <Upload className="w-4 h-4" /> {uploading ? '…' : 'Upload'}
+                        <Upload className="w-4 h-4" /> {uploading ? '…' : "上传"}
                         <input type="file" className="hidden" accept={selectedTemplate.header?.type === 'image' ? 'image/*' : selectedTemplate.header?.type === 'video' ? 'video/*' : '*'} onChange={(e) => uploadMedia(e, 'send')} />
                       </label>
                     </div>
                   </div>
                 )}
                 {!selectedTemplate && (
-                  <p className="text-xs text-gray-400">Select an approved template above to fill its variables.</p>
+                  <p className="text-xs text-gray-400">选择上面批准的模板来填充其变量。</p>
                 )}
                 {selectedTemplate && (selectedTemplate.smartVarCount ?? 0) < 1 && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">Message</label>
-                    <p className="text-xs text-gray-500 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">This template has no variables — its approved formatted text is sent exactly as-is. Nothing to fill.</p>
+                    <label className="block text-sm font-medium mb-1">留言</label>
+                    <p className="text-xs text-gray-500 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">该模板没有变量 - 其批准的格式化文本完全按原样发送。没什么可填的。</p>
                   </div>
                 )}
                 {selectedTemplate && (selectedTemplate.smartVarCount ?? 0) > 0 && (
                   <div className="space-y-3">
-                    <label className="block text-sm font-medium">Fill template variables</label>
+                    <label className="block text-sm font-medium">填充模板变量</label>
                     {Array.from({ length: selectedTemplate.smartVarCount }, (_, i) => {
                       const n = i + 1;
                       const ctx = varContext(selectedTemplate.body, n);
                       return (
                         <div key={n}>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Variable {`{{${n}}}`}{ctx ? <span className="text-gray-400 font-normal"> — “{ctx}”</span> : null}</label>
-                          <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={`Value for {{${n}}}`}
+                          <label className="block text-xs font-medium text-gray-600 mb-1">变量 {`{{${n}}}`}{ctx ? <span className="text-gray-400 font-normal"> — “{ctx}”</span> : null}</label>
+                          <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={`的值{{${n}}}`}
                             value={varVals[i] || ''} onChange={(e) => setVar(i, e.target.value)} />
                         </div>
                       );
                     })}
-                    <p className="text-xs text-gray-400">Each value fills the matching placeholder in the approved template. Values must be single-line (Meta strips line breaks inside a variable).</p>
+                    <p className="text-xs text-gray-400">每个值都会填充已批准模板中的匹配占位符。值必须是单行（元会去除变量内的换行符）。</p>
                     <p className={`text-xs font-medium ${filledLength > 1024 ? 'text-red-600' : 'text-gray-400'}`}>
-                      {filledLength} / 1024 characters (template + values){filledLength > 1024 ? ` — too long, shorten by ${filledLength - 1024}` : ''}
+                      {filledLength} / 1024 个字符（模板 + 值）{filledLength > 1024 ? ` — 太长，缩短 ${filledLength - 1024}` : ''}
                     </p>
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-medium mb-1">Audience</label>
+                  <label className="block text-sm font-medium mb-1">观众</label>
                   <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={sendForm.targetType} onChange={(e) => setSendForm({ ...sendForm, targetType: e.target.value })}>
-                    <option value="all">All contacts</option>
-                    <option value="tag">By tag</option>
-                    <option value="segment">By segment</option>
-                    <option value="numbers">Manual numbers</option>
+                    <option value="all">所有联系人</option>
+                    <option value="tag">按标签</option>
+                    <option value="segment">按细分市场</option>
+                    <option value="numbers">手册编号</option>
                   </select>
                 </div>
                 {sendForm.targetType === 'tag' && (
                   <select multiple className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm h-28"
                     value={sendForm.targetTags} onChange={(e) => setSendForm({ ...sendForm, targetTags: Array.from(e.target.selectedOptions, (o) => o.value) })}>
-                    {tags.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
+                    {tags.map((t) => <option key={t._id} value={t._id}>{translateDisplay(t.name)}</option>)}
                   </select>
                 )}
                 {sendForm.targetType === 'segment' && (
                   <select multiple className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm h-28"
                     value={sendForm.targetSegments} onChange={(e) => setSendForm({ ...sendForm, targetSegments: Array.from(e.target.selectedOptions, (o) => o.value) })}>
-                    {segments.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+                    {segments.map((s) => <option key={s._id} value={s._id}>{translateDisplay(s.name)}</option>)}
                   </select>
                 )}
                 {sendForm.targetType === 'numbers' && (
-                  <textarea rows={4} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="One number per line"
+                  <textarea rows={4} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={"每行一个数字"}
                     value={sendForm.numbersText} onChange={(e) => setSendForm({ ...sendForm, numbersText: e.target.value })} />
                 )}
                 {waNumbers.length > 1 && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">Send From Number</label>
+                    <label className="block text-sm font-medium mb-1">发送号码</label>
                     <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={sendForm.senderNumberId} onChange={(e) => setSendForm({ ...sendForm, senderNumberId: e.target.value })}>
-                      <option value="">Default number</option>
-                      {waNumbers.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
+                      <option value="">默认号码</option>
+                      {waNumbers.map((n) => <option key={n.id} value={n.id}>{translateDisplay(n.label)}</option>)}
                     </select>
                   </div>
                 )}
-                <Button onClick={send} disabled={sending || !acknowledged || filledLength > 1024}><Send className="w-4 h-4 mr-1" /> {sending ? 'Sending…' : 'Send Smart Broadcast'}</Button>
+                <Button onClick={send} disabled={sending || !acknowledged || filledLength > 1024}><Send className="w-4 h-4 mr-1" /> {sending ? "正在发送..." : "发送智能广播"}</Button>
               </div>
             )}
           </div>
 
           {selectedTemplate && (
             <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <p className="text-sm font-medium mb-2">Preview — how it will look</p>
+              <p className="text-sm font-medium mb-2">预览 — 外观如何</p>
               <div className="rounded-xl p-4" style={{ background: '#e5ddd5' }}>
                 <div className="bg-white rounded-lg shadow-sm max-w-sm p-2 text-sm space-y-2">
                   {['image', 'video', 'document'].includes(selectedTemplate.header?.type || '') && (
                     previewMediaUrl ? (
                       selectedTemplate.header?.type === 'image'
-                        ? <img src={previewMediaUrl} alt="header" className="w-full rounded-md object-cover max-h-44 bg-gray-100" />
+                        ? <img src={previewMediaUrl} alt={"标题"} className="w-full rounded-md object-cover max-h-44 bg-gray-100" />
                         : selectedTemplate.header?.type === 'video'
                           ? <video src={previewMediaUrl} className="w-full rounded-md max-h-44 bg-gray-100" muted controls />
-                          : <div className="rounded-md bg-gray-100 p-3 text-xs text-gray-500">📄 Document attached</div>
-                    ) : <div className="rounded-md bg-gray-100 p-6 text-center text-xs text-gray-400">{selectedTemplate.header?.type} header</div>
+                          : <div className="rounded-md bg-gray-100 p-3 text-xs text-gray-500">📄 随附文件</div>
+                    ) : <div className="rounded-md bg-gray-100 p-6 text-center text-xs text-gray-400">{translateDisplay(selectedTemplate.header?.type)} 标题</div>
                   )}
                   {selectedTemplate.header?.type === 'text' && selectedTemplate.header.content && (
                     <p className="font-semibold">{selectedTemplate.header.content}</p>
@@ -468,21 +470,22 @@ export default function SmartBroadcastPage() {
                   )}
                 </div>
               </div>
-              <p className="text-xs text-gray-400 mt-2">Your message lines fill the {'{{n}}'} fields of the approved template.</p>
+              <p className="text-xs text-gray-400 mt-2">您的消息行填写
+已批准模板的 {'{{n}}'} 字段。</p>
             </div>
           )}
         </div>
       )}
 
       {tab === 'reports' && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-gray-500">
-              <tr><th className="p-3">Campaign</th><th className="p-3">Template</th><th className="p-3">Status</th><th className="p-3">Recipients</th><th className="p-3">Sent</th><th className="p-3">Delivered</th><th className="p-3">Read</th><th className="p-3">Failed</th><th className="p-3">Date</th><th className="p-3"></th></tr>
+              <tr><th className="p-3">营销活动</th><th className="p-3">模板</th><th className="p-3">状态</th><th className="p-3">收件人</th><th className="p-3">已发送</th><th className="p-3">已交付</th><th className="p-3">读</th><th className="p-3">操作失败</th><th className="p-3">日期</th><th className="p-3"></th></tr>
             </thead>
             <tbody>
               {reports.length === 0 ? (
-                <tr><td colSpan={10} className="p-6 text-center text-gray-400">No smart broadcasts sent yet.</td></tr>
+                <tr><td colSpan={10} className="p-6 text-center text-gray-400">尚未发送智能广播。</td></tr>
               ) : reports.map((c) => (
                 <tr key={c._id} className="border-t border-gray-100">
                   <td className="p-3 font-medium">{c.name}</td>
@@ -496,10 +499,10 @@ export default function SmartBroadcastPage() {
                   <td className="p-3 text-xs text-gray-500">{new Date(c.createdAt).toLocaleString()}</td>
                   <td className="p-3 text-right whitespace-nowrap">
                     {['running', 'completed', 'paused', 'failed'].includes(c.status) && (
-                      <button title="Report" onClick={() => setReportTarget({ id: c._id, name: c.name })} className="p-1 hover:bg-indigo-50 rounded mr-1"><BarChart3 className="w-4 h-4 text-indigo-500" /></button>
+                      <button title={"报告"} onClick={() => setReportTarget({ id: c._id, name: c.name })} className="p-1 hover:bg-indigo-50 rounded mr-1"><BarChart3 className="w-4 h-4 text-indigo-500" /></button>
                     )}
                     {c.status === 'running' && (
-                      <button onClick={() => stopCampaign(c._id)} className="inline-flex items-center gap-1 text-xs font-medium text-red-600 border border-red-200 rounded-lg px-2 py-1 hover:bg-red-50"><Square className="w-3 h-3" /> Stop</button>
+                      <button onClick={() => stopCampaign(c._id)} className="inline-flex items-center gap-1 text-xs font-medium text-red-600 border border-red-200 rounded-lg px-2 py-1 hover:bg-red-50"><Square className="w-3 h-3" /> 停止</button>
                     )}
                   </td>
                 </tr>
@@ -511,67 +514,67 @@ export default function SmartBroadcastPage() {
 
       <CampaignReportModal campaignId={reportTarget?.id || null} campaignName={reportTarget?.name} onClose={() => setReportTarget(null)} />
 
-      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title={editingId ? 'Edit Utility Template' : 'New Utility Template'}>
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title={editingId ? "编辑实用程序模板" : "新实用程序模板"}>
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           {!editingId && (
             <div>
-              <label className="block text-sm font-medium mb-1">Pick a ready template</label>
+              <label className="block text-sm font-medium mb-1">选择一个现成的模板</label>
               <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={seedKey} onChange={(e) => pickSeed(e.target.value)}>
-                <option value="">— Custom (write my own) —</option>
-                {catalog.map((c) => <option key={c.key} value={c.key}>{c.title}</option>)}
+                <option value="">— 自定义（我自己写） —</option>
+                {catalog.map((c) => <option key={c.key} value={c.key}>{translateDisplay(c.title)}</option>)}
               </select>
             </div>
           )}
-          <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Template name (a-z, 0-9, _)"
+          <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={"模板名称（a-z、0-9、_）"}
             value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <WaTextarea rows={8} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Body text. Use {{1}}, {{2}} … for dynamic parts, or leave without variables to send a fixed formatted message as-is."
+          <WaTextarea rows={8} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={"正文。对于动态部分，请使用 {{1}}、{{2}} ...，或者不使用变量以按原样发送固定格式的消息。"}
             value={form.body} onChange={(v) => setForm({ ...form, body: v })} />
-          <p className="text-xs text-gray-400 -mt-2">Tip: for a fixed formatted message (with line breaks), paste the whole text here <b>without</b> {'{{ }}'} variables — formatting stays exactly as approved. Variables must be single-line (Meta strips line breaks inside a variable).</p>
+          <p className="text-xs text-gray-400 -mt-2">提示：对于固定格式的消息（带换行符），请将整个文本粘贴到此处 <b>没有</b> {'{{ }}'} 变量 — 格式保持与批准的完全相同。变量必须是单行（元会去除变量内的换行符）。</p>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Header (optional)</label>
+            <label className="block text-sm font-medium mb-1">标头（可选）</label>
             <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value={form.headerType}
               onChange={(e) => setForm({ ...form, headerType: e.target.value as TplHeader['type'] })}>
-              <option value="none">None</option>
-              <option value="text">Text</option>
-              <option value="image">Image</option>
-              <option value="video">Video</option>
-              <option value="document">Document</option>
+              <option value="none">无</option>
+              <option value="text">文本</option>
+              <option value="image">图片</option>
+              <option value="video">视频</option>
+              <option value="document">文件</option>
             </select>
           </div>
           {form.headerType === 'text' && (
-            <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Header text"
+            <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={"标题文本"}
               value={form.headerText} onChange={(e) => setForm({ ...form, headerText: e.target.value })} />
           )}
           {['image', 'video', 'document'].includes(form.headerType) && (
             <div className="flex gap-2 items-center">
-              <input className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Media URL (or click Upload)"
+              <input className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={"媒体 URL（或单击“上传”）"}
                 value={form.headerMediaUrl} onChange={(e) => setForm({ ...form, headerMediaUrl: e.target.value })} />
               <label className="cursor-pointer inline-flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-                <Upload className="w-4 h-4" /> {uploading ? '…' : 'Upload'}
+                <Upload className="w-4 h-4" /> {uploading ? '…' : "上传"}
                 <input type="file" className="hidden" accept={form.headerType === 'image' ? 'image/*' : form.headerType === 'video' ? 'video/*' : '*'} onChange={(e) => uploadMedia(e, 'template')} />
               </label>
             </div>
           )}
 
-          <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Footer (optional)"
+          <input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={"页脚（可选）"}
             value={form.footer} onChange={(e) => setForm({ ...form, footer: e.target.value })} />
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium">Buttons (optional, max 3)</label>
+              <label className="text-sm font-medium">按钮（可选，最多 3 个）</label>
               {form.buttons.length < 3 && (
-                <button className="text-xs text-green-600 font-medium" onClick={() => setForm({ ...form, buttons: [...form.buttons, { type: 'quick_reply', text: '', value: '' }] })}>+ Add button</button>
+                <button className="text-xs text-green-600 font-medium" onClick={() => setForm({ ...form, buttons: [...form.buttons, { type: 'quick_reply', text: '', value: '' }] })}>+ 添加按钮</button>
               )}
             </div>
             {form.buttons.map((b, i) => (
               <div key={i} className="flex gap-2 mb-2">
                 <select className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm" value={b.type} onChange={(e) => setButton(i, { type: e.target.value as TplButton['type'], value: '' })}>
-                  <option value="quick_reply">Quick reply</option>
+                  <option value="quick_reply">快速回复</option>
                   <option value="url">URL</option>
-                  <option value="phone">Phone</option>
+                  <option value="phone">电话</option>
                 </select>
-                <input className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" placeholder="Button text" value={b.text} onChange={(e) => setButton(i, { text: e.target.value })} />
+                <input className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" placeholder={"按钮文本"} value={b.text} onChange={(e) => setButton(i, { text: e.target.value })} />
                 {b.type !== 'quick_reply' && (
                   <input className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" placeholder={b.type === 'url' ? 'https://…' : '+91…'} value={b.value} onChange={(e) => setButton(i, { value: e.target.value })} />
                 )}
@@ -581,23 +584,23 @@ export default function SmartBroadcastPage() {
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
-            <p className="text-sm font-medium">Opt-out / Unsubscribe (recommended for broadcasts)</p>
+            <p className="text-sm font-medium">选择退出/取消订阅（建议用于广播）</p>
             <label className="flex items-start gap-2 text-sm text-gray-700">
               <input type="checkbox" className="mt-0.5" checked={form.optOutButton} onChange={(e) => setForm({ ...form, optOutButton: e.target.checked })} />
-              <span>Add a <b>“Stop”</b> quick-reply button — customer taps it to unsubscribe (uses one of the 3 button slots).</span>
+              <span>添加一个 <b>“停止”</b> 快速回复按钮 — 客户点击它即可取消订阅（使用 3 个按钮槽之一）。</span>
             </label>
             <label className="flex items-start gap-2 text-sm text-gray-700">
               <input type="checkbox" className="mt-0.5" checked={form.optOutFooter} onChange={(e) => setForm({ ...form, optOutFooter: e.target.checked })} />
-              <span>Add footer line <b>“{OPT_OUT_FOOTER}”</b> — so the customer knows they can reply STOP.</span>
+              <span>添加页脚行 <b>“{OPT_OUT_FOOTER}”</b> — 这样客户就知道他们可以回复“停止”。</span>
             </label>
-            <p className="text-xs text-gray-400">Either way, when a customer replies STOP (or taps the button) the panel auto-unsubscribes them and skips them in every broadcast. Adding opt-out to a Utility template may make Meta re-categorise it as Marketing.</p>
+            <p className="text-xs text-gray-400">无论哪种方式，当客户回复“停止”（或点击按钮）时，面板会自动取消订阅他们并在每次广播中跳过他们。将选择退出添加到实用程序模板可能会使 Meta 将其重新分类为营销。</p>
           </div>
 
-          {editingId && <p className="text-xs text-amber-600">Saving will delete the old version on Meta and resubmit this one for fresh approval (name can be changed).</p>}
+          {editingId && <p className="text-xs text-amber-600">保存将删除 Meta 上的旧版本并重新提交此版本以供新批准（名称可以更改）。</p>}
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={saveTemplate} disabled={savingTpl || uploading}>{savingTpl ? 'Submitting…' : 'Submit to Meta'}</Button>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>取消</Button>
+            <Button onClick={saveTemplate} disabled={savingTpl || uploading}>{savingTpl ? "正在提交..." : "提交到元"}</Button>
           </div>
         </div>
       </Modal>

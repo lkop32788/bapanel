@@ -1,5 +1,4 @@
 const Segment = require('../models/Segment');
-const { checkPlanLimit } = require('../utils/planLimits');
 const Contact = require('../models/Contact');
 const mongoose = require('mongoose');
 const sanitizeSegmentBody = (body) => {
@@ -29,8 +28,7 @@ const getSegment = async (req, res) => {
 
 const createSegment = async (req, res) => {
   try {
-    const limitMsg = await checkPlanLimit(req, 'segments', 'Segment');
-    if (limitMsg) return res.status(403).json({ success: false, message: limitMsg });
+
     const segment = await Segment.create({ ...sanitizeSegmentBody(req.body), workspace: req.workspace._id });
     res.status(201).json({ success: true, data: segment });
   } catch (error) {

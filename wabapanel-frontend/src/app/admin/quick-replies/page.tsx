@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -25,18 +26,18 @@ export default function QuickRepliesPage() {
     try {
       if (editItem) await adminApi.updateQuickReply(editItem._id, form);
       else await adminApi.createQuickReply(form);
-      toast.success(editItem ? 'Updated' : 'Created'); setShowModal(false); fetch();
-    } catch { toast.error('Failed'); }
+      toast.success(translateApiMessage(editItem ? "已更新" : "已创建")); setShowModal(false); fetch();
+    } catch { toast.error(translateApiMessage("操作失败")); }
   };
 
   const columns = [
-    { key: 'title', title: 'Title', render: (r: QuickReply) => <span className="font-medium">{r.title}</span> },
-    { key: 'shortcut', title: 'Shortcut', render: (r: QuickReply) => <code className="text-sm bg-gray-100 px-2 py-0.5 rounded">/{r.shortcut}</code> },
-    { key: 'message', title: 'Message', render: (r: QuickReply) => <span className="text-sm text-gray-500 truncate block max-w-xs">{r.message}</span> },
+    { key: 'title', title: "标题", render: (r: QuickReply) => <span className="font-medium">{r.title}</span> },
+    { key: 'shortcut', title: "快捷方式", render: (r: QuickReply) => <code className="text-sm bg-gray-100 px-2 py-0.5 rounded">/{r.shortcut}</code> },
+    { key: 'message', title: "留言", render: (r: QuickReply) => <span className="text-sm text-gray-500 truncate block max-w-xs">{r.message}</span> },
     { key: 'actions', title: '', render: (r: QuickReply) => (
       <div className="flex gap-1">
         <button onClick={() => { setEditItem(r); setForm({ title: r.title, message: r.message, shortcut: r.shortcut }); setShowModal(true); }} className="p-1 hover:bg-gray-100 rounded"><Edit className="w-4 h-4 text-gray-400" /></button>
-        <button onClick={() => { if (confirm('Delete?')) adminApi.deleteQuickReply(r._id).then(fetch); }} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button>
+        <button onClick={() => { if (confirm("确定删除？")) adminApi.deleteQuickReply(r._id).then(fetch); }} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button>
       </div>
     )},
   ];
@@ -45,18 +46,18 @@ export default function QuickRepliesPage() {
     <div className="space-y-6">
       <div className="page-hero flex items-center justify-between">
         <div>
-        <h1 className="text-2xl font-bold text-gray-900">Quick Replies</h1>
-        <p className="text-sm mt-1">Global quick replies available to all workspaces</p>
+        <h1 className="text-2xl font-bold text-gray-900">快捷回复</h1>
+        <p className="text-sm mt-1">所有工作区均可使用全局快速回复</p>
         </div>
-        <Button icon={<Plus className="w-4 h-4" />} onClick={() => { setEditItem(null); setForm({ title: '', message: '', shortcut: '' }); setShowModal(true); }}>Add Reply</Button>
+        <Button icon={<Plus className="w-4 h-4" />} onClick={() => { setEditItem(null); setForm({ title: '', message: '', shortcut: '' }); setShowModal(true); }}>添加回复</Button>
       </div>
       <Table columns={columns} data={replies} loading={loading} />
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editItem ? 'Edit Reply' : 'Add Quick Reply'}>
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editItem ? "编辑回复" : "添加快速回复"}>
         <div className="space-y-4">
-          <Input label="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
-          <Input label="Shortcut" value={form.shortcut} onChange={e => setForm({ ...form, shortcut: e.target.value })} placeholder="e.g. hello" />
-          <Textarea label="Message" value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} required />
-          <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button><Button onClick={handleSave}>Save</Button></div>
+          <Input label={"标题"} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
+          <Input label={"快捷方式"} value={form.shortcut} onChange={e => setForm({ ...form, shortcut: e.target.value })} placeholder={"例如你好"} />
+          <Textarea label={"留言"} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} required />
+          <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setShowModal(false)}>取消</Button><Button onClick={handleSave}>保存</Button></div>
         </div>
       </Modal>
     </div>

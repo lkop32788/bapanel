@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle, Download, Clock, AlertCircle, Package, Upload, RotateCcw } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -82,18 +83,18 @@ export default function UpdatesPage() {
   };
 
   const rollbackPatch = async (version: string) => {
-    if (!confirm(`Rollback patch ${version}? This will restore the previous files and restart the panel.`)) return;
+    if (!confirm(`回滚补丁 ${version}？这将恢复以前的文件并重新启动面板。`)) return;
     setRollingBack(version);
-    toast.loading(`Rolling back ${version}...`, { id: 'rollback' });
+    toast.loading(translateApiMessage(`回滚 ${version}...`), { id: 'rollback' });
     try {
       const res = await apiCall('/rollback', 'POST', { version });
       if (res.success) {
-        toast.success(res.message || 'Rollback complete!', { id: 'rollback' });
+        toast.success(translateApiMessage(res.message || "回滚完成！"), { id: 'rollback' });
         setTimeout(() => { fetchStatus(); fetchInstalledPatches(); }, 5000);
       } else {
-        toast.error(res.message || 'Rollback failed', { id: 'rollback' });
+        toast.error(translateApiMessage(res.message || "回滚失败"), { id: 'rollback' });
       }
-    } catch { toast.error('Network error during rollback', { id: 'rollback' }); }
+    } catch { toast.error(translateApiMessage("回滚期间出现网络错误"), { id: 'rollback' }); }
     setRollingBack(null);
   };
 
@@ -101,45 +102,45 @@ export default function UpdatesPage() {
 
   const checkForUpdates = async () => {
     setChecking(true);
-    toast.loading('Checking for updates...', { id: 'upd' });
+    toast.loading(translateApiMessage("正在检查更新..."), { id: 'upd' });
     try {
       const res = await apiCall('/check-updates');
       if (res.success && res.data) {
         setPatches(res.data.patches || []);
         setHasUpdate(res.data.hasUpdate || false);
         if (res.data.hasUpdate) {
-          toast.success(`Update available: ${res.data.latestVersion}`, { id: 'upd' });
+          toast.success(translateApiMessage(`可用更新： ${res.data.latestVersion}`), { id: 'upd' });
         } else {
-          toast.success('Panel is up to date!', { id: 'upd' });
+          toast.success(translateApiMessage("面板已更新！"), { id: 'upd' });
         }
       } else {
-        toast.error(res.data?.error || res.message || 'Check failed', { id: 'upd' });
+        toast.error(translateApiMessage(res.data?.error || res.message || "检查失败"), { id: 'upd' });
       }
-    } catch { toast.error('Network error', { id: 'upd' }); }
+    } catch { toast.error(translateApiMessage("网络错误"), { id: 'upd' }); }
     setChecking(false);
   };
 
   const installUpdate = async (patchId: number, version: string) => {
-    if (!confirm(`Install update ${version}? The panel will restart after installation.`)) return;
+    if (!confirm(`安装更新 ${version}？安装后面板将重新启动。`)) return;
     setInstalling(patchId);
-    toast.loading(`Installing ${version}...`, { id: 'install' });
+    toast.loading(translateApiMessage(`安装 ${version}...`), { id: 'install' });
     try {
       const res = await apiCall('/install-update', 'POST', { patchId });
       if (res.success) {
-        toast.success(res.message || 'Update installed! Panel restarting...', { id: 'install' });
+        toast.success(translateApiMessage(res.message || "更新已安装！面板重新启动..."), { id: 'install' });
         setTimeout(() => { fetchStatus(); checkForUpdates(); }, 5000);
       } else {
-        toast.error(res.message || 'Installation failed', { id: 'install' });
+        toast.error(translateApiMessage(res.message || "安装失败"), { id: 'install' });
       }
-    } catch { toast.error('Network error during installation', { id: 'install' }); }
+    } catch { toast.error(translateApiMessage("安装期间网络错误"), { id: 'install' }); }
     setInstalling(null);
   };
 
   if (loading) {
     return (
       <div className="p-6">
-        <div className="page-hero"><h1>Panel Updates</h1><p>Check for updates and patches</p></div>
-        <div className="mt-6 text-center text-gray-500">Loading...</div>
+        <div className="page-hero"><h1>系统更新</h1><p>检查更新和补丁</p></div>
+        <div className="mt-6 text-center text-gray-500">加载中…</div>
       </div>
     );
   }
@@ -147,12 +148,12 @@ export default function UpdatesPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="page-hero">
-        <h1 className="flex items-center gap-2"><Download className="w-6 h-6" /> Panel Updates</h1>
-        <p>Check for new features, patches, and improvements</p>
+        <h1 className="flex items-center gap-2"><Download className="w-6 h-6" /> 系统更新</h1>
+        <p>检查新功能、补丁和改进</p>
         <div className="mt-3">
           <Button size="sm" variant="secondary" onClick={checkForUpdates} disabled={checking}>
             <RefreshCw className={`w-4 h-4 mr-1 ${checking ? 'animate-spin' : ''}`} />
-            {checking ? 'Checking...' : 'Check for Updates'}
+            {checking ? "检查..." : "检查更新"}
           </Button>
         </div>
       </div>
@@ -164,16 +165,16 @@ export default function UpdatesPage() {
             <>
               <AlertCircle className="w-6 h-6 text-orange-500" />
               <div>
-                <h2 className="text-lg font-semibold">Update Available</h2>
-                <p className="text-sm text-gray-500">A new version is ready to install</p>
+                <h2 className="text-lg font-semibold">可用更新</h2>
+                <p className="text-sm text-gray-500">新版本已准备好安装</p>
               </div>
             </>
           ) : (
             <>
               <CheckCircle className="w-6 h-6 text-green-600" />
               <div>
-                <h2 className="text-lg font-semibold">Your panel is up to date</h2>
-                <p className="text-sm text-gray-500">Version {status?.panelVersion || '1.0.0'}</p>
+                <h2 className="text-lg font-semibold">您的面板已更新</h2>
+                <p className="text-sm text-gray-500">版本 {status?.panelVersion || '1.0.0'}</p>
               </div>
             </>
           )}
@@ -182,33 +183,33 @@ export default function UpdatesPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-              <Clock className="w-4 h-4" /> Last Update Check
+              <Clock className="w-4 h-4" /> 上次更新检查
             </div>
             <div className="font-medium">
-              {status?.lastHeartbeat ? toIST(status.lastHeartbeat) : 'Never'}
+              {status?.lastHeartbeat ? toIST(status.lastHeartbeat) : "从来没有"}
             </div>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-              <Download className="w-4 h-4" /> License Status
+              <Download className="w-4 h-4" /> 许可证状态
             </div>
             <div className="font-medium">
               {status?.isActive ? (
-                <span className="text-green-700">Active ({status.licenseData?.plan || 'Standard'})</span>
+                <span className="text-green-700">活跃（{status.licenseData?.plan || "标准"})</span>
               ) : (
-                <span className="text-orange-600">Not Activated</span>
+                <span className="text-orange-600">未激活</span>
               )}
             </div>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-              <Package className="w-4 h-4" /> Last Patch Applied
+              <Package className="w-4 h-4" /> 应用了最后一个补丁
             </div>
             <div className="font-medium">
               {status?.lastPatchVersion ? (
                 <span>{status.lastPatchVersion} <span className="text-xs text-gray-400">({status.lastPatchAt ? toIST(status.lastPatchAt, true) : ''})</span></span>
               ) : (
-                <span className="text-gray-400">None</span>
+                <span className="text-gray-400">无</span>
               )}
             </div>
           </div>
@@ -219,7 +220,7 @@ export default function UpdatesPage() {
       {patches.length > 0 && (
         <Card className="p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Package className="w-5 h-5 text-blue-600" /> Available Updates
+            <Package className="w-5 h-5 text-blue-600" /> 可用更新
           </h3>
           <div className="space-y-3">
             {patches.map((patch) => {
@@ -229,10 +230,10 @@ export default function UpdatesPage() {
                   <div>
                     <div className="font-medium flex items-center gap-2">
                       {patch.version}
-                      {isApplied && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Installed</span>}
+                      {isApplied && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">已安装</span>}
                     </div>
                     {patch.description && <p className="text-sm text-gray-600 mt-1">{patch.description}</p>}
-                    <p className="text-xs text-gray-400 mt-1">Released: {toIST(patch.deployed_at)}</p>
+                    <p className="text-xs text-gray-400 mt-1">发布： {toIST(patch.deployed_at)}</p>
                   </div>
                   {!isApplied && (
                     <Button
@@ -241,7 +242,7 @@ export default function UpdatesPage() {
                       disabled={installing === patch.id}
                     >
                       <Download className="w-4 h-4 mr-1" />
-                      {installing === patch.id ? 'Installing...' : 'Install'}
+                      {installing === patch.id ? "正在安装..." : "安装"}
                     </Button>
                   )}
                 </div>
@@ -254,22 +255,22 @@ export default function UpdatesPage() {
       {/* Upload Patch */}
       <Card className="p-6">
         <h3 className="font-semibold mb-3 flex items-center gap-2">
-          <Upload className="w-5 h-5 text-purple-600" /> Upload Patch (ZIP)
+          <Upload className="w-5 h-5 text-purple-600" /> 上传补丁 (ZIP)
         </h3>
-        <p className="text-sm text-gray-500 mb-4">Upload a patch ZIP file to manually update the panel.</p>
+        <p className="text-sm text-gray-500 mb-4">上传补丁 ZIP 文件以手动更新面板。</p>
         <div className="flex items-end gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Version Label (optional)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">版本标签（可选）</label>
             <input type="text" value={patchVersion} onChange={e => setPatchVersion(e.target.value)} placeholder="e.g. 1.0.1" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
           <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${uploading ? 'bg-gray-300 text-gray-500' : 'bg-purple-600 text-white hover:bg-purple-700'}`}>
             <Upload className="w-4 h-4" />
-            {uploading ? 'Uploading...' : 'Choose & Upload ZIP'}
+            {uploading ? "正在上传..." : "选择并上传 ZIP"}
             <input type="file" accept=".zip" className="hidden" disabled={uploading} onChange={async e => {
               const file = e.target.files?.[0];
               if (!file) return;
               setUploading(true);
-              toast.loading('Uploading patch...', { id: 'patch' });
+              toast.loading(translateApiMessage("正在上传补丁..."), { id: 'patch' });
               try {
                 const form = new FormData();
                 form.append('patch', file);
@@ -281,12 +282,12 @@ export default function UpdatesPage() {
                 });
                 const data = await res.json();
                 if (data.success) {
-                  toast.success(data.message || 'Patch applied!', { id: 'patch' });
+                  toast.success(translateApiMessage(data.message || "已应用补丁！"), { id: 'patch' });
                   setTimeout(() => fetchStatus(), 5000);
                 } else {
-                  toast.error(data.message || 'Upload failed', { id: 'patch' });
+                  toast.error(translateApiMessage(data.message || "上传失败"), { id: 'patch' });
                 }
-              } catch { toast.error('Upload failed', { id: 'patch' }); }
+              } catch { toast.error(translateApiMessage("上传失败"), { id: 'patch' }); }
               setUploading(false);
               e.target.value = '';
             }} />
@@ -298,16 +299,16 @@ export default function UpdatesPage() {
       {installedPatches.length > 0 && (
         <Card className="p-6">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <RotateCcw className="w-5 h-5 text-orange-600" /> Installed Patches
+            <RotateCcw className="w-5 h-5 text-orange-600" /> 安装的补丁
           </h3>
-          <p className="text-sm text-gray-500 mb-4">Previously applied patches. You can rollback to restore the original files.</p>
+          <p className="text-sm text-gray-500 mb-4">先前应用的补丁。您可以回滚以恢复原始文件。</p>
           <div className="space-y-3">
             {installedPatches.map((patch) => (
               <div key={patch.version} className="flex items-center justify-between p-4 rounded-lg border bg-gray-50 border-gray-200">
                 <div>
                   <div className="font-medium">{patch.version}</div>
                   <p className="text-xs text-gray-400 mt-1">
-                    Applied: {toIST(patch.appliedAt)} &middot; {patch.fileCount} files
+                    应用： {toIST(patch.appliedAt)} · {patch.fileCount} 文件
                   </p>
                 </div>
                 <button
@@ -320,7 +321,7 @@ export default function UpdatesPage() {
                   }`}
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  {rollingBack === patch.version ? 'Rolling back...' : 'Rollback'}
+                  {rollingBack === patch.version ? "回滚..." : "回滚"}
                 </button>
               </div>
             ))}
@@ -330,13 +331,13 @@ export default function UpdatesPage() {
 
       {/* How Updates Work */}
       <Card className="p-6">
-        <h3 className="font-semibold mb-3">How Updates Work</h3>
+        <h3 className="font-semibold mb-3">更新如何工作</h3>
         <ul className="text-sm text-gray-600 space-y-2 list-disc list-inside">
-          <li>Updates are automatically checked every 12 hours</li>
-          <li>New features and bug fixes are applied automatically when available</li>
-          <li>No reinstallation required — patches are applied seamlessly</li>
-          <li>You can manually check and install updates by clicking the button above</li>
-          <li>After installing an update, the panel may restart briefly</li>
+          <li>每 12 小时自动检查一次更新</li>
+          <li>新功能和错误修复可用时自动应用</li>
+          <li>无需重新安装 — 无缝应用补丁</li>
+          <li>您可以通过单击上面的按钮手动检查并安装更新</li>
+          <li>安装更新后，面板可能会短暂重启</li>
         </ul>
       </Card>
     </div>

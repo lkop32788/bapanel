@@ -176,7 +176,6 @@ async function saveContact(workspace, auto, ev) {
   try {
     const update = { $setOnInsert: { workspace: workspace._id, phone: String(ev.fromId), source: 'instagram', channel: 'instagram', countryCode: '' } };
     if (ev.username) update.$set = { name: ev.username };
-    if (auto.stage) update.$set = { ...(update.$set || {}), stage: auto.stage };
     if (auto.tags && auto.tags.length) update.$addToSet = { tags: { $each: auto.tags } };
     await Contact.updateOne({ workspace: workspace._id, phone: String(ev.fromId) }, update, { upsert: true });
   } catch (e) {

@@ -1,4 +1,5 @@
 "use client";
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from "react";
 import { badgeApi } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -24,11 +25,11 @@ export default function BadgesPage() {
     } catch { /* empty */ }
   };
 
-  const handleDelete = async (id: string) => { if (!confirm("Delete this badge?")) return; await badgeApi.delete(id); fetchBadges(); };
+  const handleDelete = async (id: string) => { if (!confirm("删除此徽章？")) return; await badgeApi.delete(id); fetchBadges(); };
 
   const handleRun = async (id: string) => {
-    try { const r = await badgeApi.run(id); toast.success(`Assigned to ${r.data.assigned} contact(s)`); fetchBadges(); }
-    catch (err: unknown) { const e = err as { response?: { data?: { message?: string } } }; toast.error(e.response?.data?.message || "Failed"); }
+    try { const r = await badgeApi.run(id); toast.success(translateApiMessage(`分配给 ${r.data.assigned} 联系人`)); fetchBadges(); }
+    catch (err: unknown) { const e = err as { response?: { data?: { message?: string } } }; toast.error(translateApiMessage(e.response?.data?.message || "操作失败")); }
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" /></div>;
@@ -37,27 +38,27 @@ export default function BadgesPage() {
     <div className="p-6">
       <div className="page-hero flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Badges</h1>
-          <p className="text-sm text-gray-500 mt-1">Create and manage contact badges</p>
+          <h1 className="text-2xl font-bold text-gray-900">徽章</h1>
+          <p className="text-sm text-gray-500 mt-1">创建和管理联系人徽章</p>
         </div>
         <button onClick={() => { setEditing(null); setForm({ name: "", description: "", color: "#10b981", icon: "award", criteriaType: "manual", criteriaValue: 0, autoAssign: false }); setShowForm(true); }} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          Add Badge
+          添加徽章
         </button>
       </div>
 
       {showForm && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">{editing ? "Edit Badge" : "New Badge"}</h3>
+          <h3 className="text-lg font-semibold mb-4">{editing ? "编辑徽章" : "新徽章"}</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Name *</label><input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Color</label><input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} className="w-full h-10 rounded-lg cursor-pointer" /></div>
-            <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Auto-assign rule</label><select value={form.criteriaType} onChange={e => setForm({ ...form, criteriaType: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value="manual">Manual (assign yourself)</option><option value="messages_count">Messages sent/received ≥</option><option value="purchase_amount">Total purchase amount ≥</option><option value="days_active">Days since added ≥</option></select></div>
-            {form.criteriaType !== "manual" && <div><label className="block text-sm font-medium text-gray-700 mb-1">Value</label><input type="number" min={0} value={form.criteriaValue} onChange={e => setForm({ ...form, criteriaValue: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>}
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">姓名 *</label><input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">颜色</label><input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} className="w-full h-10 rounded-lg cursor-pointer" /></div>
+            <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">说明</label><textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">自动分配规则</label><select value={form.criteriaType} onChange={e => setForm({ ...form, criteriaType: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value="manual">手册（分配给你自己）</option><option value="messages_count">发送/接收的消息 ≥</option><option value="purchase_amount">总购买金额≥</option><option value="days_active">添加后的天数 ≥</option></select></div>
+            {form.criteriaType !== "manual" && <div><label className="block text-sm font-medium text-gray-700 mb-1">值</label><input type="number" min={0} value={form.criteriaValue} onChange={e => setForm({ ...form, criteriaValue: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div>}
             <div className="md:col-span-2 flex gap-3">
-              <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">{editing ? "Update" : "Create"}</button>
-              <button type="button" onClick={() => { setShowForm(false); setEditing(null); }} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Cancel</button>
+              <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">{editing ? "更新" : "创建"}</button>
+              <button type="button" onClick={() => { setShowForm(false); setEditing(null); }} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">取消</button>
             </div>
           </form>
         </div>
@@ -65,7 +66,7 @@ export default function BadgesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {badges.length === 0 ? (
-          <div className="md:col-span-3 bg-white rounded-xl shadow-sm border p-8 text-center text-gray-500">No badges yet.</div>
+          <div className="md:col-span-3 bg-white rounded-xl shadow-sm border p-8 text-center text-gray-500">还没有徽章。</div>
         ) : badges.map(b => (
           <div key={b._id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md">
             <div className="flex items-center gap-3 mb-3">
@@ -74,14 +75,14 @@ export default function BadgesPage() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">{b.name}</h3>
-                <p className="text-xs text-gray-500">{b.contactCount || 0} contacts</p>
+                <p className="text-xs text-gray-500">{b.contactCount || 0} 联系人</p>
               </div>
             </div>
             {b.description && <p className="text-sm text-gray-600 mb-3">{b.description}</p>}
             <div className="flex gap-2">
-              <button onClick={() => { setEditing(b); setForm({ name: b.name, description: b.description, color: b.color, icon: b.icon, criteriaType: b.criteria?.type || "manual", criteriaValue: b.criteria?.value || 0, autoAssign: b.isActive === undefined ? false : (b as unknown as { autoAssign?: boolean }).autoAssign || false }); setShowForm(true); }} className="text-sm text-blue-600 hover:text-blue-800">Edit</button>
-              <button onClick={() => handleDelete(b._id)} className="text-sm text-red-600 hover:text-red-800">Delete</button>
-              {b.criteria?.type && b.criteria.type !== "manual" && <button onClick={() => handleRun(b._id)} className="text-sm text-emerald-600 hover:text-emerald-800 ml-auto">Run now</button>}
+              <button onClick={() => { setEditing(b); setForm({ name: b.name, description: b.description, color: b.color, icon: b.icon, criteriaType: b.criteria?.type || "manual", criteriaValue: b.criteria?.value || 0, autoAssign: b.isActive === undefined ? false : (b as unknown as { autoAssign?: boolean }).autoAssign || false }); setShowForm(true); }} className="text-sm text-blue-600 hover:text-blue-800">编辑</button>
+              <button onClick={() => handleDelete(b._id)} className="text-sm text-red-600 hover:text-red-800">删除</button>
+              {b.criteria?.type && b.criteria.type !== "manual" && <button onClick={() => handleRun(b._id)} className="text-sm text-emerald-600 hover:text-emerald-800 ml-auto">立即运行</button>}
             </div>
           </div>
         ))}

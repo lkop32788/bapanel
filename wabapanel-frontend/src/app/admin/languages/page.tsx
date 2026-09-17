@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Download } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -22,24 +23,24 @@ export default function LanguagesPage() {
   useEffect(() => { fetch(); }, []);
 
   const handleSave = async () => {
-    try { await adminApi.createLanguage(form); toast.success('Added'); setShowModal(false); fetch(); } catch { toast.error('Failed'); }
+    try { await adminApi.createLanguage(form); toast.success(translateApiMessage("已添加")); setShowModal(false); fetch(); } catch { toast.error(translateApiMessage("操作失败")); }
   };
 
   const seedAll = async () => {
-    if (!confirm('Add all standard languages? Existing ones are kept unchanged.')) return;
+    if (!confirm("添加所有标准语言？现有的保持不变。")) return;
     setSeeding(true);
-    try { const r = await adminApi.seedLanguages(); toast.success(`Added ${r.data.added ?? 0} languages`); fetch(); }
-    catch { toast.error('Failed to add languages'); }
+    try { const r = await adminApi.seedLanguages(); toast.success(translateApiMessage(`已添加 ${r.data.added ?? 0} 语言`)); fetch(); }
+    catch { toast.error(translateApiMessage("添加语言失败")); }
     finally { setSeeding(false); }
   };
 
   const columns = [
-    { key: 'name', title: 'Language', render: (l: Language) => <span className="font-medium">{l.name}</span> },
-    { key: 'code', title: 'Code', render: (l: Language) => <code className="text-sm bg-gray-100 px-2 py-0.5 rounded">{l.code}</code> },
-    { key: 'native', title: 'Native', render: (l: Language) => l.nativeName },
-    { key: 'default', title: 'Default', render: (l: Language) => l.isDefault ? <Badge variant="success">Default</Badge> : null },
+    { key: 'name', title: "语言", render: (l: Language) => <span className="font-medium">{l.name}</span> },
+    { key: 'code', title: "代码", render: (l: Language) => <code className="text-sm bg-gray-100 px-2 py-0.5 rounded">{l.code}</code> },
+    { key: 'native', title: "本机", render: (l: Language) => l.nativeName || <span className="text-gray-400">{l.name}</span> },
+    { key: 'default', title: "默认", render: (l: Language) => l.isDefault ? <Badge variant="success">默认</Badge> : null },
     { key: 'actions', title: '', render: (l: Language) => (
-      <button onClick={() => { if (confirm('Delete?')) adminApi.deleteLanguage(l._id).then(fetch); }} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button>
+      <button onClick={() => { if (confirm("确定删除？")) adminApi.deleteLanguage(l._id).then(fetch); }} className="p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button>
     )},
   ];
 
@@ -47,22 +48,22 @@ export default function LanguagesPage() {
     <div className="space-y-6">
       <div className="page-hero flex items-center justify-between">
         <div>
-        <h1 className="text-2xl font-bold text-gray-900">Language Library</h1>
-        <p className="text-sm mt-1">Languages available across the platform. Menu/navigation is translated for supported languages; others fall back to English until translated.</p>
+        <h1 className="text-2xl font-bold text-gray-900">语言库</h1>
+        <p className="text-sm mt-1">跨平台可用的语言。菜单/导航已翻译为支持的语言；其他人则退回到英语直到翻译。</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" icon={<Download className="w-4 h-4" />} onClick={seedAll} loading={seeding}>Add all languages</Button>
-          <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowModal(true)}>Add Language</Button>
+          <Button variant="secondary" icon={<Download className="w-4 h-4" />} onClick={seedAll} loading={seeding}>添加所有语言</Button>
+          <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowModal(true)}>添加语言</Button>
         </div>
       </div>
       <Table columns={columns} data={languages} loading={loading} />
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Add Language">
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={"添加语言"}>
         <div className="space-y-4">
-          <Input label="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="English" required />
-          <Input label="Code" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="en" required />
-          <Input label="Native Name" value={form.nativeName} onChange={e => setForm({ ...form, nativeName: e.target.value })} placeholder="English" />
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isDefault} onChange={e => setForm({ ...form, isDefault: e.target.checked })} className="rounded text-emerald-600" />Set as default</label>
-          <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button><Button onClick={handleSave}>Add</Button></div>
+          <Input label={"名称"} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={"英语"} required />
+          <Input label={"代码"} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="en" required />
+          <Input label={"本机名称"} value={form.nativeName} onChange={e => setForm({ ...form, nativeName: e.target.value })} placeholder={"英语"} />
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isDefault} onChange={e => setForm({ ...form, isDefault: e.target.checked })} className="rounded text-emerald-600" />设置为默认值</label>
+          <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setShowModal(false)}>取消</Button><Button onClick={handleSave}>添加</Button></div>
         </div>
       </Modal>
     </div>

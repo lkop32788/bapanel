@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { SiteSettingsContext } from '@/components/SiteContentProvider';
 import Link from 'next/link';
 import { MessageSquare, Search, Calendar, Menu, X } from 'lucide-react';
 
@@ -16,7 +17,7 @@ export default function BlogPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(useContext(SiteSettingsContext));
   const [mobileMenu, setMobileMenu] = useState(false);
 
   useEffect(() => {
@@ -30,30 +31,30 @@ export default function BlogPage() {
     }).catch(() => {});
   }, [page]);
 
-  const biz = settings?.business || { name: 'KKHS Media' };
+  const biz = settings?.business || { name: '' };
   const logo = settings?.branding?.logo;
   const filtered = search ? posts.filter(p => p.title.toLowerCase().includes(search.toLowerCase())) : posts;
 
   return (
     <div className="min-h-screen bg-[#faf9fe] text-gray-900 overflow-x-hidden">
       {/* Navbar */}
-      <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[92%] max-w-5xl bg-white/80 backdrop-blur-2xl border border-gray-200/60 rounded-2xl shadow-lg shadow-purple-100/30 z-50 px-4 py-2.5">
-        <div className="flex items-center justify-between">
+      <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-6xl bg-white/80 backdrop-blur-2xl border border-gray-200/60 rounded-2xl shadow-lg shadow-purple-100/30 z-50 px-5 py-2.5">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             {logo ? <img src={logo} alt={biz.name} className="h-10 w-auto" /> : (
-              <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-violet-200">
+              <div className="w-9 h-9 bg-linear-to-br from-violet-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-violet-200">
                 <MessageSquare className="w-5 h-5 text-white" />
               </div>
             )}
           </Link>
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-1">
             {(c.nav.links || []).map((l: any, i: number) => (
-              <a key={i} href={l.href} className="text-sm font-bold text-gray-900 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-all">{l.label}</a>
+              <a key={i} href={l.href} className="px-3 py-1.5 text-sm font-bold text-gray-900 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-all">{l.label}</a>
             ))}
           </div>
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2">
             <Link href="/auth/login" className="px-4 py-2 text-sm font-bold text-gray-900 hover:text-violet-700 transition-all">{c.nav.loginText}</Link>
-            <Link href="/auth/register" className="px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-purple-600 rounded-lg shadow-md shadow-violet-200/40 hover:shadow-lg transition-all hover:-translate-y-0.5">{c.nav.registerText}</Link>
+            <Link href="/auth/register" className="px-4 py-2 text-sm font-bold text-white bg-linear-to-r from-violet-600 to-purple-600 rounded-lg shadow-md shadow-violet-200/40 hover:shadow-lg transition-all hover:-translate-y-0.5">{c.nav.registerText}</Link>
           </div>
           <button onClick={() => setMobileMenu(!mobileMenu)} className="md:hidden p-2 rounded-lg hover:bg-gray-100">
             {mobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -66,7 +67,7 @@ export default function BlogPage() {
             ))}
             <div className="flex gap-2 pt-2">
               <Link href="/auth/login" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold border border-gray-200 rounded-xl">{c.nav.loginText}</Link>
-              <Link href="/auth/register" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl">{c.nav.registerText}</Link>
+              <Link href="/auth/register" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-white bg-linear-to-r from-violet-600 to-purple-600 rounded-xl">{c.nav.registerText}</Link>
             </div>
           </div>
         )}
@@ -75,16 +76,16 @@ export default function BlogPage() {
       {/* Header */}
       <section className="pt-32 md:pt-40 pb-12 px-4 relative">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 left-1/4 w-[400px] h-[400px] bg-gradient-to-br from-violet-200/30 to-purple-100/20 rounded-full blur-3xl" />
+          <div className="absolute top-20 left-1/4 w-[400px] h-[400px] bg-linear-to-br from-violet-200/30 to-purple-100/20 rounded-full blur-3xl" />
         </div>
         <div className="relative max-w-6xl mx-auto">
-          <span className="inline-flex items-center px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full mb-4">Blog</span>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">Blog & <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">Resources</span></h1>
-          <p className="text-lg text-gray-500 max-w-2xl mb-8">Stay updated with the latest tips, guides, and news about WhatsApp Business API and growth strategies.</p>
+          <span className="inline-flex items-center px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full mb-4">博客</span>
+          <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">博客 &amp; <span className="bg-linear-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">资源</span></h1>
+          <p className="text-lg text-gray-500 max-w-2xl mb-8">随时了解有关 WhatsApp Business API 和增长策略的最新提示、指南和新闻。</p>
           <div className="max-w-md">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder="Search articles..." value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-200 focus:border-violet-400 outline-none shadow-sm" />
+              <input type="text" placeholder={"搜索文章..."} value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-200 focus:border-violet-400 outline-none shadow-sm" />
             </div>
           </div>
         </div>
@@ -97,7 +98,7 @@ export default function BlogPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.map(post => (
                 <Link key={post._id} href={`/blog/${post.slug}`} className="group rounded-2xl border border-gray-100 bg-white overflow-hidden hover:shadow-xl hover:border-violet-200 transition-all duration-300 hover:-translate-y-1">
-                  <div className="aspect-[16/9] bg-gradient-to-br from-violet-50 to-purple-50 flex items-center justify-center overflow-hidden">
+                  <div className="aspect-16/9 bg-linear-to-br from-violet-50 to-purple-50 flex items-center justify-center overflow-hidden">
                     {post.coverImage ? (
                       <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
@@ -125,15 +126,15 @@ export default function BlogPage() {
           ) : (
             <div className="text-center py-20">
               <MessageSquare className="w-12 h-12 text-violet-200 mx-auto mb-4" />
-              <p className="text-gray-400 text-lg">No blog posts yet. Check back soon!</p>
+              <p className="text-gray-400 text-lg">还没有博客文章。请尽快回来查看！</p>
             </div>
           )}
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-12">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-5 py-2.5 border border-gray-200 rounded-xl text-sm font-medium disabled:opacity-40 hover:bg-violet-50 transition-colors">Previous</button>
-              <span className="px-4 py-2 text-sm text-gray-500">Page {page} of {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-5 py-2.5 border border-gray-200 rounded-xl text-sm font-medium disabled:opacity-40 hover:bg-violet-50 transition-colors">Next</button>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-5 py-2.5 border border-gray-200 rounded-xl text-sm font-medium disabled:opacity-40 hover:bg-violet-50 transition-colors">上一页</button>
+              <span className="px-4 py-2 text-sm text-gray-500">页 {page} of {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-5 py-2.5 border border-gray-200 rounded-xl text-sm font-medium disabled:opacity-40 hover:bg-violet-50 transition-colors">下一步</button>
             </div>
           )}
         </div>
@@ -144,10 +145,10 @@ export default function BlogPage() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} {biz.name}. {c.footer.copyrightText}</p>
           <div className="flex items-center gap-4 text-sm text-gray-400">
-            <Link href="/privacy" className="hover:text-violet-600">Privacy</Link>
-            <Link href="/terms" className="hover:text-violet-600">Terms</Link>
-            <Link href="/about" className="hover:text-violet-600">About</Link>
-            <Link href="/contact" className="hover:text-violet-600">Contact</Link>
+            <Link href="/privacy" className="hover:text-violet-600">隐私政策</Link>
+            <Link href="/terms" className="hover:text-violet-600">服务条款</Link>
+            <Link href="/about" className="hover:text-violet-600">关于</Link>
+            <Link href="/contact" className="hover:text-violet-600">联系方式</Link>
           </div>
         </div>
       </footer>

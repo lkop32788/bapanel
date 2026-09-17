@@ -35,10 +35,7 @@ async function notifyOwner(workspaceId, text, kind) {
   }
 }
 
-function formatApptLine(appt) {
-  const d = appt.date ? new Date(appt.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' }) : '';
-  return `📌 ${appt.title || 'Appointment'}\n👤 ${appt.contactName || 'Customer'}${appt.contactPhone ? ' (' + appt.contactPhone + ')' : ''}\n📅 ${d} ${appt.startTime || ''}${appt.notes ? '\n📝 ' + appt.notes : ''}`;
-}
+
 
 async function humanRequested(workspaceId, phone, reason) {
   try {
@@ -48,88 +45,37 @@ async function humanRequested(workspaceId, phone, reason) {
   return notifyOwner(workspaceId, `🙋 *Customer wants to talk to a human*\n\n📞 ${phone || 'Unknown number'}\n📝 ${reason || 'No reason given'}\n\nPlease call/reply to them soon.`, 'onHumanRequest');
 }
 
-async function appointmentBooked(appt) {
-  return notifyOwner(appt.workspace, `📅 *New appointment booked*\n\n${formatApptLine(appt)}`, 'onAppointment');
-}
 
-async function appointmentReminder(appt, when) {
-  return notifyOwner(appt.workspace, `⏰ *Appointment reminder (${when})*\n\n${formatApptLine(appt)}`, 'onReminder');
-}
+
+
 
 const failAlertTimes = new Map();
 
-function inr(n) { return '\u20b9' + (Number(n) || 0).toLocaleString('en-IN'); }
+
 function contactLabel(c) {
   if (!c) return '';
   return `${c.name || c.profileName || 'Customer'} (${c.phone || ''})`;
 }
 
-async function orderPlaced(order, contactName) {
-  const AutomationSettings = require('../models/AutomationSettings');
-  const st = await AutomationSettings.findOne({ workspace: order.workspace });
-  const min = Number(st?.ownerAlerts?.bigOrderAmount) || 0;
-  if (min > 0 && (order.totalAmount || 0) < min) return false;
-  const items = (order.items || []).map(i => `\u2022 ${i.name} x${i.quantity}`).join('\n');
-  const big = min > 0 ? '\ud83d\udcb8 *BIG ORDER!*\n' : '';
-  return notifyOwner(order.workspace, `${big}\ud83d\uded2 *New order ${order.orderNumber || ''}*\n\n\ud83d\udc64 ${contactName || ''}\n${items}\n\ud83d\udcb0 Total: ${inr(order.totalAmount)}`, 'onOrder');
-}
 
-async function paymentReceived(order, contactName) {
-  return notifyOwner(order.workspace, `\ud83d\udcb0 *Payment received*\n\n\ud83e\uddfe Order ${order.orderNumber || ''} \u2014 ${inr(order.totalAmount)}\n\ud83d\udc64 ${contactName || ''}`, 'onPayment');
-}
 
-async function checkSalesTarget(workspaceId) {
-  try {
-    const AutomationSettings = require('../models/AutomationSettings');
-    const Order = require('../models/Order');
-    const st = await AutomationSettings.findOne({ workspace: workspaceId });
-    const target = Number(st?.ownerAlerts?.salesTarget) || 0;
-    if (!st?.ownerAlerts?.enabled || !target) return;
-    const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-    const monthKey = `${nowIST.getFullYear()}-${String(nowIST.getMonth() + 1).padStart(2, '0')}`;
-    if (st.ownerAlerts.salesTargetNotifiedMonth === monthKey) return;
-    const monthStart = new Date(Date.UTC(nowIST.getFullYear(), nowIST.getMonth(), 1) - 5.5 * 3600 * 1000);
-    const agg = await Order.aggregate([
-      { $match: { workspace: st.workspace, createdAt: { $gte: monthStart } } },
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } },
-    ]);
-    const total = agg[0]?.total || 0;
-    if (total >= target) {
-      st.ownerAlerts.salesTargetNotifiedMonth = monthKey;
-      await st.save();
-      await notifyOwner(workspaceId, `\ud83c\udfaf *Sales target achieved!*\n\nThis month's target of ${inr(target)} has been reached \u2014 ${inr(total)} in orders so far. \ud83c\udf89`);
-    }
-  } catch (e) { console.error('[OwnerAlert] salesTarget:', e.message); }
-}
 
-async function hotLead(workspaceId, contact, args) {
-  return notifyOwner(workspaceId, `\ud83d\udd25 *Hot lead!*\n\n\ud83d\udc64 ${contactLabel(contact)}${args?.value ? '\n\ud83d\udcb0 Value: ' + inr(args.value) : ''}${args?.notes ? '\n\ud83d\udcdd ' + args.notes : ''}\n\nFollow up quickly!`, 'onHotLead');
-}
+
+
+
+
 
 async function complaintDetected(workspaceId, contact, text) {
   return notifyOwner(workspaceId, `\ud83d\ude21 *Angry customer / complaint*\n\n\ud83d\udc64 ${contactLabel(contact)}\n\ud83d\udcac "${String(text).slice(0, 200)}"\n\nAttend to this immediately.`, 'onComplaint');
 }
 
-async function ticketCreated(ticket) {
-  let label = '';
-  try {
-    if (ticket.contact) {
-      const Contact = require('../models/Contact');
-      const c = await Contact.findById(ticket.contact).select('name profileName phone').lean();
-      label = contactLabel(c);
-    }
-  } catch (e) { /* noop */ }
-  return notifyOwner(ticket.workspace, `\ud83c\udfab *New support ticket*\n\n\ud83d\udccc ${ticket.subject || 'No subject'}\n\ud83d\udc64 ${label}`, 'onTicket');
-}
+
 
 async function missedCall(workspaceId, from) {
   return notifyOwner(workspaceId, `\ud83d\udcf5 *Missed call*\n\n\ud83d\udcde ${from}\n\nThe customer's call was missed \u2014 please call them back.`, 'onMissedCall');
 }
 
-async function apptChanged(appt, kind) {
-  const label = kind === 'cancelled' ? '\u274c *Appointment cancelled*' : '\ud83d\udd01 *Appointment rescheduled*';
-  return notifyOwner(appt.workspace, `${label}\n\n${formatApptLine(appt)}`, 'onApptChange');
-}
+
 
 async function callSummary(workspaceId, phone, summary) {
   return notifyOwner(workspaceId, `\ud83e\udd16 *AI call summary* (${phone})\n\n${summary}`, 'onCallSummary');
@@ -160,9 +106,7 @@ async function leadSource(workspaceId, contact, source) {
   return notifyOwner(workspaceId, `\ud83c\udd95 *New lead*\n\n\ud83d\udc64 ${contactLabel(contact)}\n\ud83d\udccd Source: ${source}`, 'onLeadSource');
 }
 
-async function lowStock(product) {
-  return notifyOwner(product.workspace, `\ud83d\udce6 *Product out of stock*\n\n${product.name}${product.sku ? ' (SKU: ' + product.sku + ')' : ''}\n\nPlease update the stock.`, 'onLowStock');
-}
+
 
 async function agentLogin(workspaceId, user) {
   return notifyOwner(workspaceId, `\ud83d\udc64 *Agent logged in*\n\n${user.name || ''} (${user.email || ''})`, 'onAgentLogin');
@@ -193,22 +137,18 @@ async function buildTodayReport(workspaceId) {
   const Conversation = require('../models/Conversation');
   const Contact = require('../models/Contact');
   const Message = require('../models/Message');
-  const Order = require('../models/Order');
   const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
   const startIST = new Date(nowIST); startIST.setHours(0, 0, 0, 0);
   const start = new Date(startIST.getTime() - 5.5 * 3600 * 1000);
   const range = { $gte: start };
-  const [newConvs, newContacts, msgIn, msgOut, newOrders, revenueAgg, openConvs] = await Promise.all([
+  const [newConvs, newContacts, msgIn, msgOut, openConvs] = await Promise.all([
     Conversation.countDocuments({ workspace: workspaceId, createdAt: range }),
     Contact.countDocuments({ workspace: workspaceId, createdAt: range }),
     Message.countDocuments({ workspace: workspaceId, direction: 'inbound', createdAt: range }),
     Message.countDocuments({ workspace: workspaceId, direction: 'outbound', createdAt: range }),
-    Order.countDocuments({ workspace: workspaceId, createdAt: range }),
-    Order.aggregate([{ $match: { workspace: workspaceId, createdAt: range } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
     Conversation.countDocuments({ workspace: workspaceId, status: 'active' }),
   ]);
-  const revenue = revenueAgg[0]?.total || 0;
-  return `\ud83d\udcca *Today's report (so far)*\n\n\ud83d\udcac New chats: ${newConvs}\n\ud83d\udc64 New contacts: ${newContacts}\n\ud83d\udce5 Messages received: ${msgIn}\n\ud83d\udce4 Messages sent: ${msgOut}\n\ud83d\uded2 Orders: ${newOrders} (${inr(revenue)})\n\ud83d\udd13 Open chats: ${openConvs}`;
+  return `\ud83d\udcca *Today's report (so far)*\n\n\ud83d\udcac New chats: ${newConvs}\n\ud83d\udc64 New contacts: ${newContacts}\n\ud83d\udce5 Messages received: ${msgIn}\n\ud83d\udce4 Messages sent: ${msgOut}\n\ud83d\udd13 Open chats: ${openConvs}`;
 }
 
 // Owner replies/commands over WhatsApp: "report", "ai on/off", "ok", "help".
@@ -259,17 +199,11 @@ async function handleOwnerCommand(workspace, fromDigits, text) {
 }
 
 
-async function cartAbandon(workspaceId, order, contactName) {
-  return notifyOwner(workspaceId, `\ud83d\uded2 *Cart abandoned*\n\n\ud83d\udc64 ${contactName}\n\ud83e\uddfe Order ${order.orderNumber || ''} \u2014 ${inr(order.totalAmount)}\n\nThe customer started an order but did not complete it.`, 'onCartAbandon');
-}
 
-async function leadStageChange(workspaceId, contact, dealTitle, oldStage, newStage) {
-  return notifyOwner(workspaceId, `\ud83d\udcc8 *Lead stage change*\n\n\ud83d\udc64 ${contactLabel(contact)}\n\ud83d\udccb ${dealTitle}\n${oldStage} \u2192 ${newStage}`, 'onLeadStage');
-}
 
-async function highValueMsg(workspaceId, contact, totalSpent) {
-  return notifyOwner(workspaceId, `\ud83d\udcb0 *High-value customer message*\n\n\ud83d\udc64 ${contactLabel(contact)}\n\ud83d\udcb8 Total orders: ${inr(totalSpent)}\n\nReply with priority.`, 'onOrder');
-}
+
+
+
 
 async function tagChangeAlert(workspaceId, contact, added, removed) {
   const parts = [];
@@ -283,12 +217,10 @@ async function templateReject(workspaceId, templateName, reason) {
 }
 
 async function keywordAlert(workspaceId, contact, keyword, text) {
-  return notifyOwner(workspaceId, `\ud83d\udea8 *Keyword detected: "${keyword}"*\n\n\ud83d\udc64 ${contactLabel(contact)}\n\ud83d\udcac "${String(text).slice(0, 200)}"`, 'onOrder');
+  return notifyOwner(workspaceId, `\ud83d\udea8 *Keyword detected: "${keyword}"*\n\n\ud83d\udc64 ${contactLabel(contact)}\n\ud83d\udcac "${String(text).slice(0, 200)}"`, 'onDailyUnread');
 }
 
-async function noApptsToday(workspaceId) {
-  return notifyOwner(workspaceId, `\ud83d\udcc5 *No appointments today*\n\nThe day is free \u2014 do follow-ups or outreach.`, 'onNoAppts');
-}
+
 
 async function firstMsgOfDay(workspaceId, contact) {
   return notifyOwner(workspaceId, `\u2600\ufe0f *First customer message of the day!*\n\n\ud83d\udc64 ${contactLabel(contact)}\n\nBusiness has started \u2014 good morning!`, 'onFirstMsg');
@@ -337,41 +269,32 @@ async function afterHoursMsg(workspaceId, contact) {
 }
 
 async function monthlyReportSend(workspaceId, data) {
-  const { newConvs, newContacts, msgIn, msgOut, newOrders, revenue, openConvs } = data;
-  return notifyOwner(workspaceId, `\ud83d\udcc5 *Monthly Report (last 30 days)*\n\n\ud83d\udcac New chats: ${newConvs}\n\ud83d\udc64 New contacts: ${newContacts}\n\ud83d\udce5 Messages received: ${msgIn}\n\ud83d\udce4 Messages sent: ${msgOut}\n\ud83d\uded2 Orders: ${newOrders} (${inr(revenue)})\n\ud83d\udd13 Open chats: ${openConvs}`, 'onOrder');
+  const { newConvs, newContacts, msgIn, msgOut, openConvs } = data;
+  return notifyOwner(workspaceId, `\ud83d\udcc5 *Monthly Report (last 30 days)*\n\n\ud83d\udcac New chats: ${newConvs}\n\ud83d\udc64 New contacts: ${newContacts}\n\ud83d\udce5 Messages received: ${msgIn}\n\ud83d\udce4 Messages sent: ${msgOut}\n\ud83d\udd13 Open chats: ${openConvs}`, 'onDailyUnread');
 }
 
 async function slaBreachAlert(workspaceId, contact, hours) {
   return notifyOwner(workspaceId, `\u23f0 *SLA breach!*\n\n\ud83d\udc64 ${contactLabel(contact)}\n\u23f1 Open for ${hours}+ hours without resolution.\n\nPlease resolve immediately.`, 'onSlaBreach');
 }
 
-async function revenueMilestoneHit(workspaceId, amount) {
-  return notifyOwner(workspaceId, `\ud83c\udf89 *Revenue milestone reached!*\n\nToday's revenue crossed ${inr(amount)}! \ud83d\ude80`, 'onRevenueMilestone');
-}
 
-async function revenueDropAlert(workspaceId, today, yesterday) {
-  const drop = yesterday > 0 ? Math.round((1 - today / yesterday) * 100) : 0;
-  return notifyOwner(workspaceId, `\ud83d\udcc9 *Revenue drop alert*\n\nToday: ${inr(today)}\nYesterday: ${inr(yesterday)}\n\ud83d\udccd Down ${drop}%.\n\nConsider taking action.`, 'onRevenueDrop');
-}
 
-async function orderCancelled(order, contactName) {
-  return notifyOwner(order.workspace, `\u274c *Order cancelled*\n\n\ud83e\uddfe ${order.orderNumber || ''} \u2014 ${inr(order.totalAmount)}\n\ud83d\udc64 ${contactName || ''}`, 'onOrderCancelled');
-}
+
+
+
 
 async function dailyUnreadSummary(workspaceId, count) {
   return notifyOwner(workspaceId, `\ud83d\udce8 *Daily unread summary*\n\n${count} chats are still unread.\n\nEnd of day \u2014 please reply to them.`, 'onDailyUnread');
 }
 
 module.exports = {
-  notifyOwner, humanRequested, appointmentBooked, appointmentReminder,
-  orderPlaced, paymentReceived, checkSalesTarget, hotLead, complaintDetected,
-  ticketCreated, missedCall, apptChanged, callSummary, badRating, repeatCustomer,
-  broadcastDone, msgFail, leadSource, lowStock, agentLogin, disconnectAlert,
+  notifyOwner, humanRequested, complaintDetected,
+  missedCall, callSummary, badRating, repeatCustomer,
+  broadcastDone, msgFail, leadSource, agentLogin, disconnectAlert,
   handleOwnerCommand, buildTodayReport,
-  cartAbandon, leadStageChange, highValueMsg, tagChangeAlert, templateReject,
-  keywordAlert, noApptsToday, firstMsgOfDay, hourlyPulse, newDeviceLogin,
+  tagChangeAlert, templateReject,
+  keywordAlert, firstMsgOfDay, hourlyPulse, newDeviceLogin,
   bulkDeleteAlert, sentimentScore, aiSuggestion, aiCallFailed, agentIdleAlert,
   chatReassigned, agentOfflineAlert, afterHoursMsg, monthlyReportSend,
-  slaBreachAlert, revenueMilestoneHit, revenueDropAlert, orderCancelled,
-  dailyUnreadSummary,
+  slaBreachAlert, dailyUnreadSummary,
 };

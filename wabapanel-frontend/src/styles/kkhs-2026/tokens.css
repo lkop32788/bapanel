@@ -1,0 +1,99 @@
+/* ==========================================================================
+   KKHS Theme 2026 — design tokens
+   --------------------------------------------------------------------------
+   EVERY rule in this package is scoped under html[data-kkhs="on"].
+   When the flag is off, this file has ZERO effect on the panel.
+   Do not remove the scope selector.
+   ========================================================================== */
+
+html[data-kkhs="on"] {
+  /* ---- surfaces ---- */
+  --k-canvas:  #F5F6F9;
+  --k-surface: #FFFFFF;
+  --k-sunken:  #F0F2F6;
+  --k-hover:   #EAEDF3;
+
+  /* ---- lines ---- */
+  --k-line:    #E3E6EC;
+  --k-line-2:  #CFD4DE;
+
+  /* ---- ink ---- */
+  --k-ink:     #0F1319;
+  --k-ink-2:   #5A6273;
+  --k-ink-3:   #8B92A2;
+
+  /* ---- brand (white-label safe: overridden by --brand if the panel sets it) ---- */
+  --k-brand:   #12876A;
+  --k-brand-2: #0C6B54;
+  --k-brand-w: #E3F4EE;
+
+  /* ---- semantic ---- */
+  --k-ok:      #12876A;  --k-ok-w:   #E3F4EE;
+  --k-warn:    #B77400;  --k-warn-w: #FBF3E2;
+  --k-bad:     #D63841;  --k-bad-w:  #FCEBEC;
+  --k-info:    #2F5BFF;  --k-info-w: #E9EEFF;
+  --k-purple:  #6D3BE8;  --k-purple-w:#F0EAFE;
+
+  /* ---- chat bubbles ---- */
+  --k-bubble-in:  #FFFFFF;
+  --k-bubble-out: #DDF3E9;
+
+  /* ---- radii: three sizes, by purpose ---- */
+  --k-r-sm: 6px;
+  --k-r-md: 8px;
+  --k-r-lg: 12px;
+
+  /* ---- elevation: only for things that genuinely float ---- */
+  --k-shadow: 0 10px 34px -14px rgba(15, 20, 40, .22), 0 1px 3px rgba(15, 20, 40, .06);
+
+  /* ---- type ---- */
+  --k-font: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --k-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* Dark mode. The panel already uses Tailwind darkMode:"class", so we hook the
+   same .dark class it already toggles — no new toggle logic is introduced. */
+html[data-kkhs="on"].dark,
+html[data-kkhs="on"][data-theme="dark"] {
+  --k-canvas:  #0A0C10;
+  --k-surface: #10131A;
+  --k-sunken:  #161A23;
+  --k-hover:   #1C212C;
+  --k-line:    #202632;
+  --k-line-2:  #2C3340;
+  --k-ink:     #E6E9F0;
+  --k-ink-2:   #9AA3B5;
+  --k-ink-3:   #7B8497;
+  --k-brand:   #2FBF80;
+  --k-brand-2: #4FD79B;
+  --k-brand-w: #0D2620;
+  --k-ok:      #2FBF80;  --k-ok-w:   #0D2620;
+  --k-warn:    #E8A33D;  --k-warn-w: #2A2113;
+  --k-bad:     #F0545E;  --k-bad-w:  #2B1418;
+  --k-info:    #4B7BFF;  --k-info-w: #18203A;
+  --k-purple:  #9B7BFF;  --k-purple-w:#1E1733;
+  --k-bubble-in:  #161A23;
+  --k-bubble-out: #123328;
+  --k-shadow: 0 14px 40px -16px rgba(0,0,0,.75), 0 1px 3px rgba(0,0,0,.5);
+}
+
+/* White-label: if the panel has already set --brand (it does, via
+   html.brand-themed), let the partner's colour win over ours. */
+html[data-kkhs="on"].brand-themed {
+  --k-brand:   var(--brand, #12876A);
+  --k-brand-2: color-mix(in srgb, var(--brand, #12876A) 82%, #000);
+  --k-brand-w: color-mix(in srgb, var(--brand, #12876A) 12%, #fff);
+}
+
+/* Admin panel gets a distinct accent so an operator can never confuse
+   "I am inside a vendor account" with "I am on the platform admin". */
+html[data-kkhs="on"][data-kkhs-panel="admin"] {
+  --k-brand:   #6D3BE8;
+  --k-brand-2: #5A2ED0;
+  --k-brand-w: #F0EAFE;
+}
+html[data-kkhs="on"][data-kkhs-panel="admin"].dark {
+  --k-brand:   #9B7BFF;
+  --k-brand-2: #B49BFF;
+  --k-brand-w: #1E1733;
+}

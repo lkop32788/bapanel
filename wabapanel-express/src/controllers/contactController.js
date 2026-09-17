@@ -1,5 +1,4 @@
 const Contact = require('../models/Contact');
-const { checkPlanLimit } = require('../utils/planLimits');
 const Tag = require('../models/Tag');
 const { sendPaginated } = require('../utils/apiResponse');
 
@@ -32,36 +31,6 @@ const getContacts = async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
-    // Attach each contact's current pipeline + stage (open deals preferred).
-    try {
-      const Pipeline = require('../models/Pipeline');
-      const ids = contacts.map((c) => c._id);
-      if (ids.length) {
-        const pipelines = await Pipeline.find(
-          { workspace: req.workspace._id, 'deals.contact': { $in: ids } },
-          { name: 1, stages: 1, 'deals.contact': 1, 'deals.stage': 1, 'deals.status': 1 }
-        ).lean();
-        const stageMap = new Map();
-        for (const pl of pipelines) {
-          const stageName = (s) => {
-            const st = (pl.stages || []).find((x) => x.id === s || x.name === s);
-            return st ? st.name : s;
-          };
-          for (const d of pl.deals || []) {
-            if (!d.contact) continue;
-            const cid = String(d.contact);
-            const existing = stageMap.get(cid);
-            if (!existing || (existing.status !== 'open' && d.status === 'open')) {
-              stageMap.set(cid, { pipeline: pl.name, stage: stageName(d.stage), status: d.status });
-            }
-          }
-        }
-        for (const c of contacts) {
-          c.pipelineStage = stageMap.get(String(c._id)) || null;
-        }
-      }
-    } catch (e) { /* pipeline lookup best-effort */ }
-
     sendPaginated(res, contacts, total, page, limit);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -71,8 +40,6 @@ const getContacts = async (req, res) => {
 // @POST /api/contacts
 const createContact = async (req, res) => {
   try {
-    const limitMsg = await checkPlanLimit(req, 'contacts', 'Contact');
-    if (limitMsg) return res.status(403).json({ success: false, message: limitMsg });
     const contact = await Contact.create({
       ...req.body,
       workspace: req.workspace._id,
@@ -224,7 +191,6 @@ const importContacts = async (req, res) => {
             phone: String(obj.phone || obj.mobile || obj.number || '').replace(/[^0-9]/g, ''),
             email: obj.email || obj.mail || '',
             tagNames: String(obj.tags || obj.labels || '').split(/[;|]/).map((t) => t.trim()).filter(Boolean),
-            stageName: String(obj.stage || obj.pipeline_stage || '').trim(),
             segmentNames: String(obj.segments || obj.segment || obj.category || obj.group || obj.groups || '').split(/[;|]/).map((t) => t.trim()).filter(Boolean),
             birthdayStr: obj.birthday || obj.dob || '',
             anniversaryStr: obj.anniversary || '',
@@ -241,13 +207,12 @@ const importContacts = async (req, res) => {
     const results = { created: 0, updated: 0, failed: 0, errors: [] };
 
     const Tag = require('../models/Tag');
-    const Stage = require('../models/Stage');
     const Segment = require('../models/Segment');
     const DataField = require('../models/DataField');
     const dataFields = await DataField.find({ workspace: req.workspace._id, isActive: true }).lean();
     for (const c of contacts) {
       try {
-        const { tagNames, stageName, segmentNames, birthdayStr, anniversaryStr, rawFields, ...base } = c;
+        const { tagNames, segmentNames, birthdayStr, anniversaryStr, rawFields, ...base } = c;
         const doc = { ...base, workspace: req.workspace._id, source: 'import' };
         const _bd = parseFlexibleDate(birthdayStr); if (_bd) doc.birthday = _bd;
         const _an = parseFlexibleDate(anniversaryStr); if (_an) doc.anniversary = _an;
@@ -271,14 +236,7 @@ const importContacts = async (req, res) => {
           }
           doc.tags = ids;
         }
-        if (stageName) {
-          const st = await Stage.findOneAndUpdate(
-            { workspace: req.workspace._id, name: stageName },
-            { $setOnInsert: { workspace: req.workspace._id, name: stageName } },
-            { upsert: true, new: true }
-          );
-          doc.stage = st._id;
-        }
+        
         if (segmentNames && segmentNames.length) {
           const sids = [];
           for (const sn of segmentNames) {
@@ -314,7 +272,6 @@ const exportContacts = async (req, res) => {
   try {
     const contacts = await Contact.find({ workspace: req.workspace._id, isGroup: { $ne: true } })
       .populate('tags', 'name')
-      .populate('stage', 'name')
       .populate('segments', 'name')
       .lean();
 
@@ -323,12 +280,11 @@ const exportContacts = async (req, res) => {
 
     const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
     const fmtDate = (d) => fmtDMY(d);
-    const headers = ['name', 'phone', 'email', 'birthday', 'anniversary', 'tags', 'stage', 'segments', 'status', 'source', ...dataFields.map((f) => f.name)].join(',');
+    const headers = ['name', 'phone', 'email', 'birthday', 'anniversary', 'tags', 'segments', 'status', 'source', ...dataFields.map((f) => f.name)].join(',');
     const rows = contacts.map(c => {
       const tags = (c.tags || []).map(t => typeof t === 'object' ? t.name : t).join(';');
-      const stage = c.stage && typeof c.stage === 'object' ? c.stage.name : '';
       const segments = (c.segments || []).map(sg => typeof sg === 'object' ? sg.name : sg).join(';');
-      const base = [c.name, c.phone, c.email, fmtDate(c.birthday), fmtDate(c.anniversary), tags, stage, segments, c.status, c.source];
+      const base = [c.name, c.phone, c.email, fmtDate(c.birthday), fmtDate(c.anniversary), tags, segments, c.status, c.source];
       const custom = dataFields.map((f) => (c.customFields || {})[f.name]);
       return [...base, ...custom].map(esc).join(',');
     });

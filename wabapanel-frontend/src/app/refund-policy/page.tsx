@@ -1,0 +1,104 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+'use client';
+import React, { useState, useEffect, useContext } from 'react';
+import { SiteSettingsContext } from '@/components/SiteContentProvider';
+import Link from 'next/link';
+import { MessageSquare, Menu, X } from 'lucide-react';
+
+import { useSiteContent } from '@/lib/siteContent';
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+export default function RefundPolicyPage() {
+  const c = useSiteContent();
+  const [settings, setSettings] = useState<any>(useContext(SiteSettingsContext));
+  const [mobileMenu, setMobileMenu] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API}/public/site-settings`).then(r => r.json()).then(d => { if (d.success) setSettings(d.data); }).catch(() => {});
+  }, []);
+
+  const biz = settings?.business || { name: '' };
+  const logo = settings?.branding?.logo;
+
+  const sections: { title: string; body: string }[] = [
+    { title: "1. 认购计划", body: `Paid ${biz.name || 'our'} plans are billed in advance for the chosen cycle (monthly, quarterly or yearly). Your subscription gives you access to the features of the plan you selected for that period.` },
+    { title: "2. 取消", body: 'You can cancel your subscription at any time from your billing page. Cancellation stops future auto-renewal charges; your plan stays active until the end of the period you have already paid for. After that it moves to the free tier.' },
+    { title: "3. 退款", body: `Plan fees are generally non-refundable once a billing period has started, because the service is delivered immediately. If you were charged in error, or a technical fault on our side prevented you from using the service, contact us within 7 days and we will review a pro-rated refund on a case-by-case basis.` },
+    { title: "4.钱包/消息充值", body: 'Wallet balance added for WhatsApp message charges is used to pay per-message costs set by WhatsApp (Meta). Consumed message charges are non-refundable. Any unused wallet balance can be refunded on written request, minus payment-gateway fees, within the limits of applicable law.' },
+    { title: "5. WhatsApp / Meta 收费", body: 'Conversation and template charges billed by WhatsApp (Meta) are separate from plan fees and are governed by Meta’s own pricing; these are non-refundable once a message has been sent.' },
+    { title: "6. 如何请求", body: `To request a cancellation or refund, email us${biz.email ? ` at ${biz.email}` : ' from your account email'} with your registered email and the payment reference. We respond within 3–5 business days.` },
+    { title: "7. 本政策的变更", body: 'We may update this policy from time to time. The latest version will always be available on this page.' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#faf9fe] text-gray-900 overflow-x-hidden">
+      {/* Navbar */}
+      <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-6xl bg-white/80 backdrop-blur-2xl border border-gray-200/60 rounded-2xl shadow-lg shadow-purple-100/30 z-50 px-5 py-2.5">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5">
+            {logo ? <img src={logo} alt={biz.name} className="h-10 w-auto" /> : (
+              <div className="w-9 h-9 bg-linear-to-br from-violet-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-violet-200">
+                <MessageSquare className="w-5 h-5 text-white" />
+              </div>
+            )}
+          </Link>
+          <div className="hidden lg:flex items-center gap-1">
+            {(c.nav.links || []).map((l: any, i: number) => (
+              <a key={i} href={l.href} className="px-3 py-1.5 text-sm font-bold text-gray-900 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-all">{l.label}</a>
+            ))}
+          </div>
+          <div className="hidden md:flex items-center gap-2">
+            <Link href="/auth/login" className="px-4 py-2 text-sm font-bold text-gray-900 hover:text-violet-700 transition-all">{c.nav.loginText}</Link>
+            <Link href="/auth/register" className="px-4 py-2 text-sm font-bold text-white bg-linear-to-r from-violet-600 to-purple-600 rounded-lg shadow-md shadow-violet-200/40 hover:shadow-lg transition-all hover:-translate-y-0.5">{c.nav.registerText}</Link>
+          </div>
+          <button onClick={() => setMobileMenu(!mobileMenu)} className="md:hidden p-2 rounded-lg hover:bg-gray-100">
+            {mobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+        {mobileMenu && (
+          <div className="md:hidden pt-4 pb-2 border-t border-gray-100 mt-3 space-y-2">
+            {(c.nav.links || []).map((l: any, i: number) => (
+              <a key={i} href={l.href} onClick={() => setMobileMenu(false)} className="block px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-violet-50">{l.label}</a>
+            ))}
+            <div className="flex gap-2 pt-2">
+              <Link href="/auth/login" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold border border-gray-200 rounded-xl">{c.nav.loginText}</Link>
+              <Link href="/auth/register" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-white bg-linear-to-r from-violet-600 to-purple-600 rounded-xl">{c.nav.registerText}</Link>
+            </div>
+          </div>
+        )}
+      </nav>
+
+      {/* Content */}
+      <section className="pt-32 md:pt-40 pb-20 px-4">
+        <div className="max-w-4xl mx-auto">
+          <span className="inline-flex items-center px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full mb-4">退款和取消</span>
+          <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">退款 &amp; <span className="bg-linear-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">取消政策</span></h1>
+          <p className="text-sm text-gray-400 mb-10">最后更新： {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+
+          <div className="space-y-8">
+            {sections.map((s, i) => (
+              <div key={i} className="p-6 bg-white rounded-2xl border border-gray-100">
+                <h2 className="text-lg font-bold text-gray-900 mb-3">{s.title}</h2>
+                <p className="text-sm text-gray-600 leading-relaxed">{s.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-200/60 bg-white py-12 px-4">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} {biz.name}. {c.footer.copyrightText}</p>
+          <div className="flex items-center gap-4 text-sm text-gray-400">
+            <Link href="/privacy" className="hover:text-violet-600">隐私政策</Link>
+            <Link href="/terms" className="hover:text-violet-600">服务条款</Link>
+            <Link href="/about" className="hover:text-violet-600">关于</Link>
+            <Link href="/contact" className="hover:text-violet-600">联系方式</Link>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

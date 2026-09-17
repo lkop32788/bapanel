@@ -1,0 +1,13 @@
+{
+  "version": "frontend-v207",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/app/client/channels/page.tsx"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v207.zip",
+  "zip_sha256": "a87d1c59c5f0e585d9288c40fa4b017e3e4872fcfd81a074734c9c58cc7ba7be",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

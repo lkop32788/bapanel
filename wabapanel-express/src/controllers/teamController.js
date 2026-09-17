@@ -1,5 +1,4 @@
 const Team = require('../models/Team');
-const { checkPlanLimit } = require('../utils/planLimits');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
@@ -16,8 +15,7 @@ const getTeams = async (req, res) => {
 
 const createTeam = async (req, res) => {
   try {
-    const limitMsg = await checkPlanLimit(req, 'teams', 'Team');
-    if (limitMsg) return res.status(403).json({ success: false, message: limitMsg });
+
     const team = await Team.create({ ...req.body, workspace: req.workspace._id });
     res.status(201).json({ success: true, data: team });
   } catch (error) {
@@ -85,8 +83,7 @@ const listAgents = async (req, res) => {
 
 const addAgent = async (req, res) => {
   try {
-    const agentMsg = await checkPlanLimit(req, 'agents', 'User', { role: { $in: ['agent', 'user'] }, status: 'active' });
-    if (agentMsg) return res.status(403).json({ success: false, message: agentMsg });
+
     const { userId, teamId, name, email, password, role, permissions, allowedChannels, inboxScope } = req.body;
 
     // Create a new agent user when name/email/password provided

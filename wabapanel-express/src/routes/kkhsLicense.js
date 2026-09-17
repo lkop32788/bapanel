@@ -18,6 +18,15 @@ const { protect, adminOnly } = require('../middleware/auth');
 router.get('/status', protect, adminOnly, async (req, res) => {
   try {
     const status = await kkhsService.getStatus();
+    // Read persisted activation state instead of the service's startup cache.
+    const mongoose = require('mongoose');
+    const settings = await mongoose.connection.db.collection('systemsettings').findOne(
+      {}, { projection: { kkhsIsActive: 1, kkhsKillSwitch: 1 } }
+    );
+    if (settings) {
+      status.isActive = settings.kkhsIsActive === true;
+      status.killSwitch = settings.kkhsKillSwitch === true;
+    }
     res.json({ success: true, data: status });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -552,6 +561,7 @@ router.post('/frontend-rebuild', protect, adminOnly, async (req, res) => {
 const os = require('os');
 let frontendAutoBusy = false;
 const autoApplyFrontendPatches = async () => {
+  if (process.env.KKHS_AUTO_UPDATES_ENABLED !== 'true') return;
   if (frontendAutoBusy) return;
   frontendAutoBusy = true;
   try {
@@ -670,6 +680,7 @@ const reportUpdate = async (version, kind, success, message) => {
 
 let pushPollBusy = false;
 const pollPushedUpdates = async () => {
+  if (process.env.KKHS_AUTO_UPDATES_ENABLED !== 'true') return;
   if (pushPollBusy) return;
   pushPollBusy = true;
   try {

@@ -63,16 +63,8 @@ exports.run = async (req, res) => {
         { $match: { n: { $gte: value } } },
       ]);
       contactIds = agg.map((r) => r._id).filter(Boolean);
-    } else if (type === "purchase_amount") {
-      const Order = require("../models/Order");
-      const agg = await Order.aggregate([
-        { $match: { workspace: wsId, contact: { $ne: null } } },
-        { $group: { _id: "$contact", total: { $sum: "$totalAmount" } } },
-        { $match: { total: { $gte: value } } },
-      ]);
-      contactIds = agg.map((r) => r._id).filter(Boolean);
     } else {
-      return res.status(400).json({ success: false, message: "This badge is manual — set an auto-assign criteria (messages/purchase/days) first." });
+      return res.status(400).json({ success: false, message: "This badge is manual — set an auto-assign criteria (messages/days) first." });
     }
     if (contactIds.length) {
       await Contact.updateMany({ workspace: wsId, _id: { $in: contactIds } }, { $addToSet: { badges: badge._id } });

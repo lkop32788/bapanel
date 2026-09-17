@@ -1,5 +1,4 @@
 const Campaign = require('../models/Campaign');
-const { checkPlanLimit } = require('../utils/planLimits');
 const Contact = require('../models/Contact');
 const Template = require('../models/Template');
 const Conversation = require('../models/Conversation');
@@ -99,15 +98,12 @@ const mapAudience = (body) => {
     targetTags: a.tags || [],
     targetContacts: a.contacts || [],
     targetNumbers: Array.from(new Set((a.numbers || []).map(n => String(n).replace(/\D/g, '')).filter(n => n.length >= 10))),
-    targetPipeline: a.pipeline || undefined,
-    targetStage: a.stage || '',
   };
 };
 
 const createCampaign = async (req, res) => {
   try {
-    const limitMsg = await checkPlanLimit(req, 'campaigns', 'Campaign');
-    if (limitMsg) return res.status(403).json({ success: false, message: limitMsg });
+
     const campaign = await Campaign.create({
       ...mapAudience(req.body),
       workspace: req.workspace._id,
@@ -225,12 +221,6 @@ const runCampaignCore = async (campaign, workspace, io) => {
       contacts = await Contact.find({ workspace: workspace._id, tags: { $in: campaign.targetTags }, status: 'active', isGroup: { $ne: true } });
     } else if (campaign.targetType === 'numbers') {
       contacts = (campaign.targetNumbers || []).map((p) => ({ _id: null, phone: p }));
-    } else if (campaign.targetType === 'pipeline') {
-      const Pipeline = require('../models/Pipeline');
-      const pipeline = await Pipeline.findOne({ _id: campaign.targetPipeline, workspace: workspace._id });
-      const deals = (pipeline?.deals || []).filter((d) => !campaign.targetStage || d.stage === campaign.targetStage);
-      const ids = Array.from(new Set(deals.map((d) => String(d.contact)).filter(Boolean)));
-      contacts = await Contact.find({ _id: { $in: ids }, workspace: workspace._id, status: 'active' });
     } else {
       contacts = await Contact.find({ _id: { $in: campaign.targetContacts }, status: 'active' });
     }

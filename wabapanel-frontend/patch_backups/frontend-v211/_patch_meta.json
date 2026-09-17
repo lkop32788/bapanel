@@ -1,0 +1,13 @@
+{
+  "version": "frontend-v211",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/app/admin/settings/page.tsx"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v211.zip",
+  "zip_sha256": "2f35d13359b8cb857ad6b94c7a98a46928b372fbe7d50a901120232c836ff659",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

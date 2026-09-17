@@ -22,7 +22,6 @@ const aiCallingAgentSchema = new mongoose.Schema({
   phoneNumber: { type: String, default: '' },
   webhookUrl: { type: String, default: '' },
   transferNumber: { type: String, default: '' },
-  catalogUrl: { type: String, default: '' },
   followUpMessage: { type: String, default: '' },
   // Send the customer an AI-written WhatsApp summary after each call.
   callSummaryEnabled: { type: Boolean, default: true },

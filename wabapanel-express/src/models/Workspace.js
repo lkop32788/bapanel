@@ -84,13 +84,6 @@ const workspaceSchema = new mongoose.Schema({
     businessHours: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   status: { type: String, enum: ['active', 'inactive'], default: 'active' },
-  // Developer API webhook subscriptions (see /v1/webhooks)
-  apiWebhooks: [{
-    url: String,
-    events: [String],
-    createdAt: { type: Date, default: Date.now },
-  }],
-  apiKey: { type: String, index: true },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Workspace', workspaceSchema);

@@ -1,0 +1,14 @@
+/* KKHS Theme 2026 — single entry point.
+   Import this ONCE, in src/app/globals.css, as the LAST line.
+   Everything inside is scoped to html[data-kkhs="on"], so importing it
+   changes nothing until the flag is switched on. */
+@import "./tokens.css";
+@import "./theme.css";
+@import "./inbox.css";
+@import "./shell.css";
+@import "./dashboard.css";
+@import "./inbox3.css";
+@import "./phase4.css";
+@import "./omnix.css";
+@import "./custom.css";
+@import "./voice/index.css";

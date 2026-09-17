@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock } from 'lucide-react';
@@ -18,15 +19,15 @@ function ResetForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) { toast.error('Passwords do not match'); return; }
+    if (password !== confirmPassword) { toast.error(translateApiMessage("密码不匹配")); return; }
     setLoading(true);
     try {
       await authApi.resetPassword({ token, password });
-      toast.success('Password reset successful!');
+      toast.success(translateApiMessage("密码重置成功！"));
       router.push('/auth/login');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Reset failed');
+      toast.error(translateApiMessage(error.response?.data?.message || "重置失败"));
     } finally {
       setLoading(false);
     }
@@ -34,9 +35,9 @@ function ResetForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Input label="New Password" type="password" placeholder="Enter new password" value={password} onChange={(e) => setPassword(e.target.value)} required icon={<Lock className="w-4 h-4" />} />
-      <Input label="Confirm Password" type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required icon={<Lock className="w-4 h-4" />} />
-      <Button type="submit" className="w-full" loading={loading}>Reset Password</Button>
+      <Input label={"新密码"} type="password" placeholder={"输入新密码"} value={password} onChange={(e) => setPassword(e.target.value)} required icon={<Lock className="w-4 h-4" />} />
+      <Input label={"确认密码"} type="password" placeholder={"确认新密码"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required icon={<Lock className="w-4 h-4" />} />
+      <Button type="submit" className="w-full" loading={loading}>重置密码</Button>
     </form>
   );
 }
@@ -48,10 +49,10 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-center">{brand.logo ? <img src={brand.logo} alt={brand.name} className="h-14 mx-auto mb-2" /> : <><h1 className="text-3xl font-bold text-emerald-600">{brand.name}</h1><p className="text-sm text-gray-400">{brand.tagline}</p></>}</div>
-          <p className="text-gray-500 mt-2">Set your new password</p>
+          <p className="text-gray-500 mt-2">设置您的新密码</p>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-          <Suspense fallback={<div className="text-center py-4">Loading...</div>}>
+          <Suspense fallback={<div className="text-center py-4">加载中…</div>}>
             <ResetForm />
           </Suspense>
         </div>

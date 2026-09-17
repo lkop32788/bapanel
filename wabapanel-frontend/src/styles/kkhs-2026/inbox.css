@@ -1,0 +1,161 @@
+/* ==========================================================================
+   KKHS Theme 2026 — inbox layer
+   --------------------------------------------------------------------------
+   The inbox is where agents spend the day, so it gets the most attention.
+   Purely visual: bubble colours, delivery ticks, density, and the 24-hour
+   window indicator. No handler, no state, no route is touched.
+
+   The window countdown chip is rendered by SidebarEnhancer.tsx from data the
+   conversation object ALREADY carries (last inbound message timestamp). If
+   that field is missing the chip simply does not render — nothing breaks.
+   ========================================================================== */
+
+/* -------------------------------------------------------- three panes ---- */
+html[data-kkhs="on"] [data-kkhs-inbox] {
+  background: var(--k-canvas);
+}
+
+/* ------------------------------------------------------ message bubbles ---- */
+html[data-kkhs="on"] [data-kkhs-msg="in"],
+html[data-kkhs="on"] [data-kkhs-msg="out"] {
+  font-size: 12.5px;
+  line-height: 1.45;
+  padding: 6px 10px 5px;
+  border-radius: 11px;
+  max-width: 64%;
+}
+html[data-kkhs="on"] [data-kkhs-msg="in"] {
+  background: var(--k-bubble-in);
+  border: 1px solid var(--k-line);
+  border-bottom-left-radius: 4px;
+}
+html[data-kkhs="on"] [data-kkhs-msg="out"] {
+  background: var(--k-bubble-out);
+  border-bottom-right-radius: 4px;
+}
+
+/* v120 renders outgoing bubbles with emerald utility classes — remap them
+   rather than asking anyone to change the JSX. */
+html[data-kkhs="on"] .bg-emerald-100.rounded-lg,
+html[data-kkhs="on"] .bg-emerald-50.rounded-lg {
+  background: var(--k-bubble-out) !important;
+  border-radius: 11px !important;
+  border-bottom-right-radius: 4px !important;
+}
+
+/* --------------------------------------------------------- read ticks ---- */
+html[data-kkhs="on"] [data-kkhs-tick="sent"]      { color: var(--k-ink-3); }
+html[data-kkhs="on"] [data-kkhs-tick="delivered"] { color: var(--k-ink-3); }
+html[data-kkhs="on"] [data-kkhs-tick="read"]      { color: var(--k-info); }
+
+/* --------------------------------------------- 24-hour service window ----
+   WhatsApp's one hard constraint. Agents need to feel it, not look it up. */
+html[data-kkhs="on"] .k-win {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--k-mono);
+  font-size: 9.5px;
+  font-weight: 650;
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+html[data-kkhs="on"] .k-win svg { width: 9px; height: 9px; flex-shrink: 0; }
+html[data-kkhs="on"] .k-win--open { background: var(--k-ok-w);   color: var(--k-ok); }
+html[data-kkhs="on"] .k-win--soon { background: var(--k-warn-w); color: var(--k-warn); }
+html[data-kkhs="on"] .k-win--shut { background: var(--k-sunken); color: var(--k-ink-3); }
+
+/* Persistent banner above the composer. */
+html[data-kkhs="on"] .k-winbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--k-line);
+}
+html[data-kkhs="on"] .k-winbar b { font-family: var(--k-mono); font-weight: 700; }
+html[data-kkhs="on"] .k-winbar svg { width: 13px; height: 13px; flex-shrink: 0; }
+html[data-kkhs="on"] .k-winbar--open { background: var(--k-ok-w);   color: var(--k-ok); }
+html[data-kkhs="on"] .k-winbar--soon { background: var(--k-warn-w); color: var(--k-warn); }
+html[data-kkhs="on"] .k-winbar--shut { background: var(--k-sunken); color: var(--k-ink-2); }
+
+/* ---------------------------------------------------- conversation row ---- */
+html[data-kkhs="on"] [data-kkhs-conv] {
+  border-bottom: 1px solid var(--k-line);
+  padding: 9px 12px;
+  position: relative;
+}
+html[data-kkhs="on"] [data-kkhs-conv]:hover  { background: var(--k-sunken); }
+html[data-kkhs="on"] [data-kkhs-conv].active,
+html[data-kkhs="on"] [data-kkhs-conv][aria-selected="true"] { background: var(--k-brand-w); }
+html[data-kkhs="on"] [data-kkhs-conv].active::before,
+html[data-kkhs="on"] [data-kkhs-conv][aria-selected="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2.5px;
+  background: var(--k-brand);
+}
+
+/* Channel dot on the avatar so an agent can tell WhatsApp from Instagram
+   without reading. Colours match each platform's own brand. */
+html[data-kkhs="on"] .k-ch {
+  position: absolute;
+  bottom: -2px; right: -3px;
+  width: 14px; height: 14px;
+  border-radius: 5px;
+  display: grid; place-items: center;
+  border: 2px solid var(--k-surface);
+}
+html[data-kkhs="on"] .k-ch svg { width: 8px; height: 8px; color: #fff; }
+html[data-kkhs="on"] .k-ch--whatsapp          { background: #25D366; }
+html[data-kkhs="on"] .k-ch--whatsapp_qr       { background: #128C7E; }
+html[data-kkhs="on"] .k-ch--instagram         { background: #E1306C; }
+html[data-kkhs="on"] .k-ch--facebook          { background: #0866FF; }
+html[data-kkhs="on"] .k-ch--telegram          { background: #0088CC; }
+html[data-kkhs="on"] .k-ch--telegram_personal { background: #229ED9; }
+html[data-kkhs="on"] .k-ch--email             { background: #EA4335; }
+
+/* -------------------------------------------------------- composer bar ----
+   All existing composer buttons keep their handlers. Only spacing, size and
+   grouping change so 20+ actions stop looking like a wall. */
+html[data-kkhs="on"] [data-kkhs-composer] button {
+  height: 25px;
+  padding: 0 8px;
+  border-radius: var(--k-r-sm);
+  border: 1px solid var(--k-line);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--k-ink-2);
+}
+html[data-kkhs="on"] [data-kkhs-composer] button:hover {
+  color: var(--k-ink);
+  border-color: var(--k-line-2);
+  background: var(--k-sunken);
+}
+/* "Preset (free)" is the one action that saves the vendor money — it earns
+   a colour the others do not have. */
+html[data-kkhs="on"] [data-kkhs-composer] button[data-kkhs-free] {
+  border-color: var(--k-ok);
+  color: var(--k-ok);
+}
+html[data-kkhs="on"] [data-kkhs-composer] button[data-kkhs-ai] {
+  border-color: var(--k-purple);
+  color: var(--k-purple);
+}
+html[data-kkhs="on"] [data-kkhs-composer] textarea {
+  border-radius: 9px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* -------------------------------------------------------- context pane ---- */
+html[data-kkhs="on"] [data-kkhs-ctx] section { padding: 12px 14px; border-bottom: 1px solid var(--k-line); }
+html[data-kkhs="on"] [data-kkhs-ctx] section > h4 {
+  font-size: 10.5px;
+  font-weight: 650;
+  color: var(--k-ink-3);
+  margin-bottom: 8px;
+}

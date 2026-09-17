@@ -8,6 +8,7 @@ const conversationSchema = new mongoose.Schema({
   winbackAt: { type: Date },
   winbackStep: { type: Number, default: 0 },
   winbackAiCount: { type: Number, default: 0 },
+  sentimentAt: { type: Date },
   sentiment: { type: String, enum: ['', 'positive', 'neutral', 'negative'], default: '' },
   aiSummary: { type: String, default: '' },
   aiSummaryAt: { type: Date },

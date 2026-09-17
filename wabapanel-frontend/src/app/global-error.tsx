@@ -44,7 +44,7 @@ export default function GlobalError({
       >
         <div style={{ textAlign: 'center', padding: 24 }}>
           <p style={{ marginBottom: 16, fontSize: 15 }}>
-            {reloading ? 'Loading the latest version…' : 'Something went wrong.'}
+            {reloading ? "正在加载最新版本..." : "出了点问题。"}
           </p>
           {!reloading && (
             <button
@@ -58,7 +58,7 @@ export default function GlobalError({
                 fontSize: 14,
               }}
             >
-              Retry
+              重试
             </button>
           )}
         </div>

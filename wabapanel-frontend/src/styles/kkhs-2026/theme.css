@@ -1,0 +1,300 @@
+/* ==========================================================================
+   KKHS Theme 2026 — theme layer
+   --------------------------------------------------------------------------
+   This file re-skins the existing panel by remapping the Tailwind utility
+   classes the pages ALREADY use. No .tsx file is modified, no class name is
+   renamed, no markup moves. Every selector is scoped to html[data-kkhs="on"].
+
+   Class frequencies this targets were measured from the v120 source:
+     border 1121 · text-sm 992 · text-xs 650 · rounded-lg 650 · font-medium 527
+     text-gray-400 419 · text-gray-500 417 · bg-white 241 · rounded-xl 174
+     text-emerald-600 148 · bg-emerald-600 79 · bg-gray-50 175 · bg-gray-100 88
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- base ---- */
+html[data-kkhs="on"] body {
+  font-family: var(--k-font);
+  background: var(--k-canvas);
+  color: var(--k-ink);
+  -webkit-font-smoothing: antialiased;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+html[data-kkhs="on"] *:focus-visible {
+  outline: 1.5px solid var(--k-brand);
+  outline-offset: 1.5px;
+  border-radius: 4px;
+}
+
+/* Numbers, IDs, phone numbers, money and timestamps read as data, not prose. */
+html[data-kkhs="on"] .k-mono,
+html[data-kkhs="on"] code,
+html[data-kkhs="on"] kbd {
+  font-family: var(--k-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.015em;
+}
+
+/* ------------------------------------------------------------ surfaces ---- */
+html[data-kkhs="on"] .bg-white          { background-color: var(--k-surface) !important; }
+html[data-kkhs="on"] .bg-gray-50        { background-color: var(--k-sunken)  !important; }
+html[data-kkhs="on"] .bg-gray-100       { background-color: var(--k-sunken)  !important; }
+html[data-kkhs="on"] .bg-gray-200       { background-color: var(--k-hover)   !important; }
+html[data-kkhs="on"] .hover\:bg-gray-50:hover,
+html[data-kkhs="on"] .hover\:bg-gray-100:hover { background-color: var(--k-hover) !important; }
+
+/* ---------------------------------------------------------------- ink ---- */
+html[data-kkhs="on"] .text-gray-900 { color: var(--k-ink)   !important; }
+html[data-kkhs="on"] .text-gray-800 { color: var(--k-ink)   !important; }
+html[data-kkhs="on"] .text-gray-700 { color: var(--k-ink-2) !important; }
+html[data-kkhs="on"] .text-gray-600 { color: var(--k-ink-2) !important; }
+html[data-kkhs="on"] .text-gray-500 { color: var(--k-ink-3) !important; }
+html[data-kkhs="on"] .text-gray-400 { color: var(--k-ink-3) !important; }
+
+/* -------------------------------------------------------------- lines ---- */
+html[data-kkhs="on"] .border,
+html[data-kkhs="on"] .border-t, html[data-kkhs="on"] .border-b,
+html[data-kkhs="on"] .border-l, html[data-kkhs="on"] .border-r,
+html[data-kkhs="on"] .divide-y > * + *,
+html[data-kkhs="on"] .divide-x > * + * { border-color: var(--k-line) !important; }
+
+html[data-kkhs="on"] .border-gray-200,
+html[data-kkhs="on"] .border-gray-100 { border-color: var(--k-line)   !important; }
+html[data-kkhs="on"] .border-gray-300 { border-color: var(--k-line-2) !important; }
+
+/* -------------------------------------------------------------- radii ----
+   Three sizes by purpose instead of one blanket radius. */
+html[data-kkhs="on"] .rounded-md   { border-radius: var(--k-r-sm) !important; }
+html[data-kkhs="on"] .rounded-lg   { border-radius: var(--k-r-md) !important; }
+html[data-kkhs="on"] .rounded-xl,
+html[data-kkhs="on"] .rounded-2xl  { border-radius: var(--k-r-lg) !important; }
+
+/* --------------------------------------------------------- elevation ----
+   The v120 CSS puts a shadow on every card. Shadows are now reserved for
+   things that genuinely float (modals, dropdowns, popovers). Panels get a
+   hairline instead — this is the single biggest visual change. */
+html[data-kkhs="on"] .shadow-sm,
+html[data-kkhs="on"] .shadow,
+html[data-kkhs="on"] .shadow-md {
+  box-shadow: none !important;
+  border: 1px solid var(--k-line);
+}
+html[data-kkhs="on"] .shadow-lg,
+html[data-kkhs="on"] .shadow-xl,
+html[data-kkhs="on"] .shadow-2xl { box-shadow: var(--k-shadow) !important; }
+
+/* Neutralise the v120 "2026 UI refresh" block in globals.css, which added a
+   shadow to every .bg-white.rounded-xl. We keep the border, drop the float. */
+html[data-kkhs="on"] .bg-white.rounded-xl,
+html[data-kkhs="on"] .bg-white.rounded-lg {
+  box-shadow: none !important;
+  border: 1px solid var(--k-line);
+  border-radius: var(--k-r-lg);
+}
+
+/* Cards no longer lift on hover. Hover feedback is a background change. */
+html[data-kkhs="on"] .hover\:-translate-y-0\.5:hover,
+html[data-kkhs="on"] .hover\:-translate-y-1:hover,
+html[data-kkhs="on"] .hover\:scale-105:hover { transform: none !important; }
+
+/* -------------------------------------------------------------- brand ----
+   The panel's emerald is remapped to the token so white-label still works. */
+html[data-kkhs="on"] .bg-emerald-500,
+html[data-kkhs="on"] .bg-emerald-600,
+html[data-kkhs="on"] .bg-emerald-700   { background-color: var(--k-brand) !important; }
+html[data-kkhs="on"] .hover\:bg-emerald-600:hover,
+html[data-kkhs="on"] .hover\:bg-emerald-700:hover { background-color: var(--k-brand-2) !important; }
+html[data-kkhs="on"] .bg-emerald-50,
+html[data-kkhs="on"] .bg-emerald-100   { background-color: var(--k-brand-w) !important; }
+html[data-kkhs="on"] .text-emerald-500,
+html[data-kkhs="on"] .text-emerald-600,
+html[data-kkhs="on"] .text-emerald-700 { color: var(--k-brand) !important; }
+html[data-kkhs="on"] .border-emerald-500,
+html[data-kkhs="on"] .border-emerald-600 { border-color: var(--k-brand) !important; }
+html[data-kkhs="on"] .ring-emerald-500,
+html[data-kkhs="on"] .focus\:ring-emerald-500:focus { --tw-ring-color: var(--k-brand) !important; }
+
+/* Teal is used interchangeably with emerald in v120 — map it too. */
+html[data-kkhs="on"] .bg-teal-500,  html[data-kkhs="on"] .bg-teal-600  { background-color: var(--k-brand) !important; }
+html[data-kkhs="on"] .text-teal-600, html[data-kkhs="on"] .text-teal-700 { color: var(--k-brand) !important; }
+
+/* ----------------------------------------------------------- semantic ---- */
+html[data-kkhs="on"] .bg-red-50,    html[data-kkhs="on"] .bg-red-100    { background-color: var(--k-bad-w)  !important; }
+html[data-kkhs="on"] .text-red-500,  html[data-kkhs="on"] .text-red-600,
+html[data-kkhs="on"] .text-red-700  { color: var(--k-bad) !important; }
+html[data-kkhs="on"] .bg-red-500,   html[data-kkhs="on"] .bg-red-600    { background-color: var(--k-bad) !important; }
+
+html[data-kkhs="on"] .bg-amber-50,  html[data-kkhs="on"] .bg-amber-100,
+html[data-kkhs="on"] .bg-yellow-50, html[data-kkhs="on"] .bg-yellow-100 { background-color: var(--k-warn-w) !important; }
+html[data-kkhs="on"] .text-amber-600, html[data-kkhs="on"] .text-amber-700,
+html[data-kkhs="on"] .text-yellow-600, html[data-kkhs="on"] .text-yellow-700 { color: var(--k-warn) !important; }
+
+html[data-kkhs="on"] .bg-blue-50,   html[data-kkhs="on"] .bg-blue-100   { background-color: var(--k-info-w) !important; }
+html[data-kkhs="on"] .text-blue-500, html[data-kkhs="on"] .text-blue-600,
+html[data-kkhs="on"] .text-blue-700 { color: var(--k-info) !important; }
+
+html[data-kkhs="on"] .bg-purple-50, html[data-kkhs="on"] .bg-purple-100 { background-color: var(--k-purple-w) !important; }
+html[data-kkhs="on"] .text-purple-600, html[data-kkhs="on"] .text-purple-700 { color: var(--k-purple) !important; }
+
+/* --------------------------------------------------------- page hero ----
+   v120 puts a full-width emerald gradient banner on top of every page. It
+   carries no information and eats ~25% of the first screen. We flatten it to
+   a quiet title row. The markup is untouched — only its appearance changes. */
+html[data-kkhs="on"] .page-hero {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 0 14px !important;
+  border-bottom: 1px solid var(--k-line);
+  margin-bottom: 18px;
+  color: var(--k-ink) !important;
+}
+html[data-kkhs="on"] .page-hero h1 {
+  color: var(--k-ink) !important;
+  font-size: 20px !important;
+  font-weight: 650 !important;
+  letter-spacing: -.02em;
+}
+html[data-kkhs="on"] .page-hero h1 svg { color: var(--k-ink-3) !important; }
+html[data-kkhs="on"] .page-hero > div > p,
+html[data-kkhs="on"] .page-hero > p,
+html[data-kkhs="on"] .page-hero > div > p *,
+html[data-kkhs="on"] .page-hero > p * {
+  color: var(--k-ink-2) !important;
+  font-size: 12.5px !important;
+}
+/* Buttons inside the hero were forced white-on-gradient. Restore normal buttons. */
+html[data-kkhs="on"] .page-hero button,
+html[data-kkhs="on"] .page-hero label.cursor-pointer,
+html[data-kkhs="on"] .page-hero a.hero-btn {
+  background: var(--k-brand) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: var(--k-r-md) !important;
+}
+html[data-kkhs="on"] .page-hero button:hover,
+html[data-kkhs="on"] .page-hero label.cursor-pointer:hover { background: var(--k-brand-2) !important; }
+html[data-kkhs="on"] .page-hero button svg,
+html[data-kkhs="on"] .page-hero label.cursor-pointer svg { color: #fff !important; }
+html[data-kkhs="on"] .page-hero select,
+html[data-kkhs="on"] .page-hero input:not([type='file']):not([type='checkbox']) {
+  background: var(--k-surface) !important;
+  color: var(--k-ink) !important;
+  border: 1px solid var(--k-line-2) !important;
+}
+
+/* ------------------------------------------------------------- inputs ---- */
+html[data-kkhs="on"] input:not([type=checkbox]):not([type=radio]):not([type=range]),
+html[data-kkhs="on"] select,
+html[data-kkhs="on"] textarea {
+  background: var(--k-surface);
+  border-color: var(--k-line-2);
+  border-radius: var(--k-r-md);
+  color: var(--k-ink);
+}
+html[data-kkhs="on"] input::placeholder,
+html[data-kkhs="on"] textarea::placeholder { color: var(--k-ink-3); }
+html[data-kkhs="on"] input:focus,
+html[data-kkhs="on"] select:focus,
+html[data-kkhs="on"] textarea:focus {
+  border-color: var(--k-brand);
+  box-shadow: none;
+  outline: none;
+}
+
+/* ------------------------------------------------------------ buttons ---- */
+html[data-kkhs="on"] button {
+  border-radius: var(--k-r-md);
+  transition: background-color .13s, color .13s, border-color .13s;
+}
+html[data-kkhs="on"] button:active { transform: none; }
+
+/* ------------------------------------------------------------- tables ----
+   Denser rows, sticky heads, hairline separators. Same markup. */
+html[data-kkhs="on"] table { border-collapse: collapse; }
+html[data-kkhs="on"] thead th {
+  background: var(--k-sunken) !important;
+  color: var(--k-ink-3) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  padding: 8px 14px !important;
+  border-bottom: 1px solid var(--k-line) !important;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+html[data-kkhs="on"] tbody td {
+  padding: 9px 14px !important;
+  font-size: 12.5px !important;
+  border-bottom: 1px solid var(--k-line) !important;
+}
+html[data-kkhs="on"] tbody tr:hover { background: var(--k-sunken) !important; }
+html[data-kkhs="on"] tbody tr:last-child td { border-bottom: 0 !important; }
+
+/* ------------------------------------------------------- ALL-CAPS labels ----
+   v120 uses uppercase + letter-spacing on micro labels. Sentence case is
+   measurably easier to scan at 11px. */
+html[data-kkhs="on"] .uppercase.tracking-wide,
+html[data-kkhs="on"] .uppercase.tracking-wider,
+html[data-kkhs="on"] .uppercase.text-xs {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+/* -------------------------------------------------------------- badges ---- */
+html[data-kkhs="on"] .rounded-full.text-xs,
+html[data-kkhs="on"] .rounded-full.text-\[10px\] {
+  border-radius: var(--k-r-sm) !important;
+  font-weight: 600;
+  padding: 2.5px 8px;
+}
+
+/* ------------------------------------------------------------ sidebar ---- */
+html[data-kkhs="on"] aside nav a,
+html[data-kkhs="on"] aside nav button {
+  border-radius: var(--k-r-md);
+  font-size: 12.8px;
+}
+/* Active nav item gets a left bar as well as colour, so it still reads for
+   colour-blind users. */
+html[data-kkhs="on"] aside nav a[aria-current="page"],
+html[data-kkhs="on"] aside nav a.active,
+html[data-kkhs="on"] aside nav .bg-emerald-50,
+html[data-kkhs="on"] aside nav .bg-emerald-100 {
+  position: relative;
+  background: var(--k-brand-w) !important;
+  color: var(--k-brand) !important;
+  font-weight: 650;
+}
+html[data-kkhs="on"] aside nav a[aria-current="page"]::before,
+html[data-kkhs="on"] aside nav a.active::before {
+  content: "";
+  position: absolute;
+  left: -6px; top: 6px; bottom: 6px;
+  width: 2.5px;
+  border-radius: 0 3px 3px 0;
+  background: var(--k-brand);
+}
+
+/* --------------------------------------------------------- scrollbars ---- */
+html[data-kkhs="on"] ::-webkit-scrollbar { width: 9px; height: 9px; }
+html[data-kkhs="on"] ::-webkit-scrollbar-thumb {
+  background: var(--k-line-2);
+  border-radius: 99px;
+  border: 2.5px solid var(--k-surface);
+}
+html[data-kkhs="on"] ::-webkit-scrollbar-track { background: transparent; }
+
+/* ------------------------------------------------------------- motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  html[data-kkhs="on"] *,
+  html[data-kkhs="on"] *::before,
+  html[data-kkhs="on"] *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

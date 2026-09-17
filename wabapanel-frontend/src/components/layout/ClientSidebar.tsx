@@ -2,79 +2,17 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import useBranding from '@/lib/useBranding';
-import ThemePicker from './ThemePicker';
 import { usePathname } from 'next/navigation';
-import {
-  ArrowLeft, LayoutDashboard, BarChart3, Users, Tags, Layers, Milestone,
-  FileText, Send, Clock, Zap, Keyboard, ShoppingBag,
-  Package, Share2, FormInput, Link2, Phone, UserPlus, CreditCard,
-  Receipt, Settings, Kanban, CalendarCheck, ChevronDown, ChevronRight,
-  Menu, X, LogOut, Database, FileDown, MessageCircle, ImageIcon, Wrench, BookOpen,
-  Megaphone, Wallet, Palette, Brain, Plug, Sparkles, PiggyBank, Shield,
-  Search, Puzzle, LifeBuoy, QrCode, History, PhoneCall,
-} from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, BarChart3, Users, Tags, Layers, FileText, Send, Zap, Keyboard, ShoppingBag, Share2, FormInput, Phone, UserPlus, Settings, ChevronDown, ChevronRight, Menu, X, LogOut, Database, MessageCircle, ImageIcon, Wrench, BookOpen, Brain, Plug, Sparkles, PiggyBank, Shield, Puzzle, QrCode, Bot } from 'lucide-react';
 import { FaWhatsapp, FaInstagram, FaFacebook, FaTelegram, FaEnvelope } from 'react-icons/fa';
+import { OmniNavIcon, OmniSidebarBrand } from '@/components/layout/OmniSidebar';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
+import useKkhsTheme from '@/lib/useKkhsTheme';
+import { usePins, PinStar, KkhsBrandbar, KkhsPinned } from '@/components/kkhs/KkhsNav';
 
 // Map sidebar item href → feature key for lock checking
-const FEATURE_KEY_MAP: Record<string, string> = {
-  '/client/chat?channel=whatsapp': 'whatsapp_inbox',
-  '/client/chat?channel=instagram': 'instagram_inbox',
-  '/client/chat?channel=facebook': 'facebook_inbox',
-  '/client/contacts': 'contacts',
-  '/client/segments': 'segments',
-  '/client/tags': 'contacts',
-  '/client/stages': 'contacts',
-  '/client/data-fields': 'contacts',
-  '/client/import-logs': 'contacts',
-  '/client/templates': 'templates',
-  '/client/broadcasts': 'broadcasts',
-  '/client/smart-broadcast': 'smart_broadcast',
-  '/client/media-library': 'media_library',
-  '/client/ctwa-ads': 'ctwa_ads',
-  '/client/save-money/templates': 'preset_templates',
-  '/client/save-money/campaigns': 'preset_campaigns',
-  '/client/save-money/qr-campaigns': 'preset_campaigns',
-  '/client/save-money/drip': 'drip_campaigns',
-  '/client/followups': 'ai_followups',
-  '/client/bot-flows': 'bot_flows',
-  '/client/automations': 'automations',
-  '/client/automations/flows': 'automations',
-  '/client/quick-replies': 'quick_replies',
-  '/client/keywords': 'keyword_triggers',
-  '/client/appointments': 'appointments',
-  '/client/tickets': 'tickets',
-  '/client/forms': 'lead_forms',
-  '/client/facebook-leads': 'facebook_leads',
-  '/client/catalogs': 'product_catalogs',
-  '/client/orders': 'order_management',
-  '/client/short-links': 'short_links',
-  '/client/pipelines': 'pipelines',
-  '/client/crm': 'calling_center',
-  '/client/call-center': 'calling_center',
-  '/client/lead-dashboard': 'calling_center',
-  '/client/analytics': 'analytics',
-  '/client/teams': 'teams',
-  '/client/agents': 'teams',
-  '/client/integrations': 'integrations',
-  '/client/chat-appearance': 'chat_appearance',
-  '/client/ai-settings': 'ai_settings',
-  '/client/ai-calling': 'ai_calling',
-  '/client/api-docs': 'api_access',
-  '/client/events': 'automations',
-  '/client/predefined-actions': 'automations',
-  '/client/response-resources': 'quick_replies',
-  '/client/badges': 'contacts',
-  '/client/drips': 'drip_campaigns',
-  '/client/settings': 'settings',
-  '/client/toolset': 'settings',
-  '/client/wallet': 'wallet',
-  '/client/billing': 'wallet',
-  '/client/transactions': 'wallet',
-  '/client/subscriptions': 'wallet',
-};
 
 interface NavItem {
   label: string;
@@ -83,7 +21,7 @@ interface NavItem {
   children?: { label: string; href: string; icon: React.ReactNode }[];
 }
 
-const navItems: NavItem[] = [
+export const navItems: NavItem[] = [
   { label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/client/dashboard' },
   { label: 'Analytics', icon: <BarChart3 className="w-5 h-5" />, href: '/client/analytics' },
   {
@@ -106,7 +44,7 @@ const navItems: NavItem[] = [
       { label: 'Message Templates', href: '/client/templates', icon: <FileText className="w-4 h-4" /> },
       { label: 'Broadcast', href: '/client/broadcasts', icon: <Send className="w-4 h-4" /> },
       { label: 'Smart Broadcast', href: '/client/smart-broadcast', icon: <Zap className="w-4 h-4" /> },
-      { label: 'Drip Campaigns', href: '/client/save-money/drip', icon: <Clock className="w-4 h-4" /> },
+      { label: 'Sequence Campaigns', href: '/client/sequence-campaigns', icon: <Layers className="w-4 h-4" /> },
     ],
   },
   {
@@ -125,34 +63,19 @@ const navItems: NavItem[] = [
       { label: 'Contact Directory', href: '/client/contacts', icon: <Users className="w-4 h-4" /> },
       { label: 'Segments', href: '/client/segments', icon: <Layers className="w-4 h-4" /> },
       { label: 'Labels', href: '/client/tags', icon: <Tags className="w-4 h-4" /> },
-      { label: 'Stage/Pipeline', href: '/client/stages', icon: <Milestone className="w-4 h-4" /> },
-      { label: 'Data Fields', href: '/client/data-fields', icon: <Database className="w-4 h-4" /> },
-      { label: 'Import Logs', href: '/client/import-logs', icon: <FileDown className="w-4 h-4" /> },
+      { label: 'Custom Fields', href: '/client/data-fields', icon: <Database className="w-4 h-4" /> },
     ],
   },
-  {
-    label: 'Lead CRM',
-    icon: <Milestone className="w-5 h-5" />,
-    children: [
-      { label: 'Lead Dashboard', href: '/client/lead-dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-      { label: 'Lead Report', href: '/client/call-center', icon: <PhoneCall className="w-4 h-4" /> },
-      { label: 'CRM 360', href: '/client/crm', icon: <History className="w-4 h-4" /> },
-    ],
-  },
-  { label: 'Pipeline Board', icon: <Kanban className="w-5 h-5" />, href: '/client/pipelines' },
   {
     label: 'Automation',
     icon: <Zap className="w-5 h-5" />,
     children: [
-      { label: 'Automation Flows', href: '/client/automations', icon: <Zap className="w-4 h-4" /> },
+      { label: 'Automations', href: '/client/automations', icon: <Zap className="w-4 h-4" /> },
       { label: 'Bulk AI Calls', href: '/client/bulk-calls', icon: <Phone className="w-4 h-4" /> },
       { label: 'Bot Flow Builder', href: '/client/bot-flows', icon: <Zap className="w-4 h-4" /> },
       { label: 'AI Follow-ups', href: '/client/followups', icon: <Sparkles className="w-4 h-4" /> },
-      { label: 'Flow Builder', href: '/client/automations/flows', icon: <Zap className="w-4 h-4" /> },
       { label: 'Quick Replies', href: '/client/quick-replies', icon: <MessageCircle className="w-4 h-4" /> },
       { label: 'Keyword Triggers', href: '/client/keywords', icon: <Keyboard className="w-4 h-4" /> },
-      { label: 'Appointments', href: '/client/appointments', icon: <CalendarCheck className="w-4 h-4" /> },
-      { label: 'Tickets', href: '/client/tickets', icon: <MessageCircle className="w-4 h-4" /> },
     ],
   },
   {
@@ -162,9 +85,6 @@ const navItems: NavItem[] = [
       { label: 'All Leads', href: '/client/leads', icon: <FormInput className="w-4 h-4" /> },
       { label: 'Lead Gen Forms', href: '/client/forms', icon: <FormInput className="w-4 h-4" /> },
       { label: 'Facebook Leads', href: '/client/facebook-leads', icon: <Share2 className="w-4 h-4" /> },
-      { label: 'Product Catalogs', href: '/client/catalogs', icon: <ShoppingBag className="w-4 h-4" /> },
-      { label: 'Order Management', href: '/client/orders', icon: <Package className="w-4 h-4" /> },
-      { label: 'Short Links', href: '/client/short-links', icon: <Link2 className="w-4 h-4" /> },
     ],
   },
   {
@@ -179,10 +99,8 @@ const navItems: NavItem[] = [
     label: 'Settings',
     icon: <Settings className="w-5 h-5" />,
     children: [
-      { label: 'Organization Teams', href: '/client/teams', icon: <Users className="w-4 h-4" /> },
-      { label: 'Agents', href: '/client/agents', icon: <UserPlus className="w-4 h-4" /> },
+      { label: 'Teams & Agents', href: '/client/agents', icon: <UserPlus className="w-4 h-4" /> },
       { label: 'Integrations', href: '/client/integrations', icon: <Puzzle className="w-4 h-4" /> },
-      { label: 'Chat Appearance', href: '/client/chat-appearance', icon: <Palette className="w-4 h-4" /> },
       { label: 'AI Settings', href: '/client/ai-settings', icon: <Brain className="w-4 h-4" /> },
       { label: 'AI Calling Settings', href: '/client/ai-calling', icon: <Phone className="w-4 h-4" /> },
       { label: 'Knowledge Base', href: '/client/knowledge-base', icon: <BookOpen className="w-4 h-4" /> },
@@ -190,22 +108,10 @@ const navItems: NavItem[] = [
       { label: 'Business Settings', href: '/client/settings', icon: <Wrench className="w-4 h-4" /> },
     ],
   },
-  {
-    label: 'Subscription & Plans',
-    icon: <CreditCard className="w-5 h-5" />,
-    children: [
-      { label: 'Subscription Plans', href: '/client/subscriptions', icon: <Sparkles className="w-4 h-4" /> },
-      { label: 'Billing & Wallet', href: '/client/billing', icon: <Wallet className="w-4 h-4" /> },
-      { label: 'Transactions', href: '/client/transactions', icon: <Receipt className="w-4 h-4" /> },
-      { label: 'Invoices', href: '/client/invoices', icon: <FileText className="w-4 h-4" /> },
-    ],
-  },
   { label: 'Media Library', icon: <ImageIcon className="w-5 h-5" />, href: '/client/media-library' },
-  { label: 'CTWA Ads', icon: <Megaphone className="w-5 h-5" />, href: '/client/ctwa-ads' },
+  { label: 'Lead Source & QR', icon: <QrCode className="w-5 h-5" />, href: '/client/tracked-links' },
   { label: 'Instagram Auto DM', icon: <FaInstagram className="w-5 h-5 text-pink-600" />, href: '/client/instagram-auto-dm' },
-  { label: 'API & Developers', icon: <Plug className="w-5 h-5" />, href: '/client/api-docs' },
-  { label: 'Support', icon: <LifeBuoy className="w-5 h-5" />, href: '/client/support' },
-  { label: 'User Guide', icon: <BookOpen className="w-5 h-5" />, href: '/client/user-guide' },
+  { label: 'AI Assistant', icon: <Bot className="w-5 h-5 text-emerald-600" />, href: '/client/ai-assistant' },
 ];
 
 // Client route -> admin feature-control key (admin can switch these off per client)
@@ -221,40 +127,31 @@ const ADMIN_FEATURE_MAP: Record<string, string> = {
   '/client/segments': 'segments',
   '/client/tags': 'tags',
   '/client/data-fields': 'dataFields',
-  '/client/import-logs': 'importLogs',
   '/client/badges': 'badges',
   '/client/save-money/templates': 'presetTemplates',
   '/client/save-money/campaigns': 'presetCampaigns',
   '/client/save-money/qr-campaigns': 'qrCampaigns',
-  '/client/tickets': 'tickets',
   '/client/predefined-actions': 'predefinedActions',
   '/client/response-resources': 'responseResources',
   '/client/media-library': 'mediaLibrary',
   '/client/instagram-auto-dm': 'igAutoDm',
-  '/client/chat-appearance': 'chatAppearance',
+  '/client/ai-assistant': 'aiAssistant',
   '/client/audit-log': 'auditLog',
   '/client/templates': 'templates',
   '/client/broadcasts': 'broadcasts',
   '/client/smart-broadcast': 'smartBroadcast',
-  '/client/save-money/drip': 'drips',
+  '/client/sequence-campaigns': 'sequenceCampaigns',
   '/client/followups': 'followups',
   '/client/bot-flows': 'botFlows',
   '/client/automations': 'automations',
   '/client/automations/flows': 'automations',
   '/client/quick-replies': 'quickReplies',
   '/client/keywords': 'keywords',
-  '/client/appointments': 'appointments',
   '/client/events': 'events',
   '/client/leads': 'leads',
   '/client/forms': 'forms',
   '/client/facebook-leads': 'leads',
-  '/client/catalogs': 'ecommerce',
-  '/client/orders': 'ecommerce',
   '/client/short-links': 'shortLinks',
-  '/client/pipelines': 'crm',
-  '/client/crm': 'crm',
-  '/client/call-center': 'crm',
-  '/client/lead-dashboard': 'crm',
   '/client/analytics': 'analytics',
   '/client/teams': 'teams',
   '/client/agents': 'teams',
@@ -263,8 +160,7 @@ const ADMIN_FEATURE_MAP: Record<string, string> = {
   '/client/ai-calling': 'aiCalling',
   '/client/bulk-calls': 'aiCalling',
   '/client/knowledge-base': 'knowledgeBase',
-  '/client/ctwa-ads': 'ctwaAds',
-  '/client/api-docs': 'apiAccess',
+  '/client/tracked-links': 'trackedLinks',
 };
 
 // Section label -> permission module key (granular agent permissions)
@@ -273,20 +169,13 @@ export const MODULE_KEY_MAP: Record<string, string> = {
   'Analytics': 'analytics',
   'Inbox': 'inbox',
   'Contacts': 'contacts',
-  'Lead CRM': 'pipelines',
-  'CRM 360': 'pipelines',
-  'Calling Center': 'pipelines',
-  'Pipeline Board': 'pipelines',
   'Campaigns': 'campaigns',
   'Save Money': 'campaigns',
   'Automation': 'automation',
   'Leads & Commerce': 'commerce',
   'Channels': 'channels',
   'Settings': 'settings',
-  'Subscription & Plans': 'billing',
   'Media Library': 'media',
-  'CTWA Ads': 'campaigns',
-  'API & Developers': 'developer',
 };
 
 // Permission tree for the agent Permissions modal: each grantable section with
@@ -304,12 +193,10 @@ export default function ClientSidebar() {
   const pathname = usePathname();
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [menuQuery, setMenuQuery] = useState('');
   const { logout, user, features } = useAuthStore();
   const { t } = useI18n();
   const [isImpersonating, setIsImpersonating] = useState(false);
   useEffect(() => { setIsImpersonating(!!localStorage.getItem('adminToken')); }, []);
-  const [featureLocks, setFeatureLocks] = useState<Record<string, number>>({});
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -327,24 +214,14 @@ export default function ClientSidebar() {
     return m ? unreadCounts[m[1]] || 0 : 0;
   };
 
-  useEffect(() => {
-    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'https://api.wabapanel.com/api').replace(/\/api$/, '');
-    fetch(apiBase + '/api/public/kkhs-features')
-      .then(r => r.json())
-      .then(d => { if (d.success && d.data) setFeatureLocks(d.data); })
-      .catch(() => {});
-  }, []);
-
   // Filter nav items based on feature locks (1 = locked = hidden)
   // plus admin per-client feature controls (features[key] === false = hidden)
   const itemVisible = (href: string) => {
-    const featureKey = FEATURE_KEY_MAP[href];
-    if (featureKey && featureLocks[featureKey] === 1) return false;
     const adminKey = ADMIN_FEATURE_MAP[href];
     if (adminKey && features[adminKey] === false) return false;
     return true;
   };
-  const unlockedNav = navItems.map(section => ({
+  const unlockedNav = navItems.filter(section => section.label !== 'Leads & Commerce').map(section => ({
     ...section,
     children: (section.children || []).filter(item => itemVisible(item.href)),
   })).filter(section => {
@@ -385,18 +262,6 @@ export default function ClientSidebar() {
       }).filter(section => section.href ? true : (section.children || []).length > 0)
     : permNav;
 
-  const q = menuQuery.trim().toLowerCase();
-  const filteredNav = !q
-    ? channelNav
-    : channelNav
-        .map((sec) => ({
-          ...sec,
-          children: (sec.children || []).filter(
-            (c) => c.label.toLowerCase().includes(q) || sec.label.toLowerCase().includes(q)
-          ),
-        }))
-        .filter((sec) => sec.href ? sec.label.toLowerCase().includes(q) : (sec.children || []).length > 0);
-
   const toggleSection = (label: string) => {
     setExpandedSections((prev) =>
       prev.includes(label) ? prev.filter((s) => s !== label) : [label]
@@ -404,79 +269,91 @@ export default function ClientSidebar() {
   };
 
   const brand = useBranding();
+  const kkhs = useKkhsTheme();
+  const { pins, toggle: togglePin, isPinned } = usePins('client');
+  const [kkhsHref, setKkhsHref] = useState<string | null>(null);
+  useEffect(() => {
+    if (!kkhs || !pathname) { setKkhsHref(null); return; }
+    const sync = () => setKkhsHref(pathname + window.location.search);
+    sync();
+    const sec = channelNav.find(s => (s.children || []).some(c => c.href.split('?')[0] === pathname));
+    if (sec) setExpandedSections(prev => prev.includes(sec.label) ? prev : [sec.label]);
+    // query-string changes (e.g. ?channel=) don't change pathname, so poll lightly
+    const iv = window.setInterval(sync, 400);
+    return () => window.clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kkhs, pathname]);
+  const flatNav = channelNav.flatMap(s => s.href
+    ? [{ label: t(s.label), href: s.href, icon: s.icon }]
+    : (s.children || []).map(c => ({ label: t(c.label), href: c.href, icon: c.icon })));
+  const { currentWorkspace } = useAuthStore();
 
   const sidebar = (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-4 border-b border-gray-200">
-        <div className="relative flex items-center justify-center min-h-[3rem]">
-          <div className="flex items-center justify-center gap-2 min-w-0">
-            {brand.logo ? <img src={brand.logo} alt={brand.name} className="max-w-full w-auto h-auto max-h-12 object-contain mx-auto" /> : <h1 className="text-xl font-bold text-emerald-600 truncate">{brand.name}</h1>}
-          </div>
-          <div className="absolute right-0 top-1/2 -translate-y-1/2">
-            <ThemePicker />
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col h-full" data-kkhs-side="client">
+      {kkhs ? (
+        <KkhsBrandbar logo={brand.logo} name={brand.name} sub={currentWorkspace?.name || user?.email || ''} />
+      ) : (
+      <OmniSidebarBrand logo={brand.logo} name={brand.name} />
+      )}
 
-      <div className="px-3 pt-3">
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-          <input
-            value={menuQuery}
-            onChange={(e) => setMenuQuery(e.target.value)}
-            autoComplete="off" placeholder="Search menu..."
-            className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white bg-gray-50 transition-colors"
-          />
-          {menuQuery && (
-            <button onClick={() => setMenuQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">✕</button>
-          )}
-        </div>
-      </div>
+      {kkhs && (
+        <KkhsPinned items={flatNav} pins={pins} pathname={kkhsHref ?? pathname} onToggle={togglePin} onNavigate={() => setMobileOpen(false)} />
+      )}
 
-      <nav className="flex-1 overflow-y-auto py-2">
-        {filteredNav.map((section) => (
-          <div key={section.label} className="mb-1">
+      <nav className="flex-1 overflow-y-auto py-2" data-kkhs-nav>
+        {channelNav.map((section) => (
+          <div key={section.label} className="mb-1" data-kkhs-grp={expandedSections.includes(section.label) ? 'open' : ''}>
             {section.href ? (
               <Link
                 href={section.href}
                 onClick={() => setMobileOpen(false)}
+                title={t(section.label)} aria-label={t(section.label)} data-kkhs-ghead={pathname === section.href ? 'on' : ''}
                 className={`flex items-center gap-2 w-[calc(100%-16px)] mx-2 px-3 py-2 text-base font-bold tracking-wide rounded-xl transition-colors ${
                   pathname === section.href
                     ? 'text-emerald-600 bg-emerald-50'
                     : 'text-gray-900 hover:bg-gray-100/70'
                 }`}
               >
-                {section.icon} {t(section.label)}
+                <OmniNavIcon label={section.label} fallback={section.icon} /> <span className="flex-1 min-w-0 truncate"><span data-ui-nav-label>{t(section.label)}</span></span>
+                {kkhs && <PinStar pinned={isPinned(section.href)} onToggle={() => togglePin(section.href!)} />}
               </Link>
             ) : (
               <>
                 <button
                   onClick={() => toggleSection(section.label)}
+                  title={t(section.label)} aria-label={t(section.label)} data-kkhs-ghead=""
                   className="flex items-center justify-between w-[calc(100%-16px)] mx-2 px-3 py-2 text-base font-bold text-gray-900 tracking-wide hover:bg-gray-100/70 rounded-xl transition-colors"
                 >
-                  <span className="flex items-center gap-2">{section.icon} {t(section.label)}</span>
-                  {expandedSections.includes(section.label) ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  <span className="flex items-center gap-2"><OmniNavIcon label={section.label} fallback={section.icon} /> <span data-ui-nav-label>{t(section.label)}</span></span>
+                  {expandedSections.includes(section.label) ? <ChevronDown className="w-3 h-3" data-kkhs-cv /> : <ChevronRight className="w-3 h-3" data-kkhs-cv />}
                 </button>
-                {(q ? true : expandedSections.includes(section.label)) && section.children?.map((item) => (
+                {expandedSections.includes(section.label) && (
+                <div data-kkhs-gkids>
+                {section.children?.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
+                    title={t(item.label)} aria-label={t(item.label)} data-kkhs-ni={(pathname === item.href || (kkhsHref !== null && kkhsHref === item.href)) ? 'on' : ''}
+                    data-kkhs-ch={kkhs ? (item.href.match(/channel=([a-z_]+)/)?.[1] || undefined) : undefined}
                     className={`flex items-center gap-3 pl-3 pr-4 py-1.5 mr-2 text-[13px] font-bold border-l-2 ml-5 rounded-r-xl transition-colors ${
                       pathname === item.href
                         ? 'text-emerald-600 bg-emerald-50 border-l-emerald-600 shadow-sm shadow-emerald-600/5'
                         : 'text-gray-500 border-l-gray-200 hover:bg-gray-50 hover:text-gray-900 hover:border-l-gray-400'
                     }`}
                   >
-                    {item.icon}
-                    <span className="flex-1">{t(item.label)}</span>
+                    <OmniNavIcon label={item.label} fallback={item.icon} />
+                    <span className="flex-1"><span data-ui-nav-label>{t(item.label)}</span></span>
                     {unreadForHref(item.href) > 0 && (
-                      <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">
+                      <span data-kkhs-bg className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">
                         {unreadForHref(item.href) > 99 ? '99+' : unreadForHref(item.href)}
                       </span>
                     )}
+                    {kkhs && <PinStar pinned={isPinned(item.href)} onToggle={() => togglePin(item.href)} />}
                   </Link>
                 ))}
+                </div>
+                )}
               </>
             )}
           </div>
@@ -486,22 +363,22 @@ export default function ClientSidebar() {
       {isImpersonating && (
         <div className="px-4 py-2 border-t border-gray-200">
           <button onClick={() => { const at = localStorage.getItem('adminToken'); if (at) { localStorage.setItem('token', at); localStorage.removeItem('adminToken'); window.location.href = '/admin/dashboard'; } }} className="flex items-center gap-2 w-full px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 text-sm font-medium transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Admin
+            <ArrowLeft className="w-4 h-4" /> 返回管理
           </button>
         </div>
       )}
-      <div className="px-4 py-3 border-t border-gray-200">
+      <div className="px-4 py-3 border-t border-gray-200" data-kkhs-userfoot>
         <div className="flex items-center gap-3">
-          <Link href="/client/settings" className="flex items-center gap-3 flex-1 min-w-0 rounded-lg -m-1 p-1 hover:bg-gray-50" title="My Profile">
+          <Link href="/client/settings" className="flex items-center gap-3 flex-1 min-w-0 rounded-lg -m-1 p-1 hover:bg-gray-50" title={"个人资料"}>
             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-sm font-semibold">
               {user?.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user?.name || 'User'}</p>
+              <p className="text-sm font-medium text-gray-900 truncate">{user?.name || "用户"}</p>
               <p className="text-xs text-gray-500 truncate">{user?.email || ''}</p>
             </div>
           </Link>
-          <button onClick={() => logout()} title="Logout" className="text-gray-400 hover:text-red-500">
+          <button onClick={() => logout()} title={"退出登录"} className="text-gray-400 hover:text-red-500">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
@@ -511,7 +388,7 @@ export default function ClientSidebar() {
 
   return (
     <>
-      <button
+      <button data-ui-nav-toggle
         onClick={() => setMobileOpen(!mobileOpen)}
         className="lg:hidden fixed top-3 left-3 z-50 p-2 bg-white rounded-lg shadow-md"
       >
@@ -522,7 +399,7 @@ export default function ClientSidebar() {
         <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />
       )}
 
-      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-100 shadow-[1px_0_8px_rgba(0,0,0,0.03)] transform transition-transform duration-200 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <aside data-kkhs-aside="client" className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-100 shadow-[1px_0_8px_rgba(0,0,0,0.03)] transform transition-transform duration-200 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         {sidebar}
       </aside>
     </>

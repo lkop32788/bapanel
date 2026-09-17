@@ -15,7 +15,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<{ requires2FA?: boolean; method?: string; challengeToken?: string } | void>;
   complete2FALogin: (challengeToken: string, code: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<{ requires2FA?: boolean; method?: string; challengeToken?: string } | void>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, phone?: string, ref?: string) => Promise<boolean>;
   logout: () => void;
   loadUser: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
@@ -38,6 +38,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     const { token, user, workspaces } = res.data.data;
     localStorage.setItem('token', token);
+    localStorage.removeItem('adminToken'); // ADM-23: a fresh login ends any impersonation
     if (user.currentWorkspace?._id) localStorage.setItem('workspaceId', user.currentWorkspace._id);
     connectSocket(token);
     if (user.currentWorkspace?._id) joinWorkspace(user.currentWorkspace._id);
@@ -52,6 +53,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const res = await authApi.twoFactorLoginVerify({ challengeToken, code });
     const { token, user, workspaces } = res.data.data;
     localStorage.setItem('token', token);
+    localStorage.removeItem('adminToken'); // ADM-23: a fresh login ends any impersonation
     if (user.currentWorkspace?._id) localStorage.setItem('workspaceId', user.currentWorkspace._id);
     connectSocket(token);
     if (user.currentWorkspace?._id) joinWorkspace(user.currentWorkspace._id);
@@ -69,6 +71,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     const { token, user } = res.data.data;
     localStorage.setItem('token', token);
+    localStorage.removeItem('adminToken'); // ADM-23
     // For vendor role, also load workspaces so client panel works
     if (user.role === 'vendor') {
       connectSocket(token);
@@ -88,11 +91,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  register: async (name, email, password) => {
-    const res = await authApi.register({ name, email, password });
+  register: async (name, email, password, phone, ref) => {
+    const res = await authApi.register({ name, email, password, ...(phone ? { phone } : {}), ...(ref ? { ref } : {}) });
     if (res.data.requiresVerification) return true;
     const { token, user, workspace } = res.data.data;
     localStorage.setItem('token', token);
+    localStorage.removeItem('adminToken'); // ADM-23
     if (workspace?._id) localStorage.setItem('workspaceId', workspace._id);
     connectSocket(token);
     if (workspace?._id) joinWorkspace(workspace._id);
@@ -107,6 +111,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('workspaceId');
+    localStorage.removeItem('adminToken'); // ADM-23: logout must not leave an admin switch-back token
     disconnectSocket();
     set({ user: null, workspaces: [], currentWorkspace: null, token: null, isAuthenticated: false, isLoading: false });
   },

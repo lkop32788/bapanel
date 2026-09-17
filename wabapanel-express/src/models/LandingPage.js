@@ -22,11 +22,6 @@ const landingPageSchema = new mongoose.Schema({
     description: { type: String, default: '' },
     screenshots: [{ type: String }],
   },
-  pricing: {
-    title: { type: String, default: 'Choose Your Plan' },
-    subtitle: { type: String, default: '' },
-    showPlans: { type: Boolean, default: true },
-  },
   testimonials: [{
     name: { type: String, required: true },
     company: { type: String, default: '' },
@@ -71,6 +66,6 @@ const landingPageSchema = new mongoose.Schema({
     ogImage: { type: String, default: '' },
   },
   isPublished: { type: Boolean, default: false },
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { schemaFieldsOnly: true }, toObject: { schemaFieldsOnly: true } });
 
 module.exports = mongoose.model('LandingPage', landingPageSchema);

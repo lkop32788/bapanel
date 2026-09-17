@@ -1,11 +1,9 @@
 const router = require('express').Router();
-const { verifyWebhook, handleWhatsAppWebhook, handleRazorpayWebhook, handleStripeWebhook } = require('../controllers/webhookController');
+const { verifyWebhook, handleWhatsAppWebhook } = require('../controllers/webhookController');
 const { verifyFacebookLeadWebhook, handleFacebookLeadWebhook } = require('../controllers/facebookLeadController');
 
 router.get('/whatsapp', verifyWebhook);
 router.post('/whatsapp', handleWhatsAppWebhook);
-router.post('/razorpay', handleRazorpayWebhook);
-router.post('/stripe', handleStripeWebhook);
 router.get('/facebook-leads', verifyFacebookLeadWebhook);
 router.post('/facebook-leads', handleFacebookLeadWebhook);
 

@@ -1,4 +1,5 @@
 'use client';
+import { translateDisplay } from '@/lib/zhDisplay';
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
@@ -46,10 +47,10 @@ export default function PublicFormPage() {
           });
           setValues(initial);
         } else {
-          setError('Form not found or inactive');
+          setError("表格未找到或处于非活动状态");
         }
       })
-      .catch(() => setError('Form not found or inactive'))
+      .catch(() => setError("表格未找到或处于非活动状态"))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -78,7 +79,7 @@ export default function PublicFormPage() {
       const res = await axios.post(`${apiBase}/forms/${id}/upload`, fd);
       setValues(v => ({ ...v, [label]: res.data.data.url }));
     } catch {
-      setError('File upload failed. Please try a different/smaller file.');
+      setError("文件上传失败。请尝试不同/较小的文件。");
     } finally {
       setUploading(u => ({ ...u, [label]: false }));
     }
@@ -94,7 +95,7 @@ export default function PublicFormPage() {
     // Validate required fields
     for (const field of form.fields) {
       if (field.required && isEmpty(values[field.label])) {
-        setError(`Please fill in "${field.label}"`);
+        setError(`请填写“${field.label}"`);
         return;
       }
     }
@@ -106,7 +107,7 @@ export default function PublicFormPage() {
       await axios.post(`${apiBase}/forms/${id}/submit`, values);
       setSubmitted(true);
     } catch {
-      setError('Failed to submit form. Please try again.');
+      setError("未能提交表格。请再试一次。");
     }
     setSubmitting(false);
   };
@@ -128,8 +129,8 @@ export default function PublicFormPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Form Not Available</h2>
-          <p className="text-gray-500">This form is either inactive or does not exist.</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">表格不可用</h2>
+          <p className="text-gray-500">此表单处于非活动状态或不存在。</p>
         </div>
       </div>
     );
@@ -144,8 +145,8 @@ export default function PublicFormPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Thank You!</h2>
-          <p className="text-gray-500">Your response has been submitted successfully.</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">谢谢！</h2>
+          <p className="text-gray-500">您的回复已成功提交。</p>
         </div>
       </div>
     );
@@ -180,7 +181,7 @@ export default function PublicFormPage() {
                   type={field.type === 'phone' ? 'tel' : field.type}
                   value={sv(field.label)}
                   onChange={(e) => setValues({...values, [field.label]: e.target.value})}
-                  placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                  placeholder={field.placeholder || `输入 ${field.label}`}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
                   required={field.required}
                 />
@@ -188,7 +189,7 @@ export default function PublicFormPage() {
                 <textarea
                   value={sv(field.label)}
                   onChange={(e) => setValues({...values, [field.label]: e.target.value})}
-                  placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                  placeholder={field.placeholder || `输入 ${field.label}`}
                   rows={4}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
                   required={field.required}
@@ -200,9 +201,9 @@ export default function PublicFormPage() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
                   required={field.required}
                 >
-                  <option value="">Select {field.label}</option>
+                  <option value="">请选择 {translateDisplay(field.label)}</option>
                   {field.options?.map((opt, oi) => (
-                    <option key={oi} value={opt}>{opt}</option>
+                    <option key={oi} value={opt}>{translateDisplay(opt)}</option>
                   ))}
                 </select>
               ) : field.type === 'date' ? (
@@ -255,7 +256,7 @@ export default function PublicFormPage() {
                       required={field.required}
                       className="rounded text-emerald-600 focus:ring-emerald-500"
                     />
-                    {field.placeholder || 'Yes'}
+                    {field.placeholder || "是的"}
                   </label>
                 )
               ) : field.type === 'file' ? (
@@ -265,7 +266,7 @@ export default function PublicFormPage() {
                     onChange={(e) => handleFile(field.label, e.target.files?.[0])}
                     className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
                   />
-                  {uploading[field.label] && <p className="text-xs text-gray-400 mt-1">Uploading…</p>}
+                  {uploading[field.label] && <p className="text-xs text-gray-400 mt-1">正在上传...</p>}
                   {!uploading[field.label] && sv(field.label) && (
                     <a
                       href={sv(field.label)}
@@ -273,7 +274,7 @@ export default function PublicFormPage() {
                       rel="noopener noreferrer"
                       className="text-xs text-emerald-600 mt-1 inline-block break-all"
                     >
-                      Uploaded ✓ — view file
+                      已上传 ✓ — 查看文件
                     </a>
                   )}
                 </div>
@@ -282,7 +283,7 @@ export default function PublicFormPage() {
                   type="text"
                   value={sv(field.label)}
                   onChange={(e) => setValues({...values, [field.label]: e.target.value})}
-                  placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                  placeholder={field.placeholder || `输入 ${field.label}`}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
                   required={field.required}
                 />
@@ -295,12 +296,12 @@ export default function PublicFormPage() {
             disabled={submitting}
             className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
-            {submitting ? 'Submitting...' : 'Submit'}
+            {submitting ? "正在提交..." : "提交"}
           </button>
           
           {form?.brandName && (
             <p className="text-center text-xs text-gray-400 mt-4">
-              Powered by {form.brandName}
+              技术支持 {form.brandName}
             </p>
           )}
         </form>

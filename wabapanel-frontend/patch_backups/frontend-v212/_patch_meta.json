@@ -1,0 +1,13 @@
+{
+  "version": "frontend-v212",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/app/client/bot-flows/[id]/page.tsx"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v212.zip",
+  "zip_sha256": "de01f33a77c245dab38a6865b81e1b71f96260ae8945f44225bc4e9848b3df79",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

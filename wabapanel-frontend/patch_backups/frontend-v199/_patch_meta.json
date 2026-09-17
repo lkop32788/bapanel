@@ -1,0 +1,13 @@
+{
+  "version": "frontend-v199",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/components/layout/Header.tsx"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v199.zip",
+  "zip_sha256": "5c9e69188a973c6451fbbb058b18646cf235f5becc22792420539b0cb633ce7e",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

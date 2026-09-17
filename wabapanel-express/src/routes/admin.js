@@ -28,23 +28,6 @@ router.put('/vendors/:id', admin.updateVendor);
 router.delete('/vendors/:id', admin.deleteVendor);
 router.post('/vendors/:id/login-as', admin.loginAsVendor);
 
-// Plans
-router.get('/plans', admin.getPlans);
-router.post('/plans', admin.createPlan);
-router.put('/plans/:id', admin.updatePlan);
-router.delete('/plans/:id', admin.deletePlan);
-
-// Payments
-router.get('/payments', admin.getPayments);
-router.post('/payments/:id/approve', admin.approveManualPayment);
-router.post('/payments/:id/reject', admin.rejectManualPayment);
-router.get('/payments/:id/invoice', admin.getPaymentInvoicePdf);
-router.post('/payments/email-invoices', admin.emailPaymentInvoices);
-
-// Wallet
-router.get('/wallet/ledger', admin.getWalletLedger);
-router.post('/wallet/adjust', admin.adjustWallet);
-
 // Meta Pricing
 router.get('/meta-pricing', admin.getMetaPricing);
 router.post('/meta-pricing', admin.updateMetaPricing);
@@ -57,11 +40,6 @@ router.put('/permissions', admin.updatePermissions);
 router.get('/settings', admin.getSettings);
 router.put('/settings', superAdminOnly, admin.updateSettings);
 router.post('/settings/test-email', superAdminOnly, admin.sendTestEmail);
-
-// Gateways
-router.get('/gateways', admin.getGateways);
-router.put('/gateways/:id', admin.updateGateway);
-router.post('/gateways/:id/test', admin.testGateway);
 
 // AI Settings
 router.get('/ai-settings', admin.getAISettings);
@@ -88,12 +66,6 @@ router.post('/templates', admin.createGlobalTemplate);
 router.put('/templates/:id', admin.updateGlobalTemplate);
 router.delete('/templates/:id', admin.deleteGlobalTemplate);
 
-// Inquiries
-router.get('/inquiries', admin.getInquiries);
-router.put('/inquiries/:id', admin.updateInquiry);
-router.post('/inquiries/:id/reply', admin.replyInquiry);
-router.delete('/inquiries/:id', admin.deleteInquiry);
-
 // Short Links
 router.get('/short-links', admin.getAdminShortLinks);
 router.delete('/short-links/:id', admin.deleteAdminShortLink);
@@ -110,18 +82,6 @@ router.post('/languages', admin.createLanguage);
 router.post('/languages/seed', admin.seedLanguages);
 router.put('/languages/:id', admin.updateLanguage);
 router.delete('/languages/:id', admin.deleteLanguage);
-
-// Currencies
-router.get('/currencies', admin.getCurrencies);
-router.post('/currencies', admin.createCurrency);
-router.post('/currencies/seed', admin.seedCurrencies);
-router.put('/currencies/:id', admin.updateCurrency);
-router.delete('/currencies/:id', admin.deleteCurrency);
-
-// Taxes
-router.get('/taxes', admin.getTaxes);
-router.post('/taxes', admin.createTax);
-router.delete('/taxes/:id', admin.deleteTax);
 
 // FAQs
 router.get('/faqs', admin.getFAQs);
@@ -141,39 +101,13 @@ router.post('/pages', admin.createPage);
 router.put('/pages/:id', admin.updatePage);
 router.delete('/pages/:id', admin.deletePage);
 
-// Subscriptions
-router.get('/subscriptions', admin.getSubscriptions);
-router.post('/subscriptions', admin.createSubscription);
-router.put('/subscriptions/:id', admin.updateSubscription);
-router.delete('/subscriptions/:id', admin.deleteSubscription);
-
-// Invoices
-router.get('/invoices', admin.getInvoices);
-router.post('/invoices', admin.createInvoice);
-router.put('/invoices/:id', admin.updateInvoice);
-router.delete('/invoices/:id', admin.deleteInvoice);
-router.get('/invoices/:id/pdf', admin.getInvoicePdf);
-
 // Vendor Detail
 router.get('/vendors/:id/detail', admin.getVendorDetail);
-
-// Blog
-router.get('/blog', admin.getBlogPosts);
-router.post('/blog', admin.createBlogPost);
-router.put('/blog/:id', admin.updateBlogPost);
-router.delete('/blog/:id', admin.deleteBlogPost);
 
 // Knowledge Base CRUD
 router.get("/knowledge", admin.getKnowledgeArticles);
 router.post("/knowledge", admin.createKnowledgeArticle);
 router.put("/knowledge/:id", admin.updateKnowledgeArticle);
 router.delete("/knowledge/:id", admin.deleteKnowledgeArticle);
-
-// Plan Reminders
-router.get('/plan-reminders', admin.checkExpiringPlans);
-router.post("/plan-reminders/send", admin.sendPlanReminder);
-router.get("/plan-reminders/auto-settings", admin.getAutoReminderSettings);
-router.put("/plan-reminders/auto-settings", admin.updateAutoReminderSettings);
-router.post("/plan-reminders/run-auto", admin.triggerAutoReminder);
 
 module.exports = router;

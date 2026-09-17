@@ -1,17 +1,16 @@
 'use client';
-import React, { useState } from 'react';
+import { translateDisplay } from '@/lib/zhDisplay';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import useBranding from '@/lib/useBranding';
-import ThemePicker from './ThemePicker';
 import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard, CreditCard, Receipt, Wallet, Users, User,
-  FileText, Shield, Globe, Settings, Brain,
-  Languages, DollarSign, Percent, Mail, ChevronDown, ChevronRight, Menu, X, LogOut,
-  Store, Bell,
-  Search, Key, Download, PenSquare, Ticket, Megaphone, LifeBuoy, Activity, BookOpen, ToggleRight, Trash2,
-} from 'lucide-react';
+import { LayoutDashboard, Users, User, Shield, Globe, Settings, Brain, Languages, ChevronDown, ChevronRight, Menu, X, LogOut, Store, Megaphone, Activity, ToggleRight, Trash2, Handshake, UserCheck, IndianRupee, Banknote, ShieldCheck, BarChart3 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
+import { OmniNavIcon, OmniSidebarBrand } from '@/components/layout/OmniSidebar';
 import { useAuthStore } from '@/stores/authStore';
+import { adminPartnersApi } from '@/lib/api';
+import useKkhsTheme from '@/lib/useKkhsTheme';
+import { usePins, PinStar, KkhsBrandbar, KkhsPinned } from '@/components/kkhs/KkhsNav';
 
 const FacebookIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
@@ -26,27 +25,11 @@ interface NavItem {
   children?: { label: string; href: string; icon: React.ReactNode }[];
 }
 
-const navItems: NavItem[] = [
+export const navItems: NavItem[] = [
   { label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin/dashboard' },
   { label: 'Vendors', icon: <Store className="w-5 h-5" />, href: '/admin/vendors' },
   { label: 'Feature Controls', icon: <ToggleRight className="w-5 h-5" />, href: '/admin/features' },
   { label: 'Data Cleanup', icon: <Trash2 className="w-5 h-5" />, href: '/admin/data-cleanup' },
-  {
-    label: 'Accounting',
-    icon: <Receipt className="w-5 h-5" />,
-    children: [
-      { label: 'Payments', href: '/admin/payments', icon: <Receipt className="w-4 h-4" /> },
-      { label: 'Wallet Ledger', href: '/admin/wallet', icon: <Wallet className="w-4 h-4" /> },
-      { label: 'Subscriptions', href: '/admin/subscriptions', icon: <CreditCard className="w-4 h-4" /> },
-      { label: 'Billing & Invoices', href: '/admin/billing', icon: <Receipt className="w-4 h-4" /> },
-      { label: 'Taxes', href: '/admin/taxes', icon: <Percent className="w-4 h-4" /> },
-      { label: 'Plan Reminders', href: '/admin/plan-reminders', icon: <Bell className="w-4 h-4" /> },
-      { label: 'Plans', href: '/admin/plans', icon: <CreditCard className="w-4 h-4" /> },
-    ],
-  },
-  { label: 'Inquiries', icon: <Mail className="w-5 h-5" />, href: '/admin/inquiries' },
-  { label: 'Coupons', icon: <Ticket className="w-5 h-5" />, href: '/admin/coupons' },
-  { label: 'Announcements', icon: <Megaphone className="w-5 h-5" />, href: '/admin/announcements' },
   { label: 'System Health', icon: <Activity className="w-5 h-5" />, href: '/admin/system' },
   { label: 'One Click Signup', icon: <FacebookIcon className="w-5 h-5 text-blue-600" />, href: '/admin/one-click-signup' },
   {
@@ -55,42 +38,51 @@ const navItems: NavItem[] = [
     children: [
       { label: 'My Profile', href: '/admin/profile', icon: <User className="w-4 h-4" /> },
       { label: 'Site Settings', href: '/admin/site-settings', icon: <Globe className="w-4 h-4" /> },
-      { label: 'Gateway Setup', href: '/admin/gateways', icon: <CreditCard className="w-4 h-4" /> },
       { label: 'System Settings', href: '/admin/settings', icon: <Settings className="w-4 h-4" /> },
       { label: 'AI Intelligence', href: '/admin/ai', icon: <Brain className="w-4 h-4" /> },
       { label: 'Permissions', href: '/admin/permissions', icon: <Shield className="w-4 h-4" /> },
-      { label: 'Blog', href: '/admin/blog', icon: <PenSquare className="w-4 h-4" /> },
       { label: 'Knowledge Base', href: '/admin/knowledge', icon: <Brain className="w-4 h-4" /> },
       { label: 'Staff & Members', href: '/admin/users', icon: <Users className="w-4 h-4" /> },
       { label: 'Languages', href: '/admin/languages', icon: <Languages className="w-4 h-4" /> },
-      { label: 'Currencies', href: '/admin/currencies', icon: <DollarSign className="w-4 h-4" /> },
     ],
   },
-  { label: 'Client API Docs', icon: <FileText className="w-5 h-5" />, href: '/admin/api-docs' },
-  { label: 'Panel Updates', icon: <Download className="w-5 h-5" />, href: '/admin/updates' },
-  { label: 'License & Updates', icon: <Key className="w-5 h-5" />, href: '/admin/license' },
-  { label: 'Support Tickets', icon: <LifeBuoy className="w-5 h-5" />, href: '/admin/support' },
-  { label: 'User Guide', icon: <BookOpen className="w-5 h-5" />, href: '/admin/user-guide' },
+  
 ];
 
+// Premium add-on: only rendered when the affiliate module is licensed for this panel.
+const affiliateNav: NavItem = {
+  label: 'Affiliate Partners',
+  icon: <Handshake className="w-5 h-5" />,
+  children: [
+    { label: 'Dashboard', href: '/admin/affiliate-partners/dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+    { label: 'Partners', href: '/admin/affiliate-partners/partners', icon: <Users className="w-4 h-4" /> },
+    { label: 'Referrals', href: '/admin/affiliate-partners/referrals', icon: <UserCheck className="w-4 h-4" /> },
+    { label: 'Commissions', href: '/admin/affiliate-partners/commissions', icon: <IndianRupee className="w-4 h-4" /> },
+    { label: 'Withdraw Requests', href: '/admin/affiliate-partners/withdraw-requests', icon: <Banknote className="w-4 h-4" /> },
+    { label: 'KYC', href: '/admin/affiliate-partners/kyc', icon: <ShieldCheck className="w-4 h-4" /> },
+    { label: 'Announcements', href: '/admin/affiliate-partners/announcements', icon: <Megaphone className="w-4 h-4" /> },
+    { label: 'Reports', href: '/admin/affiliate-partners/reports', icon: <BarChart3 className="w-4 h-4" /> },
+    { label: 'Settings', href: '/admin/affiliate-partners/settings', icon: <Settings className="w-4 h-4" /> },
+  ],
+};
+
 export default function AdminSidebar() {
+  const { t } = useI18n();
   const pathname = usePathname();
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [menuQuery, setMenuQuery] = useState('');
   const { logout, user } = useAuthStore();
+  const [affiliateLicensed, setAffiliateLicensed] = useState(false);
 
-  const q = menuQuery.trim().toLowerCase();
-  const filteredNav = !q
-    ? navItems
-    : navItems
-        .map((sec) => ({
-          ...sec,
-          children: (sec.children || []).filter(
-            (c) => c.label.toLowerCase().includes(q) || sec.label.toLowerCase().includes(q)
-          ),
-        }))
-        .filter((sec) => sec.href ? sec.label.toLowerCase().includes(q) : (sec.children || []).length > 0);
+  useEffect(() => {
+    adminPartnersApi.module()
+      .then((r) => setAffiliateLicensed(!!r.data.data?.licensed))
+      .catch(() => setAffiliateLicensed(false));
+  }, []);
+
+  const items = affiliateLicensed
+    ? navItems.flatMap((item) => (item.label === 'Vendors' ? [item, affiliateNav] : [item]))
+    : navItems;
 
   const toggleSection = (label: string) => {
     setExpandedSections((prev) =>
@@ -99,91 +91,90 @@ export default function AdminSidebar() {
   };
 
   const brand = useBranding();
+  const kkhs = useKkhsTheme();
+  const { pins, toggle: togglePin, isPinned } = usePins('admin');
+  const flatNav = items.flatMap(s => s.href
+    ? [{ label: s.label, href: s.href, icon: s.icon }]
+    : (s.children || []).map(c => ({ label: c.label, href: c.href, icon: c.icon })));
 
   const sidebar = (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-4 border-b border-gray-200">
-        <div className="relative flex items-center justify-center min-h-[3rem]">
-          <div className="flex items-center justify-center min-w-0">{brand.logo ? <img src={brand.logo} alt={brand.name} className="max-w-full w-auto h-auto max-h-12 object-contain mx-auto" /> : <h1 className="text-xl font-bold text-emerald-600 truncate">{brand.name}</h1>}</div>
-          <div className="absolute right-0 top-1/2 -translate-y-1/2">
-            <ThemePicker />
-          </div>
-        </div>
-        
-      </div>
+    <div className="flex flex-col h-full" data-kkhs-side="admin">
+      {kkhs ? (
+        <KkhsBrandbar logo={brand.logo} name={brand.name} sub={`${user?.role === 'super_admin' ? "超级管理员" : "管理员"} · ${user?.name || ''}`} />
+      ) : (
+      <OmniSidebarBrand logo={brand.logo} name={brand.name} />
+      )}
 
-      <div className="px-3 pt-3">
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-          <input
-            value={menuQuery}
-            onChange={(e) => setMenuQuery(e.target.value)}
-            autoComplete="off" placeholder="Search menu..."
-            className="w-full pl-8 pr-7 py-1.5 text-sm border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white bg-gray-50 transition-colors"
-          />
-          {menuQuery && (
-            <button onClick={() => setMenuQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">✕</button>
-          )}
-        </div>
-      </div>
+      {kkhs && (
+        <KkhsPinned items={flatNav} pins={pins} pathname={pathname} onToggle={togglePin} onNavigate={() => setMobileOpen(false)} />
+      )}
 
-      <nav className="flex-1 overflow-y-auto py-2">
-        {filteredNav.map((section) => (
-          <div key={section.label} className="mb-1">
+      <nav className="flex-1 overflow-y-auto py-2" data-kkhs-nav>
+        {items.map((section) => (
+          <div key={section.label} className="mb-1" data-kkhs-grp={expandedSections.includes(section.label) ? 'open' : ''}>
             {section.href ? (
               <Link
                 href={section.href}
                 onClick={() => setMobileOpen(false)}
+                title={t(section.label)} aria-label={t(section.label)} data-kkhs-ghead={pathname === section.href ? 'on' : ''}
                 className={`flex items-center gap-2 w-[calc(100%-16px)] mx-2 px-3 py-2 text-base font-bold tracking-wide rounded-xl transition-colors ${
                   pathname === section.href
                     ? 'text-emerald-600 bg-emerald-50'
                     : 'text-gray-900 hover:bg-gray-100/70'
                 }`}
               >
-                {section.icon} {section.label}
+                <OmniNavIcon label={section.label} fallback={section.icon} /> <span className="flex-1 min-w-0 truncate"><span data-ui-nav-label>{t(section.label)}</span></span>
+                {kkhs && <PinStar pinned={isPinned(section.href)} onToggle={() => togglePin(section.href!)} />}
               </Link>
             ) : (
               <>
                 <button
                   onClick={() => toggleSection(section.label)}
+                  title={t(section.label)} aria-label={t(section.label)} data-kkhs-ghead=""
                   className="flex items-center justify-between w-[calc(100%-16px)] mx-2 px-3 py-2 text-base font-bold text-gray-900 tracking-wide hover:bg-gray-100/70 rounded-xl transition-colors"
                 >
-                  <span className="flex items-center gap-2">{section.icon} {section.label}</span>
-                  {expandedSections.includes(section.label) ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  <span className="flex items-center gap-2"><OmniNavIcon label={section.label} fallback={section.icon} /> <span data-ui-nav-label>{t(section.label)}</span></span>
+                  {expandedSections.includes(section.label) ? <ChevronDown className="w-3 h-3" data-kkhs-cv /> : <ChevronRight className="w-3 h-3" data-kkhs-cv />}
                 </button>
-                {(q ? true : expandedSections.includes(section.label)) && section.children?.map((item) => (
+                {expandedSections.includes(section.label) && (
+                <div data-kkhs-gkids>
+                {section.children?.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
+                    title={t(item.label)} aria-label={t(item.label)} data-kkhs-ni={pathname === item.href ? 'on' : ''}
                     className={`flex items-center gap-3 pl-3 pr-4 py-1.5 mr-2 text-[13px] font-bold border-l-2 ml-5 rounded-r-xl transition-colors ${
                       pathname === item.href
                         ? 'text-emerald-600 bg-emerald-50 border-l-emerald-600 shadow-sm shadow-emerald-600/5'
                         : 'text-gray-500 border-l-gray-200 hover:bg-gray-50 hover:text-gray-900 hover:border-l-gray-400'
                     }`}
                   >
-                    {item.icon}
-                    {item.label}
+                    <OmniNavIcon label={item.label} fallback={item.icon} />
+                    <span className="flex-1"><span data-ui-nav-label>{t(item.label)}</span></span>
+                    {kkhs && <PinStar pinned={isPinned(item.href)} onToggle={() => togglePin(item.href)} />}
                   </Link>
                 ))}
+                </div>
+                )}
               </>
             )}
           </div>
         ))}
       </nav>
 
-      <div className="border-t border-gray-200 p-4">
+      <div className="border-t border-gray-200 p-4" data-kkhs-userfoot>
         <div className="flex items-center gap-3">
-          <Link href="/admin/profile" className="flex items-center gap-3 flex-1 min-w-0 rounded-lg -m-1 p-1 hover:bg-gray-50" title="My Profile">
+          <Link href="/admin/profile" className="flex items-center gap-3 flex-1 min-w-0 rounded-lg -m-1 p-1 hover:bg-gray-50" title={"个人资料"}>
             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-sm font-medium text-emerald-700">
               {user?.name?.charAt(0) || 'A'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.role}</p>
+              <p className="text-xs text-gray-500 truncate">{translateDisplay(user?.role)}</p>
             </div>
           </Link>
-          <button onClick={logout} className="text-gray-400 hover:text-red-600" title="Logout">
+          <button onClick={logout} className="text-gray-400 hover:text-red-600" title={"退出登录"}>
             <LogOut className="w-4 h-4" />
           </button>
         </div>
@@ -193,14 +184,14 @@ export default function AdminSidebar() {
 
   return (
     <>
-      <button
+      <button data-ui-nav-toggle
         onClick={() => setMobileOpen(!mobileOpen)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md"
       >
         {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
       {mobileOpen && <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-100 shadow-[1px_0_8px_rgba(0,0,0,0.03)] transition-transform lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside data-kkhs-aside="admin" className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-100 shadow-[1px_0_8px_rgba(0,0,0,0.03)] transition-transform lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {sidebar}
       </aside>
     </>

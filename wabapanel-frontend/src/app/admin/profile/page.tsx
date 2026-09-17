@@ -1,4 +1,5 @@
 'use client';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState } from 'react';
 import { Save, User } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -20,10 +21,10 @@ export default function AdminProfilePage() {
     try {
       const res = await authApi.updateProfile(profile);
       updateUser(res.data.data);
-      toast.success('Profile updated');
+      toast.success(translateApiMessage("个人资料已更新"));
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
-      toast.error(e.response?.data?.message || 'Failed');
+      toast.error(translateApiMessage(e.response?.data?.message || "操作失败"));
     }
     setSaving(false);
   };
@@ -32,13 +33,13 @@ export default function AdminProfilePage() {
     <div className="space-y-6">
       <div className="page-hero">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage your account, password and two-step verification</p>
+          <h1 className="text-2xl font-bold text-gray-900">个人资料</h1>
+          <p className="text-gray-500 text-sm mt-1">管理您的账户、密码和两步验证</p>
         </div>
       </div>
 
       <Tabs tabs={[
-        { key: 'profile', label: 'Profile', content: (
+        { key: 'profile', label: "简介", content: (
           <Card>
             <div className="space-y-4 max-w-lg">
               <div className="flex items-center gap-4 mb-6">
@@ -50,14 +51,14 @@ export default function AdminProfilePage() {
                   <p className="text-sm text-gray-500">{user?.email}</p>
                 </div>
               </div>
-              <Input label="Name" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} icon={<User className="w-4 h-4" />} />
-              <Input label="Email" type="email" value={profile.email} onChange={(e) => setProfile({ ...profile, email: e.target.value })} />
-              <Input label="Phone" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />
-              <Button onClick={handleProfileSave} loading={saving} icon={<Save className="w-4 h-4" />}>Save Changes</Button>
+              <Input label={"名称"} value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} icon={<User className="w-4 h-4" />} />
+              <Input label={"邮箱"} type="email" value={profile.email} onChange={(e) => setProfile({ ...profile, email: e.target.value })} />
+              <Input label={"电话"} value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />
+              <Button onClick={handleProfileSave} loading={saving} icon={<Save className="w-4 h-4" />}>保存更改</Button>
             </div>
           </Card>
         )},
-        { key: 'security', label: 'Security', content: (
+        { key: 'security', label: "安全", content: (
           <AccountSecurity />
         )},
       ]} />

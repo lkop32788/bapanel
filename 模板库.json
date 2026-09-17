@@ -1,0 +1,2438 @@
+﻿{
+    "success": true,
+    "data": {
+        "industries": [
+            {
+                "key": "general",
+                "label": "General / All businesses"
+            },
+            {
+                "key": "ecommerce",
+                "label": "E-commerce / D2C"
+            },
+            {
+                "key": "kirana",
+                "label": "Grocery / Kirana"
+            },
+            {
+                "key": "restaurant",
+                "label": "Restaurant / Cafe / Cloud kitchen"
+            },
+            {
+                "key": "clothing",
+                "label": "Clothing / Boutique"
+            },
+            {
+                "key": "jewellery",
+                "label": "Jewellery"
+            },
+            {
+                "key": "electronics",
+                "label": "Mobile / Electronics shop"
+            },
+            {
+                "key": "realestate",
+                "label": "Real estate / Property"
+            },
+            {
+                "key": "education",
+                "label": "School / Coaching / EdTech"
+            },
+            {
+                "key": "healthcare",
+                "label": "Clinic / Hospital / Doctor"
+            },
+            {
+                "key": "pharmacy",
+                "label": "Pharmacy / Medical store"
+            },
+            {
+                "key": "gym",
+                "label": "Gym / Fitness / Yoga"
+            },
+            {
+                "key": "salon",
+                "label": "Salon / Spa / Beauty"
+            },
+            {
+                "key": "travel",
+                "label": "Travel / Tour & Taxi"
+            },
+            {
+                "key": "hotel",
+                "label": "Hotel / Resort"
+            },
+            {
+                "key": "automobile",
+                "label": "Automobile / Service centre"
+            },
+            {
+                "key": "finance",
+                "label": "Finance / Loan / Insurance"
+            },
+            {
+                "key": "logistics",
+                "label": "Courier / Logistics"
+            },
+            {
+                "key": "interior",
+                "label": "Interior / Construction"
+            },
+            {
+                "key": "events",
+                "label": "Photography / Events"
+            },
+            {
+                "key": "agency",
+                "label": "Agency / SaaS / IT services"
+            },
+            {
+                "key": "astrology",
+                "label": "Astrology / Pandit ji"
+            },
+            {
+                "key": "furniture",
+                "label": "Furniture / Home decor"
+            },
+            {
+                "key": "solar",
+                "label": "Solar / Electrical"
+            },
+            {
+                "key": "festival",
+                "label": "Indian festival offers"
+            }
+        ],
+        "templates": [
+            {
+                "name": "general_welcome_intro",
+                "title": "Welcome / intro message",
+                "industry": "general",
+                "industryLabel": "General / All businesses",
+                "category": "marketing",
+                "language": "en",
+                "sector": "General / All businesses",
+                "header": {
+                    "type": "text",
+                    "content": "Welcome",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, thanks for connecting with {{2}}. We are here on WhatsApp for orders, prices and support.\n\nHow can we help you today?",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "See products",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Talk to us",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "general_enquiry_received",
+                "title": "Enquiry received",
+                "industry": "general",
+                "industryLabel": "General / All businesses",
+                "category": "utility",
+                "language": "en",
+                "sector": "General / All businesses",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, we have received your enquiry ({{2}}). Our team will contact you within {{3}} working hours.",
+                "footer": "Thank you for reaching out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "general_payment_reminder",
+                "title": "Payment reminder",
+                "industry": "general",
+                "industryLabel": "General / All businesses",
+                "category": "utility",
+                "language": "en",
+                "sector": "General / All businesses",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, a payment of Rs. {{2}} for invoice {{3}} is pending. Due date: {{4}}.\n\nPlease pay to avoid late charges.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Send payment link",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "general_payment_received",
+                "title": "Payment received",
+                "industry": "general",
+                "industryLabel": "General / All businesses",
+                "category": "utility",
+                "language": "en",
+                "sector": "General / All businesses",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, we have received Rs. {{2}} against invoice {{3}} on {{4}}. Thank you!",
+                "footer": "Receipt sent on email",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "general_feedback_request",
+                "title": "Feedback request",
+                "industry": "general",
+                "industryLabel": "General / All businesses",
+                "category": "utility",
+                "language": "en",
+                "sector": "General / All businesses",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, how was your experience with {{2}}? Your feedback helps us serve you better.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Very good",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Average",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Need help",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "general_appointment_reminder",
+                "title": "Appointment reminder",
+                "industry": "general",
+                "industryLabel": "General / All businesses",
+                "category": "utility",
+                "language": "en",
+                "sector": "General / All businesses",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, reminder for your appointment at {{2}} on {{3}}, {{4}}.\n\nReply to reschedule if needed.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Confirm",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Reschedule",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "general_business_hours_reply",
+                "title": "Out of office reply",
+                "industry": "general",
+                "industryLabel": "General / All businesses",
+                "category": "utility",
+                "language": "en",
+                "sector": "General / All businesses",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, thanks for your message. Our team is available {{2}} to {{3}}. We will reply on the next working day.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "general_otp_verification",
+                "title": "OTP / verification code",
+                "industry": "general",
+                "industryLabel": "General / All businesses",
+                "category": "authentication",
+                "language": "en",
+                "sector": "General / All businesses",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "",
+                "footer": "",
+                "buttons": [],
+                "authentication": {
+                    "otpType": "COPY_CODE",
+                    "buttonText": "Copy code",
+                    "codeExpirationMinutes": 10
+                },
+                "alreadyAdded": false
+            },
+            {
+                "name": "ecommerce_order_confirmed",
+                "title": "Order confirmed",
+                "industry": "ecommerce",
+                "industryLabel": "E-commerce / D2C",
+                "category": "utility",
+                "language": "en",
+                "sector": "E-commerce / D2C",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your order {{2}} of Rs. {{3}} is confirmed. Expected delivery: {{4}}.\n\nThank you for shopping with us!",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Track order",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "ecommerce_order_shipped",
+                "title": "Order shipped",
+                "industry": "ecommerce",
+                "industryLabel": "E-commerce / D2C",
+                "category": "utility",
+                "language": "en",
+                "sector": "E-commerce / D2C",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Good news {{1}}! Your order {{2}} has been shipped via {{3}}. Tracking ID: {{4}}.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Track shipment",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "ecommerce_order_delivered_feedback",
+                "title": "Delivered + review ask",
+                "industry": "ecommerce",
+                "industryLabel": "E-commerce / D2C",
+                "category": "utility",
+                "language": "en",
+                "sector": "E-commerce / D2C",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your order {{2}} has been delivered. We hope you love it!\n\nCould you share a quick review?",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Write review",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Report issue",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "ecommerce_cod_confirmation",
+                "title": "COD order confirmation",
+                "industry": "ecommerce",
+                "industryLabel": "E-commerce / D2C",
+                "category": "utility",
+                "language": "en",
+                "sector": "E-commerce / D2C",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, please confirm your Cash on Delivery order {{2}} of Rs. {{3}} so we can dispatch it today.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Confirm order",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Cancel order",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "ecommerce_abandoned_cart",
+                "title": "Abandoned cart reminder",
+                "industry": "ecommerce",
+                "industryLabel": "E-commerce / D2C",
+                "category": "marketing",
+                "language": "en",
+                "sector": "E-commerce / D2C",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, you left {{2}} in your cart. Complete your order now and get {{3}} off — offer valid till {{4}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Complete order",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "ecommerce_back_in_stock",
+                "title": "Back in stock",
+                "industry": "ecommerce",
+                "industryLabel": "E-commerce / D2C",
+                "category": "marketing",
+                "language": "en",
+                "sector": "E-commerce / D2C",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, {{2}} is back in stock! Limited pieces available at Rs. {{3}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Order now",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "ecommerce_sale_announcement",
+                "title": "Sale announcement",
+                "industry": "ecommerce",
+                "industryLabel": "E-commerce / D2C",
+                "category": "marketing",
+                "language": "en",
+                "sector": "E-commerce / D2C",
+                "header": {
+                    "type": "text",
+                    "content": "Sale is live",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, our {{2}} sale is live — flat {{3}} off on everything till {{4}}.\n\nShop before stock runs out!",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Shop now",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "kirana_monthly_grocery_list",
+                "title": "Monthly grocery reminder",
+                "industry": "kirana",
+                "industryLabel": "Grocery / Kirana",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Grocery / Kirana",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, time for your monthly grocery? Send your list on WhatsApp and we will deliver at home on {{2}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Send list",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "kirana_daily_rate_list",
+                "title": "Today rate list",
+                "industry": "kirana",
+                "industryLabel": "Grocery / Kirana",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Grocery / Kirana",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Namaste {{1}}, today rates: {{2}}. Order before {{3}} for same-day home delivery.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "kirana_order_ready_pickup",
+                "title": "Order ready for pickup",
+                "industry": "kirana",
+                "industryLabel": "Grocery / Kirana",
+                "category": "utility",
+                "language": "en",
+                "sector": "Grocery / Kirana",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your order {{2}} of Rs. {{3}} is packed and ready for pickup at our shop till {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "kirana_khata_balance",
+                "title": "Khata / due balance",
+                "industry": "kirana",
+                "industryLabel": "Grocery / Kirana",
+                "category": "utility",
+                "language": "en",
+                "sector": "Grocery / Kirana",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your pending balance is Rs. {{2}} as on {{3}}. Kindly clear it at your convenience.",
+                "footer": "Thank you for your business",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "restaurant_table_booking_confirmed",
+                "title": "Table booking confirmed",
+                "industry": "restaurant",
+                "industryLabel": "Restaurant / Cafe / Cloud kitchen",
+                "category": "utility",
+                "language": "en",
+                "sector": "Restaurant / Cafe / Cloud kitchen",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your table for {{2}} guests is confirmed at {{3}} on {{4}}. See you soon!",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Cancel booking",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "restaurant_food_order_confirmed",
+                "title": "Food order confirmed",
+                "industry": "restaurant",
+                "industryLabel": "Restaurant / Cafe / Cloud kitchen",
+                "category": "utility",
+                "language": "en",
+                "sector": "Restaurant / Cafe / Cloud kitchen",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your order {{2}} of Rs. {{3}} is confirmed and will reach you in about {{4}} minutes.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "restaurant_todays_special",
+                "title": "Today's special / menu",
+                "industry": "restaurant",
+                "industryLabel": "Restaurant / Cafe / Cloud kitchen",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Restaurant / Cafe / Cloud kitchen",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, today special at {{2}}: {{3}}. Order on WhatsApp and get free delivery above Rs. {{4}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "See menu",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Order now",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "restaurant_weekend_offer",
+                "title": "Weekend offer",
+                "industry": "restaurant",
+                "industryLabel": "Restaurant / Cafe / Cloud kitchen",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Restaurant / Cafe / Cloud kitchen",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, this weekend get {{2}} off on your favourite {{3}} at {{4}}. Valid on dine-in and takeaway.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "restaurant_party_order_quote",
+                "title": "Party / bulk order quote",
+                "industry": "restaurant",
+                "industryLabel": "Restaurant / Cafe / Cloud kitchen",
+                "category": "utility",
+                "language": "en",
+                "sector": "Restaurant / Cafe / Cloud kitchen",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, for your party of {{2}} guests on {{3}}, our package comes to Rs. {{4}}. Shall we block the date?",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Confirm booking",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Call me",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "clothing_new_collection",
+                "title": "New collection launch",
+                "industry": "clothing",
+                "industryLabel": "Clothing / Boutique",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Clothing / Boutique",
+                "header": {
+                    "type": "text",
+                    "content": "New collection",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, our new {{2}} collection has arrived — starting Rs. {{3}}. Sizes {{4}} available.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Send catalogue",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Visit store",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "clothing_stitching_ready",
+                "title": "Stitching / alteration ready",
+                "industry": "clothing",
+                "industryLabel": "Clothing / Boutique",
+                "category": "utility",
+                "language": "en",
+                "sector": "Clothing / Boutique",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} is ready. Please collect it from our shop by {{3}}. Balance amount: Rs. {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "clothing_size_confirm",
+                "title": "Size / measurement confirm",
+                "industry": "clothing",
+                "industryLabel": "Clothing / Boutique",
+                "category": "utility",
+                "language": "en",
+                "sector": "Clothing / Boutique",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, please confirm size {{2}} for your {{3}} order so we can dispatch it today.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Size is correct",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Change size",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "clothing_end_of_season_sale",
+                "title": "End of season sale",
+                "industry": "clothing",
+                "industryLabel": "Clothing / Boutique",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Clothing / Boutique",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, end of season sale at {{2}} — flat {{3}} off till {{4}}. Best pieces go fast!",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "jewellery_gold_rate_today",
+                "title": "Today gold rate",
+                "industry": "jewellery",
+                "industryLabel": "Jewellery",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Jewellery",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Namaste {{1}}, today gold rate at {{2}}: 22K Rs. {{3}} and 24K Rs. {{4}} per 10g.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "jewellery_order_ready",
+                "title": "Custom order ready",
+                "industry": "jewellery",
+                "industryLabel": "Jewellery",
+                "category": "utility",
+                "language": "en",
+                "sector": "Jewellery",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} (order {{3}}) is ready. Please visit us with the receipt to collect it by {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "jewellery_scheme_installment",
+                "title": "Saving scheme installment",
+                "industry": "jewellery",
+                "industryLabel": "Jewellery",
+                "category": "utility",
+                "language": "en",
+                "sector": "Jewellery",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} scheme installment of Rs. {{3}} is due on {{4}}. Pay at the store or online.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "jewellery_festive_collection",
+                "title": "Festive collection invite",
+                "industry": "jewellery",
+                "industryLabel": "Jewellery",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Jewellery",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, our {{2}} festive collection is on display. Get {{3}} off on making charges till {{4}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book appointment",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "electronics_price_quote",
+                "title": "Price quotation",
+                "industry": "electronics",
+                "industryLabel": "Mobile / Electronics shop",
+                "category": "utility",
+                "language": "en",
+                "sector": "Mobile / Electronics shop",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, price for {{2}} is Rs. {{3}} with {{4}} warranty. EMI options available.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book now",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Other models",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "electronics_repair_status",
+                "title": "Repair status update",
+                "industry": "electronics",
+                "industryLabel": "Mobile / Electronics shop",
+                "category": "utility",
+                "language": "en",
+                "sector": "Mobile / Electronics shop",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} (job {{3}}) status: {{4}}. We will inform you once it is ready.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "electronics_repair_ready",
+                "title": "Repair ready for pickup",
+                "industry": "electronics",
+                "industryLabel": "Mobile / Electronics shop",
+                "category": "utility",
+                "language": "en",
+                "sector": "Mobile / Electronics shop",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} is repaired and ready. Total amount Rs. {{3}}. Please collect by {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "electronics_exchange_offer",
+                "title": "Exchange offer",
+                "industry": "electronics",
+                "industryLabel": "Mobile / Electronics shop",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Mobile / Electronics shop",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, exchange your old phone and get up to Rs. {{2}} off on {{3}} till {{4}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "realestate_property_details",
+                "title": "Property details share",
+                "industry": "realestate",
+                "industryLabel": "Real estate / Property",
+                "category": "utility",
+                "language": "en",
+                "sector": "Real estate / Property",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, sharing details of {{2}}: {{3}}. Price: Rs. {{4}}. Shall we plan a site visit?",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book site visit",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Send more options",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "realestate_site_visit_confirmed",
+                "title": "Site visit confirmed",
+                "industry": "realestate",
+                "industryLabel": "Real estate / Property",
+                "category": "utility",
+                "language": "en",
+                "sector": "Real estate / Property",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your site visit for {{2}} is confirmed on {{3}} at {{4}}. Our executive will meet you there.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "realestate_new_project_launch",
+                "title": "New project launch",
+                "industry": "realestate",
+                "industryLabel": "Real estate / Property",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Real estate / Property",
+                "header": {
+                    "type": "text",
+                    "content": "New project launch",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, new launch — {{2}} at {{3}}. Starting Rs. {{4}}. Pre-launch prices for limited bookings.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Get brochure",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "realestate_rent_reminder",
+                "title": "Rent reminder",
+                "industry": "realestate",
+                "industryLabel": "Real estate / Property",
+                "category": "utility",
+                "language": "en",
+                "sector": "Real estate / Property",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, rent of Rs. {{2}} for {{3}} is due on {{4}}. Kindly pay on time.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "education_admission_enquiry",
+                "title": "Admission enquiry reply",
+                "industry": "education",
+                "industryLabel": "School / Coaching / EdTech",
+                "category": "utility",
+                "language": "en",
+                "sector": "School / Coaching / EdTech",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, thanks for your interest in {{2}}. Course fee is Rs. {{3}} and next batch starts {{4}}.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book demo class",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Talk to counsellor",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "education_demo_class_reminder",
+                "title": "Demo class reminder",
+                "industry": "education",
+                "industryLabel": "School / Coaching / EdTech",
+                "category": "utility",
+                "language": "en",
+                "sector": "School / Coaching / EdTech",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your free demo class for {{2}} is on {{3}} at {{4}}. Please join 5 minutes early.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "education_fee_reminder",
+                "title": "Fee reminder",
+                "industry": "education",
+                "industryLabel": "School / Coaching / EdTech",
+                "category": "utility",
+                "language": "en",
+                "sector": "School / Coaching / EdTech",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Dear parent, fee of Rs. {{1}} for {{2}} ({{3}}) is due on {{4}}. Kindly pay to avoid late fee.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "education_attendance_alert",
+                "title": "Attendance alert",
+                "industry": "education",
+                "industryLabel": "School / Coaching / EdTech",
+                "category": "utility",
+                "language": "en",
+                "sector": "School / Coaching / EdTech",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Dear parent, {{1}} was absent on {{2}} in {{3}}. Present attendance: {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "education_result_published",
+                "title": "Result / report card",
+                "industry": "education",
+                "industryLabel": "School / Coaching / EdTech",
+                "category": "utility",
+                "language": "en",
+                "sector": "School / Coaching / EdTech",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Dear parent, result of {{1}} for {{2}} is published. Marks: {{3}}. Remarks: {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "education_new_batch_offer",
+                "title": "New batch offer",
+                "industry": "education",
+                "industryLabel": "School / Coaching / EdTech",
+                "category": "marketing",
+                "language": "en",
+                "sector": "School / Coaching / EdTech",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, new {{2}} batch starts {{3}} — get {{4}} off on early admission.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "healthcare_appointment_confirmed",
+                "title": "Doctor appointment confirmed",
+                "industry": "healthcare",
+                "industryLabel": "Clinic / Hospital / Doctor",
+                "category": "utility",
+                "language": "en",
+                "sector": "Clinic / Hospital / Doctor",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your appointment with {{2}} is confirmed on {{3}} at {{4}}. Please carry previous reports.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Reschedule",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Cancel",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "healthcare_report_ready",
+                "title": "Lab report ready",
+                "industry": "healthcare",
+                "industryLabel": "Clinic / Hospital / Doctor",
+                "category": "utility",
+                "language": "en",
+                "sector": "Clinic / Hospital / Doctor",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} report is ready. Collect from {{3}} or download online. Report ID: {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "healthcare_medicine_reminder",
+                "title": "Medicine / follow-up reminder",
+                "industry": "healthcare",
+                "industryLabel": "Clinic / Hospital / Doctor",
+                "category": "utility",
+                "language": "en",
+                "sector": "Clinic / Hospital / Doctor",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, reminder for your {{2}} follow-up with {{3}} on {{4}}. Continue medicines as advised.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "healthcare_health_checkup_camp",
+                "title": "Health checkup camp",
+                "industry": "healthcare",
+                "industryLabel": "Clinic / Hospital / Doctor",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Clinic / Hospital / Doctor",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, free {{2}} checkup camp at {{3}} on {{4}}. Book your slot on WhatsApp.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book slot",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "pharmacy_refill_reminder",
+                "title": "Medicine refill reminder",
+                "industry": "pharmacy",
+                "industryLabel": "Pharmacy / Medical store",
+                "category": "utility",
+                "language": "en",
+                "sector": "Pharmacy / Medical store",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} course is ending around {{3}}. Shall we deliver a refill of Rs. {{4}} at home?",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Yes, deliver",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Not now",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "pharmacy_order_out_for_delivery",
+                "title": "Medicine out for delivery",
+                "industry": "pharmacy",
+                "industryLabel": "Pharmacy / Medical store",
+                "category": "utility",
+                "language": "en",
+                "sector": "Pharmacy / Medical store",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your medicine order {{2}} of Rs. {{3}} is out for delivery and will reach by {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "pharmacy_prescription_request",
+                "title": "Prescription request",
+                "industry": "pharmacy",
+                "industryLabel": "Pharmacy / Medical store",
+                "category": "utility",
+                "language": "en",
+                "sector": "Pharmacy / Medical store",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, please send a photo of the prescription for {{2}} so we can process order {{3}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "gym_membership_expiry",
+                "title": "Membership expiry reminder",
+                "industry": "gym",
+                "industryLabel": "Gym / Fitness / Yoga",
+                "category": "utility",
+                "language": "en",
+                "sector": "Gym / Fitness / Yoga",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} membership expires on {{3}}. Renew now at Rs. {{4}} and keep your streak going.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Renew now",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "gym_free_trial_invite",
+                "title": "Free trial invite",
+                "industry": "gym",
+                "industryLabel": "Gym / Fitness / Yoga",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Gym / Fitness / Yoga",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, try {{2}} free for {{3}} days — personal training and diet plan included. Offer valid till {{4}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book free trial",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "gym_class_schedule",
+                "title": "Class schedule update",
+                "industry": "gym",
+                "industryLabel": "Gym / Fitness / Yoga",
+                "category": "utility",
+                "language": "en",
+                "sector": "Gym / Fitness / Yoga",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} class is scheduled on {{3}} at {{4}}. Reply if you cannot attend.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "gym_missed_you",
+                "title": "Win-back inactive member",
+                "industry": "gym",
+                "industryLabel": "Gym / Fitness / Yoga",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Gym / Fitness / Yoga",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, we missed you at {{2}}! Come back this week and get {{3}} extra days free. Offer till {{4}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "salon_booking_confirmed",
+                "title": "Salon booking confirmed",
+                "industry": "salon",
+                "industryLabel": "Salon / Spa / Beauty",
+                "category": "utility",
+                "language": "en",
+                "sector": "Salon / Spa / Beauty",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} appointment is confirmed on {{3}} at {{4}}. See you at the salon!",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Reschedule",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "salon_service_offer",
+                "title": "Service package offer",
+                "industry": "salon",
+                "industryLabel": "Salon / Spa / Beauty",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Salon / Spa / Beauty",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, get {{2}} off on {{3}} this month at {{4}}. Limited slots — book early.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book slot",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "salon_followup_visit",
+                "title": "Next visit reminder",
+                "industry": "salon",
+                "industryLabel": "Salon / Spa / Beauty",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Salon / Spa / Beauty",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, it has been {{2}} weeks since your last {{3}}. Shall we book your next slot at {{4}}?",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "travel_tour_package_quote",
+                "title": "Tour package quote",
+                "industry": "travel",
+                "industryLabel": "Travel / Tour & Taxi",
+                "category": "utility",
+                "language": "en",
+                "sector": "Travel / Tour & Taxi",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, {{2}} package for {{3}} comes to Rs. {{4}} per person including stay and travel.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book package",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Other options",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "travel_booking_confirmed",
+                "title": "Travel booking confirmed",
+                "industry": "travel",
+                "industryLabel": "Travel / Tour & Taxi",
+                "category": "utility",
+                "language": "en",
+                "sector": "Travel / Tour & Taxi",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your booking {{2}} for {{3}} on {{4}} is confirmed. Ticket details sent on email.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "travel_cab_driver_details",
+                "title": "Cab / driver details",
+                "industry": "travel",
+                "industryLabel": "Travel / Tour & Taxi",
+                "category": "utility",
+                "language": "en",
+                "sector": "Travel / Tour & Taxi",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your cab for {{2}} is confirmed. Driver: {{3}}, vehicle {{4}}. He will reach 10 minutes early.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "travel_holiday_offer",
+                "title": "Holiday season offer",
+                "industry": "travel",
+                "industryLabel": "Travel / Tour & Taxi",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Travel / Tour & Taxi",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, {{2}} holiday packages starting Rs. {{3}}. Book before {{4}} and save more.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "hotel_reservation_confirmed",
+                "title": "Room reservation confirmed",
+                "industry": "hotel",
+                "industryLabel": "Hotel / Resort",
+                "category": "utility",
+                "language": "en",
+                "sector": "Hotel / Resort",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your booking at {{2}} is confirmed: check-in {{3}}, check-out {{4}}. We look forward to hosting you.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "hotel_checkin_reminder",
+                "title": "Check-in reminder",
+                "industry": "hotel",
+                "industryLabel": "Hotel / Resort",
+                "category": "utility",
+                "language": "en",
+                "sector": "Hotel / Resort",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, reminder for your stay at {{2}} from {{3}}. Check-in starts {{4}}. Need airport pickup?",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Need pickup",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "No, thanks",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "hotel_stay_feedback",
+                "title": "Post-stay feedback",
+                "industry": "hotel",
+                "industryLabel": "Hotel / Resort",
+                "category": "utility",
+                "language": "en",
+                "sector": "Hotel / Resort",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, thank you for staying at {{2}}. How was your experience? Your review means a lot to us.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Excellent",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Could be better",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "automobile_service_due",
+                "title": "Vehicle service due",
+                "industry": "automobile",
+                "industryLabel": "Automobile / Service centre",
+                "category": "utility",
+                "language": "en",
+                "sector": "Automobile / Service centre",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, service for your {{2}} ({{3}}) is due on {{4}}. Shall we book a slot?",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book service",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Call me",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "automobile_service_ready",
+                "title": "Vehicle ready for delivery",
+                "industry": "automobile",
+                "industryLabel": "Automobile / Service centre",
+                "category": "utility",
+                "language": "en",
+                "sector": "Automobile / Service centre",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} is ready. Total bill Rs. {{3}}. Please collect it by {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "automobile_insurance_renewal",
+                "title": "Insurance renewal reminder",
+                "industry": "automobile",
+                "industryLabel": "Automobile / Service centre",
+                "category": "utility",
+                "language": "en",
+                "sector": "Automobile / Service centre",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, insurance of your {{2}} ({{3}}) expires on {{4}}. Renew now to stay covered.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "automobile_test_drive_invite",
+                "title": "Test drive invite",
+                "industry": "automobile",
+                "industryLabel": "Automobile / Service centre",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Automobile / Service centre",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, the new {{2}} has arrived at {{3}}. Book a free test drive before {{4}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book test drive",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "finance_loan_eligibility",
+                "title": "Loan eligibility update",
+                "industry": "finance",
+                "industryLabel": "Finance / Loan / Insurance",
+                "category": "utility",
+                "language": "en",
+                "sector": "Finance / Loan / Insurance",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, you are eligible for a {{2}} of up to Rs. {{3}} at {{4}} interest. Documents needed: PAN, Aadhaar, bank statement.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Apply now",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Talk to advisor",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "finance_emi_reminder",
+                "title": "EMI reminder",
+                "industry": "finance",
+                "industryLabel": "Finance / Loan / Insurance",
+                "category": "utility",
+                "language": "en",
+                "sector": "Finance / Loan / Insurance",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, EMI of Rs. {{2}} for loan {{3}} is due on {{4}}. Please keep your account funded.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "finance_policy_renewal",
+                "title": "Policy renewal reminder",
+                "industry": "finance",
+                "industryLabel": "Finance / Loan / Insurance",
+                "category": "utility",
+                "language": "en",
+                "sector": "Finance / Loan / Insurance",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} policy {{3}} expires on {{4}}. Renew today to continue your cover.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "finance_document_pending",
+                "title": "Documents pending",
+                "industry": "finance",
+                "industryLabel": "Finance / Loan / Insurance",
+                "category": "utility",
+                "language": "en",
+                "sector": "Finance / Loan / Insurance",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your application {{2}} is on hold — {{3}} is pending. Please send it by {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "logistics_pickup_scheduled",
+                "title": "Pickup scheduled",
+                "industry": "logistics",
+                "industryLabel": "Courier / Logistics",
+                "category": "utility",
+                "language": "en",
+                "sector": "Courier / Logistics",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, pickup for {{2}} is scheduled on {{3}} between {{4}}. Please keep the parcel ready.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "logistics_out_for_delivery",
+                "title": "Out for delivery",
+                "industry": "logistics",
+                "industryLabel": "Courier / Logistics",
+                "category": "utility",
+                "language": "en",
+                "sector": "Courier / Logistics",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your shipment {{2}} is out for delivery today. Delivery agent: {{3}}, contact {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "logistics_delivery_failed",
+                "title": "Delivery attempt failed",
+                "industry": "logistics",
+                "industryLabel": "Courier / Logistics",
+                "category": "utility",
+                "language": "en",
+                "sector": "Courier / Logistics",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, we could not deliver shipment {{2}} on {{3}} — reason: {{4}}. Reply to reschedule.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Reschedule delivery",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "interior_quotation_share",
+                "title": "Quotation shared",
+                "industry": "interior",
+                "industryLabel": "Interior / Construction",
+                "category": "utility",
+                "language": "en",
+                "sector": "Interior / Construction",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, quotation for {{2}} is Rs. {{3}}, work timeline {{4}}. Shall we proceed?",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Approve quote",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Discuss changes",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "interior_site_progress",
+                "title": "Site progress update",
+                "industry": "interior",
+                "industryLabel": "Interior / Construction",
+                "category": "utility",
+                "language": "en",
+                "sector": "Interior / Construction",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, update for {{2}}: {{3}} completed. Next milestone {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "interior_payment_milestone",
+                "title": "Milestone payment due",
+                "industry": "interior",
+                "industryLabel": "Interior / Construction",
+                "category": "utility",
+                "language": "en",
+                "sector": "Interior / Construction",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, milestone {{2}} for {{3}} is complete. Payment of Rs. {{4}} is due as per agreement.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "interior_free_design_consult",
+                "title": "Free design consultation",
+                "industry": "interior",
+                "industryLabel": "Interior / Construction",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Interior / Construction",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, get a free {{2}} design consultation from {{3}}. Book before {{4}} for a special discount.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book consultation",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "events_package_quote",
+                "title": "Shoot package quote",
+                "industry": "events",
+                "industryLabel": "Photography / Events",
+                "category": "utility",
+                "language": "en",
+                "sector": "Photography / Events",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, our {{2}} package for {{3}} is Rs. {{4}}, including edited photos and album.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book date",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "See samples",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "events_date_blocked",
+                "title": "Date blocked / advance received",
+                "industry": "events",
+                "industryLabel": "Photography / Events",
+                "category": "utility",
+                "language": "en",
+                "sector": "Photography / Events",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, we have blocked {{2}} for your {{3}}. Advance of Rs. {{4}} received. Thank you!",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "events_album_ready",
+                "title": "Photos / album ready",
+                "industry": "events",
+                "industryLabel": "Photography / Events",
+                "category": "utility",
+                "language": "en",
+                "sector": "Photography / Events",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} photos are ready. Download link valid till {{3}}. Album delivery: {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "agency_proposal_sent",
+                "title": "Proposal sent",
+                "industry": "agency",
+                "industryLabel": "Agency / SaaS / IT services",
+                "category": "utility",
+                "language": "en",
+                "sector": "Agency / SaaS / IT services",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, we have sent the proposal for {{2}} — scope {{3}}, investment Rs. {{4}}. Happy to walk you through it.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Schedule call",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "agency_demo_scheduled",
+                "title": "Demo scheduled",
+                "industry": "agency",
+                "industryLabel": "Agency / SaaS / IT services",
+                "category": "utility",
+                "language": "en",
+                "sector": "Agency / SaaS / IT services",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your demo of {{2}} is scheduled on {{3}} at {{4}}. Meeting link sent on email.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "agency_trial_ending",
+                "title": "Trial ending",
+                "industry": "agency",
+                "industryLabel": "Agency / SaaS / IT services",
+                "category": "utility",
+                "language": "en",
+                "sector": "Agency / SaaS / IT services",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} trial ends on {{3}}. Upgrade now to keep your data and continue at Rs. {{4}}.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Upgrade now",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Need help",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "agency_invoice_generated",
+                "title": "Invoice generated",
+                "industry": "agency",
+                "industryLabel": "Agency / SaaS / IT services",
+                "category": "utility",
+                "language": "en",
+                "sector": "Agency / SaaS / IT services",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, invoice {{2}} of Rs. {{3}} for {{4}} has been generated. Payment link shared on email.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "astrology_consultation_confirmed",
+                "title": "Consultation confirmed",
+                "industry": "astrology",
+                "industryLabel": "Astrology / Pandit ji",
+                "category": "utility",
+                "language": "en",
+                "sector": "Astrology / Pandit ji",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Namaste {{1}}, your {{2}} consultation is confirmed on {{3}} at {{4}}. Please keep your birth details ready.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "astrology_puja_booking",
+                "title": "Puja booking confirmed",
+                "industry": "astrology",
+                "industryLabel": "Astrology / Pandit ji",
+                "category": "utility",
+                "language": "en",
+                "sector": "Astrology / Pandit ji",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Namaste {{1}}, your {{2}} puja is booked for {{3}}. Dakshina: Rs. {{4}}. Details will be shared a day before.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "astrology_festival_muhurat",
+                "title": "Festival muhurat message",
+                "industry": "astrology",
+                "industryLabel": "Astrology / Pandit ji",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Astrology / Pandit ji",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Namaste {{1}}, {{2}} muhurat is on {{3}} — {{4}}. Book your puja slot in advance.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "furniture_order_dispatch",
+                "title": "Furniture dispatch update",
+                "industry": "furniture",
+                "industryLabel": "Furniture / Home decor",
+                "category": "utility",
+                "language": "en",
+                "sector": "Furniture / Home decor",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} (order {{3}}) will be delivered and installed on {{4}}. Our team will call before arriving.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "furniture_custom_order_quote",
+                "title": "Custom order quote",
+                "industry": "furniture",
+                "industryLabel": "Furniture / Home decor",
+                "category": "utility",
+                "language": "en",
+                "sector": "Furniture / Home decor",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, for the custom {{2}} in {{3}}, the price is Rs. {{4}} with delivery in 3 weeks.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Confirm order",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "furniture_festive_furniture_sale",
+                "title": "Festive furniture sale",
+                "industry": "furniture",
+                "industryLabel": "Furniture / Home decor",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Furniture / Home decor",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, {{2}} sale at {{3}} — up to {{4}} off with free delivery and easy EMI.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "solar_site_survey_scheduled",
+                "title": "Site survey scheduled",
+                "industry": "solar",
+                "industryLabel": "Solar / Electrical",
+                "category": "utility",
+                "language": "en",
+                "sector": "Solar / Electrical",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, free site survey for your {{2}} solar system is scheduled on {{3}} at {{4}}.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "solar_savings_quote",
+                "title": "Solar savings quote",
+                "industry": "solar",
+                "industryLabel": "Solar / Electrical",
+                "category": "utility",
+                "language": "en",
+                "sector": "Solar / Electrical",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, a {{2}} kW rooftop system costs about Rs. {{3}} after subsidy and saves nearly Rs. {{4}} per month.",
+                "footer": "",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "Book installation",
+                        "value": "",
+                        "example": ""
+                    },
+                    {
+                        "type": "quick_reply",
+                        "text": "Call me",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "solar_installation_complete",
+                "title": "Installation complete",
+                "industry": "solar",
+                "industryLabel": "Solar / Electrical",
+                "category": "utility",
+                "language": "en",
+                "sector": "Solar / Electrical",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, your {{2}} kW system at {{3}} is installed and commissioned on {{4}}. Warranty papers shared.",
+                "footer": "",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "festival_diwali_offer",
+                "title": "Diwali offer",
+                "industry": "festival",
+                "industryLabel": "Indian festival offers",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Indian festival offers",
+                "header": {
+                    "type": "text",
+                    "content": "Happy Diwali",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, Diwali dhamaka at {{2}} — up to {{3}} off plus gifts on every purchase. Offer till {{4}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [
+                    {
+                        "type": "quick_reply",
+                        "text": "See offers",
+                        "value": "",
+                        "example": ""
+                    }
+                ],
+                "alreadyAdded": false
+            },
+            {
+                "name": "festival_holi_offer",
+                "title": "Holi offer",
+                "industry": "festival",
+                "industryLabel": "Indian festival offers",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Indian festival offers",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, Holi special at {{2}} — flat {{3}} off till {{4}}. Rangon bhari shopping!",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "festival_rakhi_offer",
+                "title": "Raksha Bandhan offer",
+                "industry": "festival",
+                "industryLabel": "Indian festival offers",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Indian festival offers",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, Rakhi gifts at {{2}} starting Rs. {{3}} with free delivery till {{4}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "festival_navratri_offer",
+                "title": "Navratri / Durga Puja offer",
+                "industry": "festival",
+                "industryLabel": "Indian festival offers",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Indian festival offers",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, Navratri special at {{2}} — {{3}} off on {{4}}. Shubh shopping!",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "festival_new_year_wish",
+                "title": "New Year wish + offer",
+                "industry": "festival",
+                "industryLabel": "Indian festival offers",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Indian festival offers",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, Happy New Year from {{2}}! Start the year with {{3}} off on {{4}}.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            },
+            {
+                "name": "festival_independence_day_offer",
+                "title": "Independence Day offer",
+                "industry": "festival",
+                "industryLabel": "Indian festival offers",
+                "category": "marketing",
+                "language": "en",
+                "sector": "Indian festival offers",
+                "header": {
+                    "type": "none",
+                    "content": "",
+                    "mediaUrl": ""
+                },
+                "body": "Hi {{1}}, Independence Day sale at {{2}} — {{3}} off on all {{4}}. Limited period offer.",
+                "footer": "Reply STOP to opt out",
+                "buttons": [],
+                "alreadyAdded": false
+            }
+        ]
+    }
+}

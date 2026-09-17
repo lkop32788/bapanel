@@ -9,7 +9,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants = {
-  primary: 'bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 focus:ring-violet-500 shadow-sm shadow-violet-600/20 hover:shadow-md hover:shadow-violet-600/25',
+  primary: 'bg-linear-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 focus:ring-violet-500 shadow-sm shadow-violet-600/20 hover:shadow-md hover:shadow-violet-600/25',
   secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500',
   danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm shadow-red-600/20',
   ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-500',
@@ -27,6 +27,7 @@ export default function Button({
 }: ButtonProps) {
   return (
     <button
+      data-kkhs-btn={variant}
       className={`inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={disabled || loading}
       {...props}

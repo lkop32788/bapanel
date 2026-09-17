@@ -111,9 +111,6 @@ async function processIncoming({ workspace, conversation, contact, phone, text, 
     if (chosen) {
       optionMaps.delete(String(conversation._id));
       const id = chosen.id;
-      const bfProd = id.match(/^bfprod_([0-9a-f]{24})_(.+)_([0-9a-f]{24})$/);
-      const prsProd = id.match(/^prsprod_(?:[0-9a-f]{24}|x)_([0-9a-f]{24})$/);
-      const bfSlot = id.match(/^bfslot_([0-9a-f]{24})_(.+)_(\d{4}-\d{2}-\d{2})_(\d{2}:\d{2})$/);
       const bfBtn = id.match(/^bf_([0-9a-f]{24})_(.+)$/);
       const pBtn = id.match(/^preset_([0-9a-f]{24})_(\d+)$/);
       const pList = id.match(/^plist_([0-9a-f]{24})_(\d+)$/);
@@ -130,9 +127,6 @@ async function processIncoming({ workspace, conversation, contact, phone, text, 
           handled = true;
         }
       }
-      else if (bfProd) handled = await botFlowEngine.sendProductDetail({ flowId: bfProd[1], nodeId: bfProd[2], productId: bfProd[3], workspace, conversation, contact, to: phone, io });
-      else if (prsProd) handled = await botFlowEngine.sendPresetProductDetail({ productId: prsProd[1], workspace, conversation, contact, to: phone, io });
-      else if (bfSlot) handled = await botFlowEngine.bookChosenSlot({ flowId: bfSlot[1], nodeId: bfSlot[2], dateStr: bfSlot[3], timeStr: bfSlot[4], workspace, conversation, contact, to: phone, io });
       else if (bfBtn) handled = await botFlowEngine.sendFlowNode({ flowId: bfBtn[1], nodeId: bfBtn[2].replace(/_\d+$/, ''), workspace, conversation, contact, to: phone, io });
     }
   } catch (e) { console.error('[qrAuto] option reply error:', e.message); }

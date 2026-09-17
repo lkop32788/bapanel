@@ -6,7 +6,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'https://api.wabapanel.com/api';
 export interface ThemeLayout { nav: string; hero: string; features: string; }
 export interface SiteThemeData { id: string; name: string; font: string; layout: ThemeLayout; css: string; }
 
-const DEFAULT: SiteThemeData = { id: 'royal-violet', name: 'Royal Violet', font: 'Inter', layout: { nav: 'floating', hero: 'centered', features: 'grid' }, css: '' };
+export const DEFAULT_THEME: SiteThemeData = { id: 'royal-violet', name: 'Royal Violet', font: 'Inter', layout: { nav: 'floating', hero: 'centered', features: 'grid' }, css: '' };
 
 let cached: SiteThemeData | null = null;
 let cachedKey = '';
@@ -22,16 +22,16 @@ export function fetchSiteTheme(): Promise<SiteThemeData> {
   pending = fetch(url, { cache: 'no-store' })
     .then(r => r.json())
     .then(d => {
-      const t: SiteThemeData = d?.data ? { ...DEFAULT, ...d.data } : DEFAULT;
+      const t: SiteThemeData = d?.data ? { ...DEFAULT_THEME, ...d.data } : DEFAULT_THEME;
       cached = t;
       return t;
     })
-    .catch(() => DEFAULT);
+    .catch(() => DEFAULT_THEME);
   return pending;
 }
 
 export function useSiteTheme(initial?: SiteThemeData): SiteThemeData {
-  const [theme, setTheme] = useState<SiteThemeData>(cached || initial || DEFAULT);
+  const [theme, setTheme] = useState<SiteThemeData>(cached || initial || DEFAULT_THEME);
   useEffect(() => { fetchSiteTheme().then(setTheme); }, []);
   return theme;
 }

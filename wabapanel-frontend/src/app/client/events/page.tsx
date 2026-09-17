@@ -1,4 +1,6 @@
 'use client';
+import { translateDisplay } from '@/lib/zhDisplay';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit, ToggleLeft, ToggleRight, Play } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -54,18 +56,17 @@ export default function EventsPage() {
   const [paForm, setPaForm] = useState({ name: '', description: '', trigger: 'manual', actionType: 'send_message', actionValue: '' });
 
   const paTriggerLabels: Record<string, string> = {
-    manual: 'Manual (Run button)',
-    on_message: 'On Message',
-    on_subscribe: 'On Subscribe (START reply)',
-    on_order: 'On Order',
-    on_payment: 'On Payment',
+    manual: "手册（运行按钮）",
+    on_message: "留言",
+    on_subscribe: "订阅（开始回复）",
+
   };
   const paActionLabels: Record<string, string> = {
-    send_message: 'Send WhatsApp Message',
-    send_template: 'Send Template',
-    add_tag: 'Add Tag',
-    remove_tag: 'Remove Tag',
-    assign_agent: 'Assign Agent',
+    send_message: "发送 WhatsApp 消息",
+    send_template: "发送模板",
+    add_tag: "添加标签",
+    remove_tag: "删除标签",
+    assign_agent: "指定代理",
   };
 
   const fetchPa = () => {
@@ -73,8 +74,8 @@ export default function EventsPage() {
   };
 
   const handlePaSave = async () => {
-    if (!paForm.name.trim()) { toast.error('Name is required'); return; }
-    if (!paForm.actionValue.trim()) { toast.error('Action value is required'); return; }
+    if (!paForm.name.trim()) { toast.error(translateApiMessage("姓名为必填项")); return; }
+    if (!paForm.actionValue.trim()) { toast.error(translateApiMessage("需要操作值")); return; }
     const payload = {
       name: paForm.name,
       description: paForm.description,
@@ -84,43 +85,41 @@ export default function EventsPage() {
     try {
       if (paEdit) await predefinedActionApi.update(paEdit._id, payload);
       else await predefinedActionApi.create(payload);
-      toast.success(paEdit ? 'Updated' : 'Created');
+      toast.success(translateApiMessage(paEdit ? "已更新" : "已创建"));
       setPaModal(false); setPaEdit(null); fetchPa();
-    } catch { toast.error('Failed'); }
+    } catch { toast.error(translateApiMessage("操作失败")); }
   };
 
   const handlePaRun = async (a: PredefinedAction) => {
-    const phone = prompt('Run this action on which contact? Enter phone number (with country code):');
+    const phone = prompt("对哪个联系人运行此操作？输入电话号码（带国家代码）：");
     if (!phone) return;
     try {
       const res = await predefinedActionApi.run(a._id, { phone });
-      toast.success(res.data.message || 'Executed');
+      toast.success(translateApiMessage(res.data.message || "已执行"));
       fetchPa();
     } catch (err) {
       const e = err as { response?: { data?: { message?: string } } };
-      toast.error(e.response?.data?.message || 'Failed to run');
+      toast.error(translateApiMessage(e.response?.data?.message || "运行失败"));
     }
   };
 
   const eventTypeMap: Record<string, string> = {
     message_received: 'message_event',
     contact_created: 'contact_event',
-    order_placed: 'system',
-    payment_received: 'system',
+
     webhook: 'webhook',
   };
   const eventLabels: Record<string, string> = {
-    message_received: 'Message Received',
-    contact_created: 'New Contact Created',
-    order_placed: 'Order Placed',
-    payment_received: 'Payment Received',
-    webhook: 'Incoming Webhook (from another system)',
+    message_received: "已收到消息",
+    contact_created: "已创建新联系人",
+
+    webhook: "传入Webhook（来自另一个系统）",
   };
   const actionLabels: Record<string, string> = {
-    send_message: 'Send WhatsApp Message',
-    send_template: 'Send Template',
-    add_tag: 'Add Tag',
-    remove_tag: 'Remove Tag',
+    send_message: "发送 WhatsApp 消息",
+    send_template: "发送模板",
+    add_tag: "添加标签",
+    remove_tag: "删除标签",
   };
 
   const fetchEvents = () => {
@@ -138,7 +137,7 @@ export default function EventsPage() {
   }, [currentWorkspace]);
 
   const handleSave = async () => {
-    if (!form.actionValue.trim()) { toast.error('Action value is required (message text / template name / tag name)'); return; }
+    if (!form.actionValue.trim()) { toast.error(translateApiMessage("需要操作值（消息文本/模板名称/标签名称）")); return; }
     const payload = {
       name: form.name,
       description: form.description,
@@ -153,12 +152,12 @@ export default function EventsPage() {
       } else {
         await eventApi.createEvent(payload);
       }
-      toast.success(editItem ? 'Updated' : 'Created');
+      toast.success(translateApiMessage(editItem ? "已更新" : "已创建"));
       setShowModal(false);
       setEditItem(null);
       fetchEvents();
     } catch {
-      toast.error('Failed');
+      toast.error(translateApiMessage("操作失败"));
     }
   };
 
@@ -169,14 +168,14 @@ export default function EventsPage() {
       });
       fetchEvents();
     } catch {
-      toast.error('Failed');
+      toast.error(translateApiMessage("操作失败"));
     }
   };
 
   const columns = [
     {
       key: 'name',
-      title: 'Event Name',
+      title: "事件名称",
       render: (e: EventItem) => (
         <div>
           <span className="font-medium">{e.name}</span>
@@ -188,14 +187,14 @@ export default function EventsPage() {
     },
     {
       key: 'type',
-      title: 'When',
+      title: "当",
       render: (e: EventItem) => (
         <Badge variant="info">{eventLabels[e.triggerConfig?.eventName] || (e.type === 'webhook' ? eventLabels.webhook : e.type)}</Badge>
       ),
     },
     {
       key: 'action',
-      title: 'Then',
+      title: "然后",
       render: (e: EventItem) => (
         <span className="text-sm text-gray-600">
           {(e.actions || []).map((a) => `${actionLabels[a.type] || a.type}: ${a.config?.value || ''}`).join(', ') || '—'}
@@ -204,14 +203,14 @@ export default function EventsPage() {
     },
     {
       key: 'triggered',
-      title: 'Triggered',
+      title: "已触发",
       render: (e: EventItem) => (
         <span className="text-sm">{e.stats?.triggered || 0}</span>
       ),
     },
     {
       key: 'status',
-      title: 'Status',
+      title: "状态",
       render: (e: EventItem) => (
         <button
           onClick={() => toggleStatus(e)}
@@ -222,7 +221,7 @@ export default function EventsPage() {
           ) : (
             <ToggleLeft className="w-5 h-5 text-gray-400" />
           )}
-          <span className="text-xs">{e.status}</span>
+          <span className="text-xs">{translateDisplay(e.status)}</span>
         </button>
       ),
     },
@@ -250,8 +249,8 @@ export default function EventsPage() {
           </button>
           <button
             onClick={() => {
-              if (confirm('Delete this event?'))
-                eventApi.deleteEvent(e._id).then(() => { fetchEvents(); toast.success('Event deleted'); }).catch(() => toast.error('Delete failed'));
+              if (confirm("删除此事件？"))
+                eventApi.deleteEvent(e._id).then(() => { fetchEvents(); toast.success(translateApiMessage("事件已删除")); }).catch(() => toast.error(translateApiMessage("删除失败")));
             }}
             className="p-1 hover:bg-red-50 rounded"
           >
@@ -266,9 +265,9 @@ export default function EventsPage() {
     <div className="space-y-6">
       <div className="page-hero flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Event Triggers</h1>
+          <h1 className="text-2xl font-bold text-gray-900">事件触发器</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Configure automatic actions based on events
+            根据事件配置自动操作
           </p>
         </div>
         <Button
@@ -286,7 +285,7 @@ export default function EventsPage() {
             setShowModal(true);
           }}
         >
-          Add Event
+          添加事件
         </Button>
       </div>
 
@@ -295,18 +294,18 @@ export default function EventsPage() {
       {/* Predefined Actions (merged from /client/predefined-actions) */}
       <div className="flex items-center justify-between mt-8">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">Predefined Actions</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Reusable actions — run manually on any contact or trigger on message/subscribe/order/payment</p>
+          <h2 className="text-lg font-bold text-gray-900">预定义动作</h2>
+          <p className="text-sm text-gray-500 mt-0.5">可重复使用的操作 - 在任何联系人上手动运行或在消息/订阅/订单/付款上触发</p>
         </div>
-        <Button icon={<Plus className="w-4 h-4" />} variant="secondary" onClick={() => { setPaEdit(null); setPaForm({ name: '', description: '', trigger: 'manual', actionType: 'send_message', actionValue: '' }); setPaModal(true); }}>Add Action</Button>
+        <Button icon={<Plus className="w-4 h-4" />} variant="secondary" onClick={() => { setPaEdit(null); setPaForm({ name: '', description: '', trigger: 'manual', actionType: 'send_message', actionValue: '' }); setPaModal(true); }}>添加操作</Button>
       </div>
       <div className="space-y-3">
         {paItems.length === 0 ? (
-          <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-400">No predefined actions yet.</div>
+          <div className="bg-white rounded-xl border p-6 text-center text-sm text-gray-400">尚无预定义的操作。</div>
         ) : paItems.map((a) => (
           <div key={a._id} className="bg-white rounded-xl border p-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <button onClick={async () => { try { await predefinedActionApi.update(a._id, { isActive: !a.isActive }); fetchPa(); toast.success(a.isActive ? 'Action disabled' : 'Action enabled'); } catch { toast.error('Update failed'); } }} className="shrink-0">
+              <button onClick={async () => { try { await predefinedActionApi.update(a._id, { isActive: !a.isActive }); fetchPa(); toast.success(translateApiMessage(a.isActive ? "操作已禁用" : "已启用操作")); } catch { toast.error(translateApiMessage("更新失败")); } }} className="shrink-0">
                 {a.isActive ? <ToggleRight className="w-6 h-6 text-emerald-600" /> : <ToggleLeft className="w-6 h-6 text-gray-400" />}
               </button>
               <div className="min-w-0">
@@ -314,46 +313,45 @@ export default function EventsPage() {
                 <p className="text-xs text-gray-500 truncate">
                   <Badge variant="info">{paTriggerLabels[a.trigger] || a.trigger}</Badge>
                   <span className="ml-2">{(a.actions || []).map((x) => `${paActionLabels[x.type] || x.type}: ${x.value || ''}`).join(', ')}</span>
-                  <span className="ml-2 text-gray-400">· Run {a.executionCount || 0} times</span>
+                  <span className="ml-2 text-gray-400">·奔跑 {a.executionCount || 0} 次</span>
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              <button onClick={() => handlePaRun(a)} className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs hover:bg-emerald-100 flex items-center gap-1" title="Run now on a contact"><Play className="w-3 h-3" /> Run</button>
+              <button onClick={() => handlePaRun(a)} className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs hover:bg-emerald-100 flex items-center gap-1" title={"立即在联系人上运行"}><Play className="w-3 h-3" /> 运行</button>
               <button onClick={() => { setPaEdit(a); setPaForm({ name: a.name, description: a.description || '', trigger: a.trigger || 'manual', actionType: a.actions?.[0]?.type || 'send_message', actionValue: a.actions?.[0]?.value || '' }); setPaModal(true); }} className="p-1.5 hover:bg-gray-100 rounded"><Edit className="w-4 h-4 text-gray-400" /></button>
-              <button onClick={() => { if (confirm('Delete this action?')) predefinedActionApi.delete(a._id).then(() => { fetchPa(); toast.success('Action deleted'); }).catch(() => toast.error('Delete failed')); }} className="p-1.5 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button>
+              <button onClick={() => { if (confirm("删除此操作？")) predefinedActionApi.delete(a._id).then(() => { fetchPa(); toast.success(translateApiMessage("操作已删除")); }).catch(() => toast.error(translateApiMessage("删除失败"))); }} className="p-1.5 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button>
             </div>
           </div>
         ))}
       </div>
 
-      <Modal isOpen={paModal} onClose={() => { setPaModal(false); setPaEdit(null); }} title={paEdit ? 'Edit Predefined Action' : 'Add Predefined Action'}>
+      <Modal isOpen={paModal} onClose={() => { setPaModal(false); setPaEdit(null); }} title={paEdit ? "编辑预定义操作" : "添加预定义操作"}>
         <div className="space-y-4">
-          <Input label="Name" value={paForm.name} onChange={(e) => setPaForm({ ...paForm, name: e.target.value })} required />
-          <Input label="Description" value={paForm.description} onChange={(e) => setPaForm({ ...paForm, description: e.target.value })} placeholder="Optional description" />
-          <Select label="Trigger" value={paForm.trigger} onChange={(e) => setPaForm({ ...paForm, trigger: e.target.value })}
+          <Input label={"名称"} value={paForm.name} onChange={(e) => setPaForm({ ...paForm, name: e.target.value })} required />
+          <Input label={"说明"} value={paForm.description} onChange={(e) => setPaForm({ ...paForm, description: e.target.value })} placeholder={"可选描述"} />
+          <Select label={"触发器"} value={paForm.trigger} onChange={(e) => setPaForm({ ...paForm, trigger: e.target.value })}
             options={[
-              { value: 'manual', label: 'Manual (run yourself with the Run button)' },
-              { value: 'on_message', label: 'On Message (max once per customer / 24 hrs)' },
-              { value: 'on_subscribe', label: 'On Subscribe (customer replies START)' },
-              { value: 'on_order', label: 'On Order (new order created)' },
-              { value: 'on_payment', label: 'On Payment (order marked paid)' },
+              { value: 'manual', label: "手动（使用“运行”按钮自行运行）" },
+              { value: 'on_message', label: "消息（每个客户最多一次/24 小时）" },
+              { value: 'on_subscribe', label: "订阅时（客户回复开始）" },
+
             ]} />
-          <Select label="Action" value={paForm.actionType} onChange={(e) => setPaForm({ ...paForm, actionType: e.target.value })}
+          <Select label={"行动"} value={paForm.actionType} onChange={(e) => setPaForm({ ...paForm, actionType: e.target.value })}
             options={[
-              { value: 'send_message', label: 'Send WhatsApp Message' },
-              { value: 'send_template', label: 'Send Template' },
-              { value: 'add_tag', label: 'Add Tag' },
-              { value: 'remove_tag', label: 'Remove Tag' },
-              { value: 'assign_agent', label: 'Assign Agent' },
+              { value: 'send_message', label: "发送 WhatsApp 消息" },
+              { value: 'send_template', label: "发送模板" },
+              { value: 'add_tag', label: "添加标签" },
+              { value: 'remove_tag', label: "删除标签" },
+              { value: 'assign_agent', label: "指定代理" },
             ]} />
           <Input
-            label={paForm.actionType === 'send_message' ? 'Message text' : paForm.actionType === 'send_template' ? 'Template name (must be approved)' : paForm.actionType === 'assign_agent' ? 'Agent email or name' : 'Tag name'}
+            label={paForm.actionType === 'send_message' ? "消息文本" : paForm.actionType === 'send_template' ? "模板名称（必须获得批准）" : paForm.actionType === 'assign_agent' ? "代理电子邮件或姓名" : "标签名称"}
             value={paForm.actionValue} onChange={(e) => setPaForm({ ...paForm, actionValue: e.target.value })}
-            placeholder={paForm.actionType === 'send_message' ? 'e.g. Thank you for your order!' : paForm.actionType === 'send_template' ? 'e.g. kkhs_lead_followup' : paForm.actionType === 'assign_agent' ? 'e.g. agent@company.com' : 'e.g. Hot Lead'} required />
+            placeholder={paForm.actionType === 'send_message' ? "例如感谢您的订单！" : paForm.actionType === 'send_template' ? "例如kkhs_lead_followup" : paForm.actionType === 'assign_agent' ? "例如代理@company.com" : "例如热销"} required />
           <div className="flex gap-2 pt-2">
-            <Button onClick={handlePaSave}>{paEdit ? 'Update' : 'Create'}</Button>
-            <Button variant="secondary" onClick={() => { setPaModal(false); setPaEdit(null); }}>Cancel</Button>
+            <Button onClick={handlePaSave}>{paEdit ? "更新" : "创建"}</Button>
+            <Button variant="secondary" onClick={() => { setPaModal(false); setPaEdit(null); }}>取消</Button>
           </div>
         </div>
       </Modal>
@@ -364,70 +362,69 @@ export default function EventsPage() {
           setShowModal(false);
           setEditItem(null);
         }}
-        title={editItem ? 'Edit Event' : 'Add Event'}
+        title={editItem ? "编辑事件" : "添加事件"}
       >
         <div className="space-y-4">
           <Input
-            label="Event Name"
+            label={"事件名称"}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
           />
           <Input
-            label="Description"
+            label={"说明"}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Optional description"
+            placeholder={"可选描述"}
           />
           <Select
-            label="When (trigger)"
+            label={"当（触发）"}
             value={form.eventName}
             onChange={(e) => setForm({ ...form, eventName: e.target.value })}
             options={[
-              { value: 'message_received', label: 'Message Received (first message per customer / 24 hrs)' },
-              { value: 'contact_created', label: 'New Contact Created' },
-              { value: 'order_placed', label: 'Order Placed' },
-              { value: 'payment_received', label: 'Payment Received' },
-              { value: 'webhook', label: 'Incoming Webhook (from another system)' },
+              { value: 'message_received', label: "已收到消息（每个客户的第一条消息/24 小时）" },
+              { value: 'contact_created', label: "已创建新联系人" },
+
+              { value: 'webhook', label: "传入Webhook（来自另一个系统）" },
             ]}
           />
           <Select
-            label="Then (action)"
+            label={"然后（行动）"}
             value={form.actionType}
             onChange={(e) => setForm({ ...form, actionType: e.target.value })}
             options={[
-              { value: 'add_tag', label: 'Add Tag to contact' },
-              { value: 'remove_tag', label: 'Remove Tag from contact' },
-              { value: 'send_message', label: 'Send WhatsApp Message to contact' },
-              { value: 'send_template', label: 'Send Template to contact' },
+              { value: 'add_tag', label: "添加标签到联系人" },
+              { value: 'remove_tag', label: "从联系人中删除标签" },
+              { value: 'send_message', label: "发送 WhatsApp 消息给联系人" },
+              { value: 'send_template', label: "发送模板至联系人" },
             ]}
           />
           <Input
-            label={form.actionType === 'send_message' ? 'Message text' : form.actionType === 'send_template' ? 'Template name (must be approved)' : 'Tag name'}
+            label={form.actionType === 'send_message' ? "消息文本" : form.actionType === 'send_template' ? "模板名称（必须获得批准）" : "标签名称"}
             value={form.actionValue}
             onChange={(e) => setForm({ ...form, actionValue: e.target.value })}
-            placeholder={form.actionType === 'send_message' ? 'e.g. Thank you for your order!' : form.actionType === 'send_template' ? 'e.g. kkhs_lead_followup' : 'e.g. Hot Lead'}
+            placeholder={form.actionType === 'send_message' ? "例如感谢您的订单！" : form.actionType === 'send_template' ? "例如kkhs_lead_followup" : "例如热销"}
             required
           />
           {form.eventName === 'webhook' && (
             <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-2">
               {editItem
-                ? <>Webhook URL: <code className="break-all">{`${typeof window !== 'undefined' ? window.location.origin : ''}/api/events/hook/${editItem._id}`}</code> — POST with JSON body {'{ "phone": "91XXXXXXXXXX" }'}</>
-                : 'Save first — the webhook URL will then appear when you edit this event.'}
+                ? <>Webhook URL： <code className="break-all">{`${typeof window !== 'undefined' ? window.location.origin : ''}/api/events/hook/${editItem._id}`}</code> — 使用 JSON 正文进行 POST {'{ "phone": "91XXXXXXXXXX" }'}</>
+                : "首先保存 — 当您编辑此事件时，将显示 webhook URL。"}
             </p>
           )}
           <Select
-            label="Status"
+            label={"状态"}
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value })}
             options={[
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' },
+              { value: 'active', label: "启用" },
+              { value: 'inactive', label: "停用" },
             ]}
           />
           <div className="flex gap-2 pt-2">
             <Button onClick={handleSave}>
-              {editItem ? 'Update' : 'Create'}
+              {editItem ? "更新" : "创建"}
             </Button>
             <Button
               variant="secondary"
@@ -436,7 +433,7 @@ export default function EventsPage() {
                 setEditItem(null);
               }}
             >
-              Cancel
+              取消
             </Button>
           </div>
         </div>

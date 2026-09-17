@@ -18,11 +18,12 @@ export default function Tabs({ tabs, defaultTab }: TabsProps) {
 
   return (
     <div>
-      <div className="flex gap-1 p-1 bg-gray-100/80 rounded-xl overflow-x-auto w-fit max-w-full">
+      <div data-kkhs-tabs className="flex gap-1 p-1 bg-gray-100/80 rounded-xl overflow-x-auto w-fit max-w-full">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActive(tab.key)}
+            aria-selected={active === tab.key}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
               active === tab.key
                 ? 'bg-white text-emerald-600 shadow-sm'

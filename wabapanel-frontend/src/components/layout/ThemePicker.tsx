@@ -1,10 +1,11 @@
 "use client";
+import { translateDisplay } from '@/lib/zhDisplay';
 import React, { useEffect, useRef, useState } from "react";
 import { Palette, Moon, Sun } from "lucide-react";
 
 const PRESET_COLORS = ["#059669", "#2563eb", "#7c3aed", "#db2777", "#ea580c", "#0f766e", "#166534", "#111827"];
 const FONTS = [
-  { label: "Inter (default)", value: "Inter" },
+  { label: "国际米兰（默认）", value: "Inter" },
   { label: "Poppins", value: "Poppins" },
   { label: "Roboto", value: "Roboto" },
   { label: "Montserrat", value: "Montserrat" },
@@ -27,7 +28,7 @@ const applyFont = (f: string | null) => {
     const href = "https://fonts.googleapis.com/css2?family=" + f.replace(/ /g, "+") + ":wght@400;500;600;700;800&display=swap";
     if (!link) { link = document.createElement("link"); link.id = id; link.rel = "stylesheet"; document.head.appendChild(link); }
     link.href = href;
-    root.style.setProperty("--app-font", " + f + ");
+    root.style.setProperty("--app-font", "'" + f + "'");
   } else { root.style.removeProperty("--app-font"); }
 };
 
@@ -65,29 +66,29 @@ export default function ThemePicker() {
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)} title="Theme" className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><Palette className="w-4 h-4" /></button>
+      <button onClick={() => setOpen(!open)} title={"主题"} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><Palette className="w-4 h-4" /></button>
       {open && (
         <div className="absolute left-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-xl ring-1 ring-gray-100 dark:ring-gray-700 z-50 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Dark Mode</p>
+            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">暗模式</p>
             <button onClick={toggleDark} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${dark ? "bg-gray-700 text-yellow-300" : "bg-gray-100 text-gray-600"}`}>
-              {dark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />} {dark ? "Light" : "Dark"}
+              {dark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />} {dark ? "光" : "黑暗"}
             </button>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Theme colour</p>
+            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">主题色</p>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {PRESET_COLORS.map((c) => (<button key={c} onClick={() => setBrandColor(c)} className={`w-6 h-6 rounded-full border-2 ${color === c ? "border-gray-800" : "border-transparent"}`} style={{ backgroundColor: c }} />))}
             </div>
-            <div className="flex items-center gap-2"><input type="color" value={color} onChange={(e) => setBrandColor(e.target.value)} className="w-8 h-8 p-0 border border-gray-200 rounded cursor-pointer" /><span className="text-xs text-gray-500 dark:text-gray-400">Custom</span></div>
+            <div className="flex items-center gap-2"><input type="color" value={color} onChange={(e) => setBrandColor(e.target.value)} className="w-8 h-8 p-0 border border-gray-200 rounded cursor-pointer" /><span className="text-xs text-gray-500 dark:text-gray-400">定制</span></div>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Font</p>
+            <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1.5">字体</p>
             <select value={font} onChange={(e) => setBrandFont(e.target.value)} className="w-full text-sm px-2.5 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50">
-              {FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+              {FONTS.map((f) => <option key={f.value} value={f.value}>{translateDisplay(f.label)}</option>)}
             </select>
           </div>
-          <button onClick={reset} className="w-full text-xs px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 font-medium">Reset to default</button>
+          <button onClick={reset} className="w-full text-xs px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 font-medium">重置为默认值</button>
         </div>
       )}
     </div>

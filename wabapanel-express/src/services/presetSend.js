@@ -13,26 +13,7 @@ const sendPreset = async (waService, phone, preset, contact) => {
       return { result, msgType: 'template', renderedText: preset.body || ('Carousel: ' + tpl.name) };
     }
   }
-  // Products/catalog preset: send selected products as an interactive list.
-  if (preset.productIds && preset.productIds.length) {
-    const Product = require('../models/Product');
-    const prods = await Product.find({ workspace: preset.workspace, _id: { $in: preset.productIds }, status: 'active' }).lean();
-    if (prods.length) {
-      const nameP = (contact && (contact.name || '').trim()) || 'ji';
-      const bodyText = (preset.body || '').replace(/\{\{\s*(name|naam|1)\s*\}\}/gi, nameP) || 'Hamare products dekhein 👇';
-      const rows = prods.slice(0, 10).map((p) => ({
-        id: `prsprod_${preset._id || 'x'}_${p._id}`,
-        title: String(p.name).slice(0, 24),
-        description: `${p.currency === 'INR' ? '₹' : ''}${p.price || ''}${p.description ? ' — ' + p.description : ''}`.slice(0, 72),
-      }));
-      const result = await waService.sendInteractiveMessage(phone, {
-        type: 'list',
-        body: { text: bodyText },
-        action: { button: 'View Products', sections: [{ title: 'Products', rows }] },
-      });
-      return { result, msgType: 'interactive', renderedText: bodyText, interactive: { type: 'list', body: bodyText, ctaText: 'View Products', sections: [{ title: 'Products', rows }] } };
-    }
-  }
+  
   // Free card carousel: each card goes as its own image+text+buttons message (no template charge).
   const cardsArr = (preset.cards || []).filter((c) => (c.mediaUrl || '').trim() || (c.body || '').trim());
   if (cardsArr.length) {

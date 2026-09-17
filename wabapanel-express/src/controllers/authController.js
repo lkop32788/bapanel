@@ -1,6 +1,5 @@
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
-const Plan = require('../models/Plan');
 const generateToken = require('../utils/generateToken');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -65,7 +64,6 @@ const verifyEmailOTP = (user, code) => {
 const buildLoginResponse = async (user) => {
   const token = generateToken(user._id);
   await user.populate('currentWorkspace');
-  await user.populate('plan');
   const workspaces = await Workspace.find({
     $or: [{ owner: user._id }, { 'members.user': user._id }],
   });
@@ -78,8 +76,6 @@ const buildLoginResponse = async (user) => {
       avatar: user.avatar,
       role: user.role,
       currentWorkspace: user.currentWorkspace,
-      plan: user.plan,
-      walletBalance: user.walletBalance,
     },
     workspaces,
     token,
@@ -96,9 +92,6 @@ const register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    // Get free plan
-    let freePlan = await Plan.findOne({ price: 0, status: 'active' });
-
     const verificationRequired = await isTemplateEnabled('emailVerification');
     const rawVerifyToken = crypto.randomBytes(20).toString('hex');
 
@@ -108,8 +101,6 @@ const register = async (req, res) => {
       password,
       phone: phone || '',
       role: 'vendor',
-      plan: freePlan?._id,
-      walletBillingExempt: true,
       emailVerified: !verificationRequired,
       ...(verificationRequired ? {
         emailVerifyToken: crypto.createHash('sha256').update(rawVerifyToken).digest('hex'),
@@ -153,7 +144,6 @@ const register = async (req, res) => {
           email: user.email,
           role: user.role,
           currentWorkspace: workspace,
-          plan: freePlan,
         },
         token,
       },
@@ -173,8 +163,7 @@ const login = async (req, res) => {
     }
 
     const user = await User.findOne({ email })
-      .populate('currentWorkspace')
-      .populate('plan');
+      .populate('currentWorkspace');
 
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
@@ -240,8 +229,6 @@ const login = async (req, res) => {
           avatar: user.avatar,
           role: user.role,
           currentWorkspace: user.currentWorkspace,
-          plan: user.plan,
-          walletBalance: user.walletBalance,
           permissions: user.permissions || [],
           allowedChannels: user.allowedChannels || [],
           inboxScope: user.inboxScope || 'all',
@@ -375,8 +362,7 @@ const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
       .select('-password')
-      .populate('currentWorkspace')
-      .populate('plan');
+      .populate('currentWorkspace');
 
     const workspaces = await Workspace.find({
       $or: [
@@ -393,20 +379,9 @@ const getMe = async (req, res) => {
       features = await getOwnerFeatures(ownerId);
     } catch (e) { /* noop */ }
 
-    // Agents bill against the workspace owner's wallet, so the balance shown in
-    // the header should be the owner's, not the agent's own (always 0).
-    const userObj = user.toObject();
-    try {
-      const ownerId = user.currentWorkspace?.owner;
-      if (user.role === 'agent' && ownerId && String(ownerId) !== String(user._id)) {
-        const owner = await User.findById(ownerId).select('walletBalance').lean();
-        if (owner) userObj.walletBalance = owner.walletBalance || 0;
-      }
-    } catch (e) { /* fall back to own balance */ }
-
     res.json({
       success: true,
-      data: { user: userObj, workspaces, features },
+      data: { user: user.toObject(), workspaces, features },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

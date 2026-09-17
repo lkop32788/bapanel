@@ -7,10 +7,10 @@ export interface User {
   role: 'super_admin' | 'admin' | 'user' | 'agent' | 'vendor';
   status: 'active' | 'inactive' | 'suspended';
   currentWorkspace: Workspace | string;
-  plan: Plan | string;
-  planExpiry: string;
-  walletBalance: number;
+
   permissions: string[];
+  inboxScope?: 'all' | 'assigned';
+  maskNumbers?: boolean;
   lastLogin: string;
   createdAt: string;
 }
@@ -22,11 +22,10 @@ export interface Workspace {
   members: WorkspaceMember[];
   whatsapp: WhatsAppConfig;
   settings: WorkspaceSettings;
-  walletBalance: number;
-  plan: Plan | string;
+
   timezone: string;
-  apiKey: string;
-  webhookUrl: string;
+  
+  
   createdAt: string;
 }
 
@@ -37,16 +36,21 @@ export interface WorkspaceMember {
 }
 
 export interface WhatsAppConfig {
-  extraNumbers?: { phoneNumberId: string; phoneNumber: string; displayName: string }[];
+  extraNumbers?: { phoneNumberId: string; phoneNumber: string; displayName: string; wabaId?: string }[];
   isConnected: boolean;
-  connectionMethod: '' | 'embedded' | 'qr' | 'manual';
+  connectionMethod: '' | 'embedded' | 'coexistence' | 'qr' | 'manual';
   wabaId: string;
   phoneNumberId: string;
   businessAccountId: string;
+  businessId?: string;
+  businessName?: string;
   accessToken: string;
   phoneNumber: string;
   displayName: string;
   qualityRating: string;
+  nameStatus?: string;
+  codeVerificationStatus?: string;
+  phoneStatus?: string;
   webhookSecret: string;
 }
 
@@ -56,48 +60,6 @@ export interface WorkspaceSettings {
   currency: string;
   autoAssign: boolean;
   businessHours: { enabled: boolean; schedule: Record<string, unknown> };
-}
-
-export interface Plan {
-  _id: string;
-  name: string;
-  description: string;
-  price: number;
-  quarterlyPrice?: number;
-  yearlyPrice?: number;
-  interval: 'monthly' | 'quarterly' | 'yearly' | 'lifetime' | 'free_trial';
-  limits: PlanLimits;
-  features: PlanFeatures;
-  isPopular: boolean;
-  status: 'active' | 'inactive';
-}
-
-export interface PlanLimits {
-  contacts: number;
-  templateBots: number;
-  messageBots: number;
-  campaigns: number;
-  aiPrompts: number;
-  agents: number;
-  conversations: number;
-  teams: number;
-  botFlows: number;
-  customFields: number;
-  tags: number;
-  whatsappForms: number;
-  aiCallingAgents: number;
-  appointmentBookings: number;
-  facebookAdsCampaigns: number;
-  kanbanFunnels: number;
-  segments: number;
-}
-
-export interface PlanFeatures {
-  restApi: boolean;
-  whatsappWebhook: boolean;
-  autoReplies: boolean;
-  analytics: boolean;
-  prioritySupport: boolean;
 }
 
 export interface Contact {
@@ -118,7 +80,7 @@ export interface Contact {
   optInStatus?: boolean;
   lastMessageAt: string;
   createdAt: string;
-  pipelineStage?: { pipeline: string; stage: string; status?: string } | null;
+  
 }
 
 export interface Tag {
@@ -158,6 +120,7 @@ export interface Template {
   status: 'pending' | 'approved' | 'rejected';
   components?: TemplateComponent[];
   metaTemplateId?: string;
+  wabaId?: string;
   whatsappTemplateId?: string;
   variables?: string[];
 }
@@ -185,7 +148,8 @@ export interface Campaign {
   template: Template | string;
   audience: { type: string; segments: string[]; tags: string[]; contacts: string[] };
   schedule: { sendAt: string; timezone: string };
-  stats: { total: number; sent: number; delivered: number; read: number; failed: number };
+  stats: { total: number; sent: number; delivered: number; read: number; failed: number; skipped?: number };
+  summary?: string;
   createdAt: string;
 }
 
@@ -197,6 +161,7 @@ export interface Conversation {
   assignedAgent?: { _id: string; name: string; email?: string } | string;
   aiEnabled?: boolean;
   aiDisabled?: boolean;
+  aiEffective?: boolean;
   aiCallEnabled?: boolean;
   status: 'active' | 'resolved' | 'pending' | 'expired' | 'closed';
   lastMessage: Message;
@@ -218,7 +183,10 @@ export interface Message {
   template?: { name: string; language: string; components: unknown[] };
   interactive?: Record<string, unknown>;
   status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
-  sentBy: string;
+  errorCode?: number;
+  errorMessage?: string;
+  failedAt?: string;
+  sentBy: string | { _id: string; name?: string; avatar?: string };
   whatsappMessageId: string;
   waMessageId?: string;
   context?: { messageId?: string; text?: string; from?: string };
@@ -257,32 +225,11 @@ export interface FlowEdge {
   type?: string;
 }
 
-export interface Pipeline {
-  _id: string;
-  workspace: string;
-  name: string;
-  stages: PipelineStage[];
-}
 
-export interface PipelineStage {
-  _id: string;
-  name: string;
-  color: string;
-  order: number;
-  deals: Deal[];
-}
 
-export interface Deal {
-  _id: string;
-  title: string;
-  value: number;
-  contact: Contact | string;
-  contactName?: string;
-  contactPhone?: string;
-  stage: string;
-  assignedTo: User | string;
-  notes: string;
-}
+
+
+
 
 export interface Form {
   _id: string;
@@ -307,6 +254,9 @@ export interface ShortLink {
   workspace: string;
   name: string;
   title: string;
+  description?: string;
+  imageUrl?: string;
+  showPreview?: boolean;
   originalUrl: string;
   shortCode: string;
   shortUrl: string;
@@ -316,22 +266,7 @@ export interface ShortLink {
   status: 'active' | 'inactive';
 }
 
-export interface Appointment {
-  _id: string;
-  workspace: string;
-  title: string;
-  contact: Contact | string;
-  contactName: string;
-  contactPhone: string;
-  contactEmail: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  scheduledAt: string;
-  duration: number;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | 'pending' | 'confirmed';
-  notes: string;
-}
+
 
 export interface Team {
   _id: string;
@@ -342,27 +277,9 @@ export interface Team {
   lead: string;
 }
 
-export interface Payment {
-  _id: string;
-  user: User | string;
-  plan: Plan | string;
-  amount: number;
-  currency: string;
-  gateway: string;
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
-  transactionId: string;
-  createdAt: string;
-}
 
-export interface WalletTransaction {
-  _id: string;
-  user: User | string;
-  type: 'credit' | 'debit';
-  amount: number;
-  description: string;
-  balanceAfter: number;
-  createdAt: string;
-}
+
+
 
 export interface QuickReply {
   _id: string;
@@ -371,15 +288,7 @@ export interface QuickReply {
   shortcut: string;
 }
 
-export interface Inquiry {
-  _id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  status: 'new' | 'in_progress' | 'resolved';
-  createdAt: string;
-}
+
 
 export interface SystemSettings {
   _id: string;
@@ -392,7 +301,6 @@ export interface SystemSettings {
   whatsapp: { apiUrl: string; appId: string; appSecret: string };
   email: { host: string; port: number; user: string; pass: string; from: string };
   ai: { providers: AIProvider[]; defaultProvider: string };
-  maintenance: { enabled: boolean; message: string };
 }
 
 export interface AIProvider {

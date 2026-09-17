@@ -24,7 +24,7 @@ function renderVars(text, contact, lastReply) {
     .replace(/\{phone_number\}/g, contact?.phone || '')
     .replace(/\{last_reply\}/g, lastReply || '');
   const cf = contact?.customFields || {};
-  const reserved = ['payment_link', 'appointment_date', 'appointment_time', 'webhook_response'];
+  const reserved = ['webhook_response'];
   out = out.replace(/\{([a-zA-Z0-9_]+)\}/g, (m, key) => (!reserved.includes(key) && cf[key] != null && cf[key] !== '' ? String(cf[key]) : m));
   return out;
 }
@@ -191,49 +191,9 @@ async function saveOutbound({ workspace, conversation, contact, type, text, resu
 const toMin = (t) => { const [h, m] = String(t || '0:0').split(':').map(Number); return h * 60 + m; };
 const toHM = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
-async function findFreeSlots({ workspace, node, limit = 1 }) {
-  const Appointment = require('../models/Appointment');
-  const dur = Math.max(5, node.apptDuration || 30);
-  const dayStartMin = toMin(node.apptTime || '10:00');
-  const dayEndMin = Math.max(dayStartMin + dur, toMin(node.apptDayEnd || '18:00'));
-  const d = new Date();
-  d.setDate(d.getDate() + (node.apptDaysAhead == null ? 1 : node.apptDaysAhead));
-  d.setHours(0, 0, 0, 0);
-  const slots = [];
-  for (let day = 0; day < 30 && slots.length < limit; day++) {
-    const cur = new Date(d.getTime() + day * 86400000);
-    const existing = await Appointment.find({
-      workspace: workspace._id,
-      date: { $gte: cur, $lt: new Date(cur.getTime() + 86400000) },
-      status: { $nin: ['cancelled'] },
-      archived: { $ne: true },
-    }).select('startTime endTime').lean();
-    const busy = existing.map((a) => [toMin(a.startTime), Math.max(toMin(a.endTime), toMin(a.startTime) + 1)]);
-    for (let m = dayStartMin; m + dur <= dayEndMin && slots.length < limit; m += dur) {
-      const clash = busy.some(([bs, be]) => m < be && m + dur > bs);
-      if (!clash) slots.push({ date: cur, startMin: m, dur });
-    }
-  }
-  return slots;
-}
 
-async function createBooking({ workspace, node, contact, to, slot }) {
-  const Appointment = require('../models/Appointment');
-  const start = toHM(slot.startMin);
-  const end = toHM(slot.startMin + slot.dur);
-  await Appointment.create({
-    workspace: workspace._id,
-    title: node.apptTitle || 'WhatsApp booking',
-    contactName: contact?.name || contact?.profileName || '',
-    contactPhone: contact?.phone || to,
-    date: slot.date, startTime: start, endTime: end, duration: slot.dur,
-    status: 'scheduled', notes: 'Booked via bot flow', type: 'general',
-  });
-  return {
-    date: slot.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-    time: `${start} - ${end}`,
-  };
-}
+
+
 
 async function sendNode({ flow, node, workspace, conversation, contact, to, io, depth = 0, lastReply = '' }) {
   if (!node || depth > 12) return false;
@@ -323,120 +283,24 @@ async function sendNode({ flow, node, workspace, conversation, contact, to, io, 
     savedType = 'template';
     savedText = node.templateName;
     result = await wa.sendTemplateMessage(to, node.templateName, node.templateLanguage || 'en', []);
-  } else if (node.type === 'products') {
-    const Product = require('../models/Product');
-    const prods = await Product.find({ workspace: workspace._id, _id: { $in: node.productIds || [] }, status: 'active' }).lean();
-    if (!prods.length) return false;
-    savedType = 'interactive';
-    savedText = renderVars(node.text || 'Hamare products dekhein 👇', contact);
-    const rows = prods.slice(0, 10).map((p) => ({
-      id: `bfprod_${flow._id}_${node.id}_${p._id}`,
-      title: String(p.name).slice(0, 24),
-      description: `${p.currency === 'INR' ? '₹' : ''}${p.price || ''}${p.description ? ' — ' + p.description : ''}`.slice(0, 72),
-    }));
-    result = await wa.sendInteractiveMessage(to, {
-      type: 'list',
-      body: { text: savedText },
-      action: { button: 'View Products', sections: [{ title: 'Products', rows }] },
-    });
-    savedInteractive = { type: 'list', body: savedText, sections: [{ title: 'Products', rows }] };
   } else if (node.type === 'action') {
-    let apptVars = null;
-    let payLink = null;
-    try {
-      if (node.actionType === 'book_appointment' && node.apptMode === 'choose') {
-        const slots = await findFreeSlots({ workspace, node, limit: 10 });
-        if (!slots.length) {
-          savedText = 'Sorry, no slots are available right now. Please try again later.';
-          result = await wa.sendTextMessage(to, savedText);
-        } else {
-          const rows = slots.map((sl) => ({
-            id: `bfslot_${flow._id}_${node.id}_${sl.date.toISOString().slice(0, 10)}_${toHM(sl.startMin)}`,
-            title: `${sl.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, ${toHM(sl.startMin)}`,
-            description: `${toHM(sl.startMin)} - ${toHM(sl.startMin + sl.dur)}`,
-          }));
-          savedText = 'Apna slot chunein 👇';
-          result = await wa.sendInteractiveMessage(to, {
-            type: 'list',
-            body: { text: `${node.apptTitle ? node.apptTitle + ' — ' : ''}apna available slot chunein:` },
-            action: { button: 'Available Slots', sections: [{ title: 'Available Slots', rows }] },
-          });
-        }
-        await saveOutbound({ workspace, conversation, contact, type: 'interactive', text: savedText, result, io });
-        return true;
-      }
-      if (node.actionType === 'book_appointment') {
-        const slots = await findFreeSlots({ workspace, node, limit: 1 });
-        const slot = slots[0] || { date: (() => { const d = new Date(); d.setDate(d.getDate() + (node.apptDaysAhead == null ? 1 : node.apptDaysAhead)); d.setHours(0, 0, 0, 0); return d; })(), startMin: toMin(node.apptTime || '10:00'), dur: Math.max(5, node.apptDuration || 30) };
-        apptVars = await createBooking({ workspace, node, contact, to, slot });
-      } else if (node.actionType === 'send_payment') {
-        const amount = Number(node.payAmount) || 0;
-        if (amount > 0 && contact) {
-          const PaymentLink = require('../models/PaymentLink');
-          let link = '', razorpayLinkId = '';
-          if (node.payMethod === 'upi' && node.payUpiId) {
-            const pl = await PaymentLink.create({
-              workspace: workspace._id, contact: contact._id, conversation: conversation._id,
-              amount, description: node.payDesc || '', method: 'upi', link: '', upiId: node.payUpiId,
-            });
-            const pn = encodeURIComponent(workspace.name || 'Business');
-            pl.link = `upi://pay?pa=${encodeURIComponent(node.payUpiId)}&pn=${pn}&am=${amount}&cu=INR${node.payDesc ? '&tn=' + encodeURIComponent(node.payDesc) : ''}`;
-            await pl.save();
-            payLink = `${process.env.FRONTEND_URL || 'https://app.wabapanel.com'}/pay/${pl._id}`;
-          } else {
-            const Integration = require('../models/Integration');
-            const integ = await Integration.findOne({ workspace: workspace._id, type: 'razorpay', connected: true });
-            if (integ?.config?.apiKey && integ?.config?.apiSecret) {
-              const Razorpay = require('razorpay');
-              const rzp = new Razorpay({ key_id: integ.config.apiKey, key_secret: integ.config.apiSecret });
-              const plink = await rzp.paymentLink.create({
-                amount: Math.round(amount * 100),
-                currency: 'INR',
-                description: node.payDesc || `Payment of Rs.${amount}`,
-                customer: { name: contact.name || 'Customer', contact: `+${String(contact.phone).replace(/^\+/, '')}` },
-                notify: { sms: false, email: false },
-                notes: { workspace: String(workspace._id) },
-              });
-              link = plink.short_url; razorpayLinkId = plink.id;
-              await PaymentLink.create({
-                workspace: workspace._id, contact: contact._id, conversation: conversation._id,
-                amount, description: node.payDesc || '', method: 'razorpay', link, razorpayLinkId,
-              });
-              payLink = link;
-            } else {
-              console.error('[BotFlow] send_payment: Razorpay not connected');
-            }
-          }
-        }
-      } else if (node.actionType === 'add_tag' && node.actionTag) {
-        const Contact = require('../models/Contact');
-        await Contact.updateOne({ _id: contact._id }, { $addToSet: { tags: node.actionTag } });
-      } else if (node.actionType === 'assign_agent' && node.actionAgent) {
-        const Conversation = require('../models/Conversation');
-        await Conversation.updateOne({ _id: conversation._id }, { assignedAgent: node.actionAgent });
-      } else if (node.actionType === 'ai_on' || node.actionType === 'ai_off') {
-        const Conversation = require('../models/Conversation');
-        await Conversation.updateOne({ _id: conversation._id }, { aiEnabled: node.actionType === 'ai_on' });
-      }
-    } catch (e) {
-      console.error('[BotFlow] action failed:', e.message);
+    if (!['add_tag','assign_agent','ai_on','ai_off'].includes(node.actionType)) return false;
+    const Conversation = require('../models/Conversation');
+    if (node.actionType === 'add_tag' && node.actionTag) {
+      const Contact = require('../models/Contact');
+      await Contact.updateOne({ _id: contact._id }, { $addToSet: { tags: node.actionTag } });
+    } else if (node.actionType === 'assign_agent' && node.actionAgent) {
+      await Conversation.updateOne({ _id: conversation._id }, { assignedAgent: node.actionAgent });
+    } else if (node.actionType === 'ai_on' || node.actionType === 'ai_off') {
+      await Conversation.updateOne({ _id: conversation._id }, { aiEnabled: node.actionType === 'ai_on' });
     }
-    if (node.text || payLink) {
-      savedText = renderVars(node.text || (payLink ? `💳 Payment Request: ₹${node.payAmount}${node.payDesc ? '\n' + node.payDesc : ''}\n\nPay securely here: {payment_link}` : ''), contact);
-      if (apptVars) {
-        savedText = savedText
-          .replace(/\{appointment_date\}/g, apptVars.date)
-          .replace(/\{appointment_time\}/g, apptVars.time);
-      }
-      if (payLink) savedText = savedText.replace(/\{payment_link\}/g, payLink);
+    if (node.text) {
+      savedText = renderVars(node.text, contact);
       result = await wa.sendTextMessage(to, savedText);
     } else {
-      if (node.next) {
-        const nextNode = flow.nodes.find((n) => n.id === node.next);
-        if (nextNode) {
-          await new Promise((r) => setTimeout(r, 800));
-          await sendNode({ flow, node: nextNode, workspace, conversation, contact, to, io, depth: depth + 1, lastReply });
-        }
+      for (const nid of nextIds(node.next)) {
+        const nextNode = flow.nodes.find(n => n.id === nid);
+        if (nextNode) await sendNode({ flow, node: nextNode, workspace, conversation, contact, to, io, depth: depth + 1, lastReply });
       }
       return true;
     }
@@ -661,80 +525,11 @@ async function handleTrigger({ workspace, conversation, contact, to, text, io })
 }
 
 // Slot list tap: bfslot_<flowId>_<nodeId>_<yyyy-mm-dd>_<HH:MM>
-async function bookChosenSlot({ flowId, nodeId, dateStr, timeStr, workspace, conversation, contact, to, io }) {
-  const flow = await BotFlow.findOne({ _id: flowId, workspace: workspace._id });
-  if (!flow) return false;
-  const node = flow.nodes.find((n) => n.id === nodeId);
-  if (!node) return false;
-  const wa = getSender(workspace, conversation);
-  const Appointment = require('../models/Appointment');
-  const date = new Date(dateStr + 'T00:00:00');
-  const dur = Math.max(5, node.apptDuration || 30);
-  const startMin = toMin(timeStr);
-  const existing = await Appointment.find({
-    workspace: workspace._id,
-    date: { $gte: date, $lt: new Date(date.getTime() + 86400000) },
-    status: { $nin: ['cancelled'] },
-    archived: { $ne: true },
-  }).select('startTime endTime').lean();
-  const clash = existing.some((a) => startMin < Math.max(toMin(a.endTime), toMin(a.startTime) + 1) && startMin + dur > toMin(a.startTime));
-  if (clash) {
-    const result = await wa.sendTextMessage(to, 'Sorry, this slot was just booked 😕 Please go back and pick another slot.');
-    await saveOutbound({ workspace, conversation, contact, type: 'text', text: 'Slot taken', result, io });
-    return true;
-  }
-  const apptVars = await createBooking({ workspace, node, contact, to, slot: { date, startMin, dur } });
-  let msg = node.text
-    ? renderVars(node.text, contact).replace(/\{appointment_date\}/g, apptVars.date).replace(/\{appointment_time\}/g, apptVars.time)
-    : `Your booking is confirmed ✅\n📅 ${apptVars.date}\n⏰ ${apptVars.time}`;
-  const result = await wa.sendTextMessage(to, msg);
-  await saveOutbound({ workspace, conversation, contact, type: 'text', text: msg, result, io });
-  if (node.next) {
-    const nextNode = flow.nodes.find((n) => n.id === node.next);
-    if (nextNode) {
-      await new Promise((r) => setTimeout(r, 800));
-      await sendNode({ flow, node: nextNode, workspace, conversation, contact, to, io, depth: 1 });
-    }
-  }
-  return true;
-}
 
-// Product row tap: bfprod_<flowId>_<nodeId>_<productId>
-async function sendProductDetail({ flowId, nodeId, productId, workspace, conversation, contact, to, io }) {
-  const flow = await BotFlow.findOne({ _id: flowId, workspace: workspace._id });
-  if (!flow) return false;
-  const node = flow.nodes.find((n) => n.id === nodeId);
-  const Product = require('../models/Product');
-  const p = await Product.findOne({ _id: productId, workspace: workspace._id }).lean();
-  if (!p) return false;
-  const wa = getSender(workspace, conversation);
-  const cap = `*${p.name}*\n${p.currency === 'INR' ? '₹' : ''}${p.price || ''}${p.description ? '\n' + p.description : ''}${p.url ? '\n' + p.url : ''}`;
-  let result;
-  const img = (p.images || [])[0];
-  if (img) result = await wa.sendMediaMessage(to, 'image', img, cap);
-  else result = await wa.sendTextMessage(to, cap);
-  await saveOutbound({ workspace, conversation, contact, type: img ? 'image' : 'text', text: cap, result, io });
-  if (node && node.next) {
-    const nx = flow.nodes.find((n) => n.id === node.next);
-    if (nx) { await new Promise((r) => setTimeout(r, 800)); await sendNode({ flow, node: nx, workspace, conversation, contact, to, io, depth: 1 }); }
-  }
-  return true;
-}
 
-// Product row tap from a preset products list: prsprod_<presetId>_<productId>
-async function sendPresetProductDetail({ productId, workspace, conversation, contact, to, io }) {
-  const Product = require('../models/Product');
-  const p = await Product.findOne({ _id: productId, workspace: workspace._id }).lean();
-  if (!p) return false;
-  const wa = getSender(workspace, conversation);
-  const cap = `*${p.name}*\n${p.currency === 'INR' ? '₹' : ''}${p.price || ''}${p.description ? '\n' + p.description : ''}${p.url ? '\n' + p.url : ''}`;
-  let result;
-  const img = (p.images || [])[0];
-  if (img) result = await wa.sendMediaMessage(to, 'image', img, cap);
-  else result = await wa.sendTextMessage(to, cap);
-  await saveOutbound({ workspace, conversation, contact, type: img ? 'image' : 'text', text: cap, result, io });
-  return true;
-}
+
+
+
 
 // External webhook trigger: API call triggers a specific bot flow for a phone number
 async function triggerFlowByWebhook({ workspaceId, flowId, phone, data }) {
@@ -759,36 +554,7 @@ async function triggerFlowByWebhook({ workspaceId, flowId, phone, data }) {
 }
 
 // WooCommerce webhook handler: receives order data, sends WhatsApp notification
-async function handleWooCommerceOrder({ workspaceId, order }) {
-  const Workspace = require('../models/Workspace');
-  const Contact = require('../models/Contact');
-  const Conversation = require('../models/Conversation');
-  const workspace = await Workspace.findById(workspaceId);
-  if (!workspace || !workspace.whatsapp?.isConnected) return { ok: false, error: 'Workspace not connected' };
-  const phone = String(order.billing?.phone || '').replace(/[^0-9]/g, '');
-  if (!phone) return { ok: false, error: 'No phone in order' };
-  let contact = await Contact.findOne({ workspace: workspaceId, phone: { $in: [phone, phone.replace(/^91/, '')] } });
-  if (!contact) contact = await Contact.create({ workspace: workspaceId, phone, name: order.billing?.first_name ? `${order.billing.first_name} ${order.billing.last_name || ''}`.trim() : '' });
-  let conversation = await Conversation.findOne({ workspace: workspaceId, contact: contact._id });
-  if (!conversation) conversation = await Conversation.create({ workspace: workspaceId, contact: contact._id, lastMessageAt: new Date() });
-  // Check if there's a WooCommerce-triggered bot flow
-  const flow = await BotFlow.findOne({ workspace: workspaceId, isActive: true, triggerKeywords: 'woocommerce_order' });
-  if (flow) {
-    const start = flow.nodes.find(n => n.id === flow.startNode) || flow.nodes[0];
-    if (start) {
-      await sendNode({ flow, node: start, workspace, conversation, contact, to: phone, io: null, depth: 0 });
-      BotFlow.updateOne({ _id: flow._id }, { $inc: { runs: 1 } }).catch(() => {});
-      return { ok: true, method: 'bot_flow' };
-    }
-  }
-  // Default: send order confirmation text
-  const wa = new WhatsAppService(workspace.whatsapp.accessToken, workspace.whatsapp.phoneNumberId);
-  const items = (order.line_items || []).map(i => `${i.name} x${i.quantity}`).join(', ');
-  const msg = `Order Confirmed!\n\nOrder #${order.number || order.id}\nItems: ${items}\nTotal: ${order.currency || 'INR'} ${order.total}\n\nThank you for your purchase!`;
-  const result = await wa.sendTextMessage(phone, msg);
-  await saveOutbound({ workspace, conversation, contact, type: 'text', text: msg, result, io: null });
-  return { ok: true, method: 'direct_message' };
-}
+
 
 // Resume flows whose durable timed delay (botFlowResume.runAt) has elapsed.
 async function processTimedResumes({ io } = {}) {
@@ -861,4 +627,4 @@ async function triggerFlowByEvent({ workspaceId, contactId, eventKey, io }) {
   } catch (e) { console.error('[BotFlow] triggerFlowByEvent error:', e.message); return false; }
 }
 
-module.exports = { sendFlowNode, handleTrigger, handleTemplateButton, handleAwaitingAnswer, bookChosenSlot, sendProductDetail, sendPresetProductDetail, triggerFlowByWebhook, handleWooCommerceOrder, getSender, processTimedResumes, processReplyTimeouts, triggerFlowByEvent };
+module.exports = { sendFlowNode, handleTrigger, handleTemplateButton, handleAwaitingAnswer, triggerFlowByWebhook, getSender, processTimedResumes, processReplyTimeouts, triggerFlowByEvent };

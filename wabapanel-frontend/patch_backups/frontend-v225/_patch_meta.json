@@ -1,0 +1,14 @@
+{
+  "version": "frontend-v225",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/components/kkhs/VoiceShell.tsx",
+    "src/styles/kkhs-2026/voice/shell.css"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v225.zip",
+  "zip_sha256": "53960c83741796a251d4535ce99ab9c56311d54f86b3e24e1d50dabf579d45f3",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

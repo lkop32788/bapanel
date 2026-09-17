@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { SiteSettingsContext } from '@/components/SiteContentProvider';
 import Link from 'next/link';
 import { MessageSquare, Menu, X } from 'lucide-react';
 
@@ -10,14 +11,14 @@ const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function TermsPage() {
   const c = useSiteContent();
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(useContext(SiteSettingsContext));
   const [mobileMenu, setMobileMenu] = useState(false);
 
   useEffect(() => {
     fetch(`${API}/public/site-settings`).then(r => r.json()).then(d => { if (d.success) setSettings(d.data); }).catch(() => {});
   }, []);
 
-  const biz = settings?.business || { name: 'KKHS Media' };
+  const biz = settings?.business || { name: '' };
   const logo = settings?.branding?.logo;
 
   const t = c.terms;
@@ -26,23 +27,23 @@ export default function TermsPage() {
   return (
     <div className="min-h-screen bg-[#faf9fe] text-gray-900 overflow-x-hidden">
       {/* Navbar */}
-      <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[92%] max-w-5xl bg-white/80 backdrop-blur-2xl border border-gray-200/60 rounded-2xl shadow-lg shadow-purple-100/30 z-50 px-4 py-2.5">
-        <div className="flex items-center justify-between">
+      <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-6xl bg-white/80 backdrop-blur-2xl border border-gray-200/60 rounded-2xl shadow-lg shadow-purple-100/30 z-50 px-5 py-2.5">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             {logo ? <img src={logo} alt={biz.name} className="h-10 w-auto" /> : (
-              <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-violet-200">
+              <div className="w-9 h-9 bg-linear-to-br from-violet-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-violet-200">
                 <MessageSquare className="w-5 h-5 text-white" />
               </div>
             )}
           </Link>
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-1">
             {(c.nav.links || []).map((l: any, i: number) => (
-              <a key={i} href={l.href} className="text-sm font-bold text-gray-900 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-all">{l.label}</a>
+              <a key={i} href={l.href} className="px-3 py-1.5 text-sm font-bold text-gray-900 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-all">{l.label}</a>
             ))}
           </div>
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2">
             <Link href="/auth/login" className="px-4 py-2 text-sm font-bold text-gray-900 hover:text-violet-700 transition-all">{c.nav.loginText}</Link>
-            <Link href="/auth/register" className="px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-purple-600 rounded-lg shadow-md shadow-violet-200/40 hover:shadow-lg transition-all hover:-translate-y-0.5">{c.nav.registerText}</Link>
+            <Link href="/auth/register" className="px-4 py-2 text-sm font-bold text-white bg-linear-to-r from-violet-600 to-purple-600 rounded-lg shadow-md shadow-violet-200/40 hover:shadow-lg transition-all hover:-translate-y-0.5">{c.nav.registerText}</Link>
           </div>
           <button onClick={() => setMobileMenu(!mobileMenu)} className="md:hidden p-2 rounded-lg hover:bg-gray-100">
             {mobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -55,7 +56,7 @@ export default function TermsPage() {
             ))}
             <div className="flex gap-2 pt-2">
               <Link href="/auth/login" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold border border-gray-200 rounded-xl">{c.nav.loginText}</Link>
-              <Link href="/auth/register" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl">{c.nav.registerText}</Link>
+              <Link href="/auth/register" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-white bg-linear-to-r from-violet-600 to-purple-600 rounded-xl">{c.nav.registerText}</Link>
             </div>
           </div>
         )}
@@ -65,8 +66,8 @@ export default function TermsPage() {
       <section className="pt-32 md:pt-40 pb-20 px-4">
         <div className="max-w-4xl mx-auto">
           <span className="inline-flex items-center px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full mb-4">{t.badge}</span>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">{t.title} <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">{t.titleHighlight}</span></h1>
-          <p className="text-sm text-gray-400 mb-10">Last updated: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">{t.title} <span className="bg-linear-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">{t.titleHighlight}</span></h1>
+          <p className="text-sm text-gray-400 mb-10">最后更新： {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
 
           <div className="space-y-8">
             {sections.map((s: any, i: number) => (
@@ -84,9 +85,9 @@ export default function TermsPage() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} {biz.name}. {c.footer.copyrightText}</p>
           <div className="flex items-center gap-4 text-sm text-gray-400">
-            <Link href="/privacy" className="hover:text-violet-600">Privacy</Link>
-            <Link href="/about" className="hover:text-violet-600">About</Link>
-            <Link href="/contact" className="hover:text-violet-600">Contact</Link>
+            <Link href="/privacy" className="hover:text-violet-600">隐私政策</Link>
+            <Link href="/about" className="hover:text-violet-600">关于</Link>
+            <Link href="/contact" className="hover:text-violet-600">联系方式</Link>
           </div>
         </div>
       </footer>

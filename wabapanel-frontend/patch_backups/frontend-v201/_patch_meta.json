@@ -1,0 +1,17 @@
+{
+  "version": "frontend-v201",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/components/layout/Header.tsx",
+    "src/app/auth/register/page.tsx",
+    "src/stores/authStore.ts",
+    "src/lib/api.ts",
+    "src/app/admin/plan-reminders/page.tsx"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v201.zip",
+  "zip_sha256": "b208b66377cbb4f7ecbeb330bb25881c96aff7a8ebfaa9f986ecd53898bc3a9e",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

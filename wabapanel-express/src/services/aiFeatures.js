@@ -71,18 +71,17 @@ async function translateInbound({ workspace, messageData }) {
   if (tr) messageData.metadata = { ...(messageData.metadata || {}), translation: tr };
 }
 
-// Lead scoring + sentiment (single AI call, throttled). Fire-and-forget.
+// Conversation sentiment analysis. Fire-and-forget.
 async function analyzeInbound({ workspace, conversation, contact, io }) {
   const st = await getSettings(workspace._id);
   if (!st) return;
-  const doScore = !!st.features?.leadScoring;
   const doSentiment = !!st.features?.sentiment;
-  if (!doScore && !doSentiment) return;
+  if (!doSentiment) return;
+  const Conversation = require('../models/Conversation');
+  const fresh = await Conversation.findById(conversation._id).select('sentimentAt').lean();
+  if (fresh?.sentimentAt && Date.now() - new Date(fresh.sentimentAt).getTime() < 5 * 60 * 1000) return;
+  await Conversation.updateOne({ _id: conversation._id }, { sentimentAt: new Date() });
 
-  const Contact = require('../models/Contact');
-  const fresh = await Contact.findById(contact._id).select('leadScoreAt').lean();
-  if (fresh?.leadScoreAt && Date.now() - new Date(fresh.leadScoreAt).getTime() < 5 * 60 * 1000) return;
-  await Contact.updateOne({ _id: contact._id }, { leadScoreAt: new Date() });
 
   const Message = require('../models/Message');
   const recent = await Message.find({ conversation: conversation._id }).sort('-createdAt').limit(15).lean();
@@ -93,9 +92,9 @@ async function analyzeInbound({ workspace, conversation, contact, io }) {
   const wantSuggestion = !!(ownerAlerts.enabled && ownerAlerts.onAiSuggestion);
 
   const out = await chatJSON(st,
-    'You analyze WhatsApp business conversations. Reply with ONLY JSON: {"lead":"hot|warm|cold","sentiment":"positive|neutral|negative"' +
+    'You analyze WhatsApp business conversations. Reply with ONLY JSON: {"sentiment":"positive|neutral|negative"' +
     (wantSuggestion ? ',"next_action":"one short action the business should take next, max 15 words, empty string if nothing is needed"' : '') +
-    '}. lead=hot if customer shows strong buying intent/urgency, warm if interested, cold if not interested or just browsing.',
+    '}.',
     convoText.slice(-4000));
   if (!out) return;
   if (wantSuggestion && out.next_action && String(out.next_action).trim()) {
@@ -103,22 +102,13 @@ async function analyzeInbound({ workspace, conversation, contact, io }) {
   }
 
   const updates = {};
-  if (doScore && ['hot', 'warm', 'cold'].includes(out.lead)) {
-    const prev = await Contact.findById(contact._id).select('leadScore').lean();
-    await Contact.updateOne({ _id: contact._id }, { leadScore: out.lead });
-    updates.leadScore = out.lead;
-    if (out.lead === 'hot' && prev?.leadScore !== 'hot') {
-      require('./ownerNotify').hotLead(workspace._id, contact, { notes: 'AI detected strong buying intent in chat' }).catch(() => {});
-    }
-  }
+  
   if (doSentiment && ['positive', 'neutral', 'negative'].includes(out.sentiment)) {
-    const Conversation = require('../models/Conversation');
     await Conversation.updateOne({ _id: conversation._id }, { sentiment: out.sentiment });
     updates.sentiment = out.sentiment;
   }
   if (io && Object.keys(updates).length) {
-    const Conversation = require('../models/Conversation');
-    const populatedConv = await Conversation.findById(conversation._id).populate('contact', 'name phone avatar profileName leadScore');
+    const populatedConv = await Conversation.findById(conversation._id).populate('contact', 'name phone avatar profileName');
     io.to(`workspace:${workspace._id}`).emit('conversation_updated', populatedConv);
   }
 }
@@ -146,26 +136,7 @@ async function summarizeConversation({ workspaceId, conversationId }) {
 }
 
 // Auto ticket on complaint keywords (no AI call needed).
-async function maybeCreateTicket({ workspace, conversation, contact, text, io }) {
-  const AISettings = require('../models/AISettings');
-  const st = await AISettings.findOne({ workspace: workspace._id }).lean();
-  if (!st || !st.features?.autoTicket) return;
-  const lower = (text || '').toLowerCase();
-  if (!lower) return;
-  const kw = (st.features.ticketKeywords || []).find((k) => k && lower.includes(k.toLowerCase()));
-  if (!kw) return;
-  const Ticket = require('../models/Ticket');
-  const existing = await Ticket.findOne({ workspace: workspace._id, conversation: conversation._id, status: 'open' });
-  if (existing) return;
-  const t = await Ticket.create({
-    workspace: workspace._id,
-    contact: contact._id,
-    conversation: conversation._id,
-    subject: (text || '').slice(0, 150),
-    keyword: kw,
-  });
-  if (io) io.to(`workspace:${workspace._id}`).emit('ticket_created', t);
-}
+
 
 // Converts raw s16le PCM to an mp3 in /uploads/voice and returns its absolute URL.
 function pcmToMp3(pcm, rate) {
@@ -211,4 +182,4 @@ async function textToSpeech(workspaceId, text) {
   return `${process.env.BACKEND_URL || "https://api.wabapanel.com"}/uploads/voice/${filename}`;
 }
 
-module.exports = { transcribeInbound, translateInbound, analyzeInbound, summarizeConversation, maybeCreateTicket, textToSpeech };
+module.exports = { transcribeInbound, translateInbound, analyzeInbound, summarizeConversation, textToSpeech };

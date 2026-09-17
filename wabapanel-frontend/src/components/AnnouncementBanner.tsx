@@ -6,10 +6,10 @@ import { platformApi } from '@/lib/api';
 interface Announcement { _id: string; title: string; message: string; type: string; }
 
 const styles: Record<string, { bar: string; bg: string; iconBg: string; title: string; text: string; Icon: typeof Megaphone }> = {
-  info: { bar: 'bg-blue-500', bg: 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300', iconBg: 'bg-blue-500', title: 'text-blue-900', text: 'text-blue-800', Icon: Megaphone },
-  success: { bar: 'bg-emerald-500', bg: 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-300', iconBg: 'bg-emerald-500', title: 'text-emerald-900', text: 'text-emerald-800', Icon: CheckCircle2 },
-  warning: { bar: 'bg-amber-500', bg: 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300', iconBg: 'bg-amber-500', title: 'text-amber-900', text: 'text-amber-800', Icon: AlertTriangle },
-  danger: { bar: 'bg-red-500', bg: 'bg-gradient-to-r from-red-50 to-rose-50 border-red-300', iconBg: 'bg-red-500', title: 'text-red-900', text: 'text-red-800', Icon: AlertOctagon },
+  info: { bar: 'bg-blue-500', bg: 'bg-linear-to-r from-blue-50 to-indigo-50 border-blue-300', iconBg: 'bg-blue-500', title: "文本-蓝色-900", text: "文本-蓝色-800", Icon: Megaphone },
+  success: { bar: 'bg-emerald-500', bg: 'bg-linear-to-r from-emerald-50 to-teal-50 border-emerald-300', iconBg: 'bg-emerald-500', title: "文本-翡翠-900", text: "文本-翡翠-800", Icon: CheckCircle2 },
+  warning: { bar: 'bg-amber-500', bg: 'bg-linear-to-r from-amber-50 to-orange-50 border-amber-300', iconBg: 'bg-amber-500', title: "文本-琥珀-900", text: "文本-琥珀-800", Icon: AlertTriangle },
+  danger: { bar: 'bg-red-500', bg: 'bg-linear-to-r from-red-50 to-rose-50 border-red-300', iconBg: 'bg-red-500', title: "文字-红色-900", text: "文字-红色-800", Icon: AlertOctagon },
 };
 
 export default function AnnouncementBanner() {
@@ -45,7 +45,7 @@ export default function AnnouncementBanner() {
               <p className={`font-bold text-sm ${s.title}`}>{a.title}</p>
               {a.message && <p className={`text-sm mt-0.5 ${s.text}`}>{a.message}</p>}
             </div>
-            <button onClick={() => dismiss(a._id)} className={`shrink-0 p-1 rounded-lg opacity-60 hover:opacity-100 hover:bg-white/50 ${s.text}`} aria-label="Dismiss announcement">
+            <button onClick={() => dismiss(a._id)} className={`shrink-0 p-1 rounded-lg opacity-60 hover:opacity-100 hover:bg-white/50 ${s.text}`} aria-label={"驳回公告"}>
               <X className="w-4 h-4" />
             </button>
           </div>

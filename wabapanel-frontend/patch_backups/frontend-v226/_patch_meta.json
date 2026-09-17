@@ -1,0 +1,14 @@
+{
+  "version": "frontend-v226",
+  "appliedAt": "2026-09-17T01:05:46.834780+00:00",
+  "files": [
+    "src/styles/kkhs-2026/voice/pages.css",
+    "src/styles/kkhs-2026/voice/shell.css"
+  ],
+  "manual_local_install": true,
+  "merged_through": "frontend-v226",
+  "local_customizations_preserved": true,
+  "source_url": "https://kkhsmedia.com/patches/nodejs/frontend/frontend-v226.zip",
+  "zip_sha256": "5e39505121fb1805a799a24c752fc73a79f8017b477c211b9a2e050201240d6b",
+  "backup_archive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz"
+}

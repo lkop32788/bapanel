@@ -1,4 +1,6 @@
 'use client';
+import { translateDisplay } from '@/lib/zhDisplay';
+import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Download, FileText, ChevronDown, MessageCircle } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
@@ -8,11 +10,13 @@ import toast from 'react-hot-toast';
 
 type ReportRecipient = { phone: string; name: string; status: string; error: string; at: string; replied?: boolean; chatId?: string };
 type ReportButton = { label: string; count: number; contacts: { name: string; phone: string }[] };
+type FailureReason = { reason: string; count: number; advice: string };
 type ReportData = {
-  campaign: { _id: string; name: string; status: string; template: string; createdAt: string };
+  campaign: { _id: string; name: string; status: string; template: string; createdAt: string; summary?: string; skipped?: number };
   counts: { total: number; sent: number; delivered: number; read: number; failed: number; deliveredTotal: number; sentTotal: number; replied: number };
   recipients: ReportRecipient[];
   buttons: ReportButton[];
+  failureReasons?: FailureReason[];
 };
 
 // Shared campaign delivery report (used by Broadcasts, Preset and Drip campaigns).
@@ -41,7 +45,7 @@ export default function CampaignReportModal({
     try {
       const r = await campaignApi.report(id);
       setReport(r.data.data);
-    } catch { toast.error('Failed to load report'); }
+    } catch { toast.error(translateApiMessage("无法加载报告")); }
     finally { setReportLoading(false); }
   }, []);
 
@@ -69,15 +73,15 @@ export default function CampaignReportModal({
     if (!report || resending || !resendAudience || !resendCount) return;
     const chosen = resendTemplateId ? templates.find(t => t._id === resendTemplateId) : null;
     const verb = resendAudience === 'failed' ? 'Resend' : 'Send';
-    if (!confirm(`${verb} ${chosen ? `template "${chosen.name}"` : 'the campaign template'} to ${resendCount} "${resendAudience}" recipient(s)?`)) return;
+    if (!confirm(`${verb} ${chosen ? `template "${chosen.name}"` : 'the campaign template'} 至 ${resendCount} "${resendAudience}“收件人？`)) return;
     setResending(true);
     try {
       const r = await campaignApi.resendFailed(report.campaign._id, { templateId: resendTemplateId || undefined, audience: resendAudience });
-      toast.success(r.data.data?.message || 'Sending started');
+      toast.success(translateApiMessage(r.data.data?.message || "发送开始"));
       setTimeout(() => load(report.campaign._id), 4000);
     } catch (e) {
       const err = e as { response?: { data?: { message?: string } } };
-      toast.error(err.response?.data?.message || 'Send failed');
+      toast.error(translateApiMessage(err.response?.data?.message || "发送失败"));
     }
     setResending(false);
   };
@@ -106,20 +110,20 @@ export default function CampaignReportModal({
     const rows = report.recipients.filter(matchesFilter);
     const esc = (v: string | number) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const lines: string[] = [];
-    lines.push(`Campaign,${esc(report.campaign.name)}`);
-    lines.push(`Template,${esc(report.campaign.template)}`);
+    lines.push(`活动，${esc(report.campaign.name)}`);
+    lines.push(`模板，${esc(report.campaign.template)}`);
     lines.push('');
-    lines.push('Summary');
-    lines.push(`Total,${c.total}`);
-    lines.push(`Sent (not delivered),${c.sent}`);
-    lines.push(`Delivered,${c.deliveredTotal}`);
-    lines.push(`Read,${c.read}`);
-    lines.push(`Failed,${c.failed}`);
-    lines.push(`Replied,${c.replied}`);
+    lines.push("总结");
+    lines.push(`总计，${c.total}`);
+    lines.push(`已发送（未送达），${c.sent}`);
+    lines.push(`已交付，${c.deliveredTotal}`);
+    lines.push(`读，${c.read}`);
+    lines.push(`失败，${c.failed}`);
+    lines.push(`回复，${c.replied}`);
     if (report.buttons.length) {
       lines.push('');
-      lines.push('Button clicks (number-wise)');
-      lines.push('Button,Clicks,Contact,Number');
+      lines.push("按钮点击次数（按数字）");
+      lines.push("按钮、点击次数、联系人、号码");
       report.buttons.forEach(b => {
         if (b.contacts.length) {
           b.contacts.forEach((ct, i) => lines.push([esc(i === 0 ? b.label : ''), esc(i === 0 ? b.count : ''), esc(ct.name || ''), esc(ct.phone || '')].join(',')));
@@ -129,8 +133,8 @@ export default function CampaignReportModal({
       });
     }
     lines.push('');
-    lines.push(`Recipients (filter: ${reportFilter})`);
-    lines.push('Contact,Number,Status,Reason,Chat Link');
+    lines.push(`收件人（过滤器： ${reportFilter})`);
+    lines.push("联系方式、电话号码、状态、原因、聊天链接");
     rows.forEach(r => lines.push([esc(r.name || ''), esc(r.phone), esc(dispStatus(r)), esc(r.error || ''), esc(chatHrefAbs(r))].join(',')));
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -169,7 +173,7 @@ export default function CampaignReportModal({
       <table><thead><tr><th>Contact</th><th>Number</th><th>Status</th><th>Reason</th><th>Chat</th></tr></thead><tbody>${rowsHtml}</tbody></table>
       <script>window.onload=function(){window.print();}</script></body></html>`;
     const w = window.open('', '_blank');
-    if (!w) { toast.error('Allow pop-ups to export PDF'); return; }
+    if (!w) { toast.error(translateApiMessage("允许弹出窗口导出 PDF")); return; }
     w.document.write(html); w.document.close();
   };
 
@@ -178,28 +182,28 @@ export default function CampaignReportModal({
   return (
     <Modal isOpen={!!campaignId} onClose={onClose} title={title} size="lg">
       {reportLoading ? (
-        <div className="py-10 text-center text-gray-400">Loading report…</div>
+        <div className="py-10 text-center text-gray-400">正在加载报告...</div>
       ) : report && (
         <div className="space-y-4">
           <div className="flex items-center justify-end gap-2">
             <button onClick={exportCsv}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
-              <Download className="w-4 h-4" /> Export CSV
+              <Download className="w-4 h-4" /> 导出 CSV
             </button>
             <button onClick={exportPdf}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
-              <FileText className="w-4 h-4" /> Export PDF
+              <FileText className="w-4 h-4" /> 导出 PDF
             </button>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
             {[
-              { key: 'all' as const, label: 'Total', value: report.counts.total, color: 'text-gray-900' },
-              { key: 'sent' as const, label: 'Sent (not delivered)', value: report.counts.sent, color: 'text-blue-600' },
-              { key: 'delivered' as const, label: 'Delivered', value: report.counts.deliveredTotal, color: 'text-emerald-600' },
-              { key: 'read' as const, label: 'Read', value: report.counts.read, color: 'text-indigo-600' },
-              { key: 'failed' as const, label: 'Failed', value: report.counts.failed, color: 'text-red-600' },
-              { key: 'replied' as const, label: 'Replied', value: report.counts.replied ?? 0, color: 'text-amber-600' },
+              { key: 'all' as const, label: "总计", value: report.counts.total, color: 'text-gray-900' },
+              { key: 'sent' as const, label: "已发送（未送达）", value: report.counts.sent, color: 'text-blue-600' },
+              { key: 'delivered' as const, label: "已交付", value: report.counts.deliveredTotal, color: 'text-emerald-600' },
+              { key: 'read' as const, label: "读", value: report.counts.read, color: 'text-indigo-600' },
+              { key: 'failed' as const, label: "操作失败", value: report.counts.failed, color: 'text-red-600' },
+              { key: 'replied' as const, label: "已回复", value: report.counts.replied ?? 0, color: 'text-amber-600' },
             ].map(s => (
               <button key={s.key} onClick={() => setReportFilter(s.key)}
                 className={`rounded-xl border p-3 text-left transition-colors ${reportFilter === s.key ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}>
@@ -211,7 +215,8 @@ export default function CampaignReportModal({
 
           {report.buttons && report.buttons.length > 0 && (
             <div className="border rounded-lg divide-y divide-gray-100">
-              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 rounded-t-lg">Button clicks — click a button to see who clicked</div>
+              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 rounded-t-lg">按钮点击 — 单击按钮以查看谁点击了
+点击了</div>
               {report.buttons.map((b) => (
                 <div key={b.label}>
                   <button onClick={() => setOpenBtn(openBtn === b.label ? null : b.label)}
@@ -239,41 +244,60 @@ export default function CampaignReportModal({
             </div>
           )}
 
+          {report.campaign.summary && (
+            <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-2 text-sm text-amber-800">{report.campaign.summary}</div>
+          )}
+
+          {report.failureReasons && report.failureReasons.length > 0 && (
+            <div className="border rounded-lg divide-y divide-gray-100">
+              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 rounded-t-lg">为什么消息失败 - 以及该怎么做</div>
+              {report.failureReasons.map((f) => (
+                <div key={f.reason} className="px-3 py-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm text-gray-800">{f.reason}</p>
+                    <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">{f.count}</span>
+                  </div>
+                  {f.advice && <p className="text-xs text-gray-500 mt-1">{f.advice}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
           <CampaignReportAnalytics counts={report.counts} recipients={report.recipients} />
 
           {resendAudience && resendCount > 0 && (
             <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg px-4 py-2 border ${resendAudience === 'failed' ? 'bg-red-50 border-red-100' : 'bg-indigo-50 border-indigo-100'}`}>
               <span className={`text-sm ${resendAudience === 'failed' ? 'text-red-700' : 'text-indigo-700'}`}>
                 {resendAudience === 'failed'
-                  ? `${resendCount} message(s) failed.`
-                  : `${resendCount} "${resendAudience}" recipient(s) — retarget them with a template.`}
+                  ? `${resendCount} 消息失败。`
+                  : `${resendCount} "${resendAudience}“收件人 - 使用模板重新定位他们。`}
               </span>
               <div className="flex items-center gap-2">
                 <select value={resendTemplateId} onChange={e => setResendTemplateId(e.target.value)}
                   className="text-sm border border-gray-300 rounded-lg px-2 py-1.5 bg-white max-w-[200px]">
-                  <option value="">Same campaign template</option>
+                  <option value="">相同的活动模板</option>
                   {templates.map(t => (
-                    <option key={t._id} value={t._id}>{t.name}</option>
+                    <option key={t._id} value={t._id}>{translateDisplay(t.name)}</option>
                   ))}
                 </select>
                 <button onClick={handleResend} disabled={resending}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-sm disabled:opacity-50 whitespace-nowrap ${resendAudience === 'failed' ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-500 hover:bg-indigo-600'}`}>
-                  <RefreshCw className={`w-4 h-4 ${resending ? 'animate-spin' : ''}`} /> {resendAudience === 'failed' ? 'Resend to failed' : `Send to ${resendAudience}`}
+                  <RefreshCw className={`w-4 h-4 ${resending ? 'animate-spin' : ''}`} /> {resendAudience === 'failed' ? "重新发送失败" : `发送至 ${resendAudience}`}
                 </button>
               </div>
             </div>
           )}
-          <p className="text-[11px] text-gray-400 -mt-2">Tip: click a category above (Sent / Delivered / Read / Failed) to resend or retarget the template to just those recipients.</p>
+          <p className="text-[11px] text-gray-400 -mt-2">提示：单击上面的类别（已发送/已送达/已读/失败）可将模板重新发送或重新定位到这些收件人。</p>
 
           <div className="max-h-80 overflow-y-auto border rounded-lg">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 sticky top-0">
                 <tr className="text-left text-gray-500">
-                  <th className="px-3 py-2 font-medium">Contact</th>
-                  <th className="px-3 py-2 font-medium">Number</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Reason (if failed)</th>
-                  <th className="px-3 py-2 font-medium">Chat</th>
+                  <th className="px-3 py-2 font-medium">联系方式</th>
+                  <th className="px-3 py-2 font-medium">号码</th>
+                  <th className="px-3 py-2 font-medium">状态</th>
+                  <th className="px-3 py-2 font-medium">原因（如果失败）</th>
+                  <th className="px-3 py-2 font-medium">聊天</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -294,7 +318,7 @@ export default function CampaignReportModal({
                       <td className="px-3 py-2 text-red-500 text-xs">{r.error || ''}</td>
                       <td className="px-3 py-2">
                         {chatHref(r) && (
-                          <a href={chatHref(r)} target="_blank" rel="noopener noreferrer" title="Open chat"
+                          <a href={chatHref(r)} target="_blank" rel="noopener noreferrer" title={"打开聊天"}
                             className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700">
                             <MessageCircle className="w-4 h-4" />
                           </a>
@@ -303,12 +327,12 @@ export default function CampaignReportModal({
                     </tr>
                   ))}
                 {report.recipients.length === 0 && (
-                  <tr><td colSpan={5} className="px-3 py-8 text-center text-gray-400">No recipient records yet.</td></tr>
+                  <tr><td colSpan={5} className="px-3 py-8 text-center text-gray-400">尚无收件人记录。</td></tr>
                 )}
               </tbody>
             </table>
           </div>
-          <p className="text-[11px] text-gray-400">Delivered/Read update as WhatsApp confirms them — reopen the report to refresh. Failed rows show WhatsApp&apos;s error reason.</p>
+          <p className="text-[11px] text-gray-400">已发送/阅读 WhatsApp 确认的更新 — 重新打开报告以刷新。失败的行显示 WhatsApp 的错误原因。</p>
         </div>
       )}
     </Modal>

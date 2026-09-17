@@ -5,29 +5,10 @@ const os = require('os');
 const { execFile } = require('child_process');
 const mongoose = require('mongoose');
 const { protect, adminOnly } = require('../middleware/auth');
-const Coupon = require('../models/Coupon');
 const Announcement = require('../models/Announcement');
-const SupportTicket = require('../models/SupportTicket');
 const SystemSettings = require('../models/SystemSettings');
 
 const BACKUP_DIR = '/var/backups/wabapanel';
-
-// Email + in-app notification to the ticket owner. Fire-and-forget safe.
-const notifyTicketUser = async (req, ticket, title, body) => {
-  try {
-    const userId = String(ticket.user._id || ticket.user);
-    const io = req.app.get('io');
-    if (io) io.to('user:' + userId).emit('support_ticket_update', {
-      ticketId: ticket._id, ticketNumber: ticket.ticketNumber, subject: ticket.subject, status: ticket.status, title, body,
-    });
-    const User = require('../models/User');
-    const u = await User.findById(userId).select('email').lean();
-    if (u?.email) {
-      await require('../services/systemMailer').sendRawEmail(u.email, title,
-        `<p>${body}</p><p style="color:#6b7280;font-size:13px">Ticket ${ticket.ticketNumber} — ${ticket.subject}</p>`);
-    }
-  } catch (e) { console.error('[ticketNotify]', e.message); }
-};
 
 router.use(protect);
 
@@ -43,153 +24,8 @@ router.get('/announcements/active', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// ---------- Coupons (vendor: validate) ----------
-router.post('/coupons/validate', async (req, res) => {
-  try {
-    const code = String(req.body.code || '').trim().toUpperCase();
-    const amount = Number(req.body.amount || 0);
-    const planId = req.body.planId ? String(req.body.planId) : '';
-    if (!code) return res.status(400).json({ success: false, message: 'Enter a coupon code' });
-    const coupon = await Coupon.findOne({ code, isActive: true });
-    if (!coupon) return res.status(404).json({ success: false, message: 'Invalid coupon code' });
-    if (coupon.expiresAt && coupon.expiresAt < new Date()) return res.status(400).json({ success: false, message: 'This coupon has expired' });
-    if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) return res.status(400).json({ success: false, message: 'This coupon has reached its usage limit' });
-    const applicable = Array.isArray(coupon.applicablePlans) ? coupon.applicablePlans : [];
-    if (planId && applicable.length > 0 && !applicable.some((p) => String(p) === planId)) {
-      return res.status(400).json({ success: false, message: 'This coupon is not valid for the selected plan' });
-    }
-    const discount = coupon.discountType === 'percent'
-      ? Math.round((amount * coupon.discountValue) / 100)
-      : Math.min(coupon.discountValue, amount);
-    res.json({ success: true, data: { code: coupon.code, discountType: coupon.discountType, discountValue: coupon.discountValue, discount, finalAmount: Math.max(0, amount - discount) } });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-// ---------- Support tickets (vendor) ----------
-router.get('/support', async (req, res) => {
-  try {
-    const tickets = await SupportTicket.find({ user: req.user._id }).sort({ updatedAt: -1 });
-    res.json({ success: true, data: tickets });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-router.post('/support', async (req, res) => {
-  try {
-    const { subject, category, priority, message } = req.body;
-    if (!subject || !message) return res.status(400).json({ success: false, message: 'Subject and message are required' });
-    const ticket = await SupportTicket.create({
-      user: req.user._id, subject, category: category || 'other', priority: priority || 'medium',
-      status: 'open',
-      messages: [{ sender: 'user', senderName: req.user.name || req.user.email, text: message }],
-    });
-    require('../services/adminNotify').notifyAdmin('New support ticket', ['Subject: ' + (ticket.subject || ''), 'From: ' + (req.user ? req.user.email : '')], '/admin/support').catch(() => {});
-    res.json({ success: true, data: ticket, message: 'Ticket created. Our team will reply soon.' });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-router.post('/support/:id/reply', async (req, res) => {
-  try {
-    const ticket = await SupportTicket.findOne({ _id: req.params.id, user: req.user._id });
-    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
-    if (ticket.status === 'closed') return res.status(400).json({ success: false, message: 'Ticket is closed. Open a new ticket.' });
-    if (!req.body.message) return res.status(400).json({ success: false, message: 'Message is required' });
-    ticket.messages.push({ sender: 'user', senderName: req.user.name || req.user.email, text: req.body.message });
-    ticket.status = 'awaiting_reply';
-    await ticket.save();
-    require('../services/adminNotify').notifyAdmin('Support ticket reply', ['Ticket: ' + ticket.ticketNumber, 'Subject: ' + ticket.subject, 'From: ' + (req.user?.email || ''), 'Message: ' + String(req.body.message).slice(0, 200)], '/admin/support').catch(() => {});
-    res.json({ success: true, data: ticket });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-router.put('/support/:id/close', async (req, res) => {
-  try {
-    const ticket = await SupportTicket.findOneAndUpdate(
-      { _id: req.params.id, user: req.user._id }, { status: 'closed' }, { new: true });
-    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
-    res.json({ success: true, data: ticket });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-router.put('/support/:id/reopen', async (req, res) => {
-  try {
-    const ticket = await SupportTicket.findOneAndUpdate(
-      { _id: req.params.id, user: req.user._id, status: 'closed' }, { status: 'open' }, { new: true });
-    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
-    require('../services/adminNotify').notifyAdmin('Support ticket reopened', ['Ticket: ' + ticket.ticketNumber, 'Subject: ' + ticket.subject, 'By: ' + (req.user?.email || '')], '/admin/support').catch(() => {});
-    res.json({ success: true, data: ticket });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
 // ================= ADMIN =================
 router.use(adminOnly);
-
-// ---------- Coupons CRUD ----------
-router.get('/admin/coupons', async (req, res) => {
-  try { res.json({ success: true, data: await Coupon.find().sort({ createdAt: -1 }) }); }
-  catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-router.post('/admin/coupons', async (req, res) => {
-  try {
-    const c = await Coupon.create({ ...req.body, code: String(req.body.code || '').toUpperCase() });
-    res.json({ success: true, data: c });
-  } catch (e) { res.status(400).json({ success: false, message: e.code === 11000 ? 'Coupon code already exists' : e.message }); }
-});
-router.put('/admin/coupons/:id', async (req, res) => {
-  try { res.json({ success: true, data: await Coupon.findByIdAndUpdate(req.params.id, req.body, { new: true }) }); }
-  catch (e) { res.status(400).json({ success: false, message: e.message }); }
-});
-router.delete('/admin/coupons/:id', async (req, res) => {
-  try { await Coupon.findByIdAndDelete(req.params.id); res.json({ success: true }); }
-  catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-// ---------- Announcements CRUD ----------
-router.get('/admin/announcements', async (req, res) => {
-  try { res.json({ success: true, data: await Announcement.find().sort({ createdAt: -1 }) }); }
-  catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-router.post('/admin/announcements', async (req, res) => {
-  try { res.json({ success: true, data: await Announcement.create({ ...req.body, createdBy: req.user._id }) }); }
-  catch (e) { res.status(400).json({ success: false, message: e.message }); }
-});
-router.put('/admin/announcements/:id', async (req, res) => {
-  try { res.json({ success: true, data: await Announcement.findByIdAndUpdate(req.params.id, req.body, { new: true }) }); }
-  catch (e) { res.status(400).json({ success: false, message: e.message }); }
-});
-router.delete('/admin/announcements/:id', async (req, res) => {
-  try { await Announcement.findByIdAndDelete(req.params.id); res.json({ success: true }); }
-  catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-// ---------- Support tickets (admin) ----------
-router.get('/admin/support', async (req, res) => {
-  try {
-    const filter = {};
-    if (req.query.status) filter.status = req.query.status;
-    const tickets = await SupportTicket.find(filter).populate('user', 'name email companyName').sort({ updatedAt: -1 });
-    res.json({ success: true, data: tickets });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-router.post('/admin/support/:id/reply', async (req, res) => {
-  try {
-    const ticket = await SupportTicket.findById(req.params.id);
-    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
-    if (!req.body.message) return res.status(400).json({ success: false, message: 'Message is required' });
-    ticket.messages.push({ sender: 'admin', senderName: req.user.name || 'Support', text: req.body.message });
-    ticket.status = 'answered';
-    await ticket.save();
-    notifyTicketUser(req, ticket, 'Support replied to your ticket', String(req.body.message).slice(0, 300)).catch(() => {});
-    res.json({ success: true, data: ticket });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-router.put('/admin/support/:id/status', async (req, res) => {
-  try {
-    const ticket = await SupportTicket.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
-    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
-    notifyTicketUser(req, ticket, 'Your support ticket is now ' + String(req.body.status || '').replace('_', ' '), 'Ticket status updated by support team.').catch(() => {});
-    res.json({ success: true, data: ticket });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
 
 // ---------- Backups ----------
 function findMongodump() {

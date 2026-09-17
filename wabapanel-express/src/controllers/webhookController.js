@@ -11,7 +11,6 @@ const AISettings = require('../models/AISettings');
 const AICallingAgent = require('../models/AICallingAgent');
 const aiCallBridge = require('../services/aiCallBridge');
 const WhatsAppService = require('../services/whatsappService');
-const { autoLinkToPipeline } = require('../services/pipelineAutoLink');
 const fs = require('fs');
 
 // In-memory guard against concurrent duplicate webhook deliveries (Meta retries)
@@ -429,10 +428,8 @@ const handleMetaChatWebhook = async (body, io) => {
         await Conversation.findByIdAndUpdate(conversation._id, { $inc: { unreadCount: 1 } });
         contact.lastMessageAt = new Date();
         // Auto-reopen a closed lead when the customer messages again.
-        if (contact.leadClosed) { contact.leadClosed = false; contact.leadClosedAt = null; contact.leadCloseReason = ''; }
         await contact.save();
         if (io) io.to(`workspace:${workspace._id}`).emit('new_message', { message: inMsg, conversationId: conversation._id });
-        autoLinkToPipeline(workspace._id, contact._id, 'inbound');
         // Instagram story replies and DM keywords can run their own Auto DM automation.
         let __igTaken = false;
         if (channel === 'instagram' && text) {
@@ -492,7 +489,7 @@ async function saveCoexistenceMessage(workspace, phoneNumberId, item, io) {
   }
   const contact = await Contact.findOneAndUpdate(
     { workspace: workspace._id, phone },
-    { $set: { workspace: workspace._id, phone, waId: phone, source: 'whatsapp', lastMessageAt: new Date(), leadClosed: false, leadClosedAt: null, leadCloseReason: '' }, $setOnInsert: { name: phone } },
+    { $set: { workspace: workspace._id, phone, waId: phone, source: 'whatsapp', lastMessageAt: new Date() }, $setOnInsert: { name: phone } },
     { upsert: true, new: true }
   );
   const conversation = await Conversation.findOneAndUpdate(
@@ -632,25 +629,7 @@ const handleWhatsAppWebhook = async (req, res) => {
         if (value.statuses) {
           for (const status of value.statuses) {
             // WhatsApp Pay (order_details) payment updates
-            if (status.type === 'payment' && status.payment?.reference_id) {
-              try {
-                const PaymentLink = require('../models/PaymentLink');
-                const pl = await PaymentLink.findById(status.payment.reference_id);
-                if (pl) {
-                  if (['captured', 'success'].includes(status.status) && pl.status !== 'paid') {
-                    pl.status = 'paid';
-                    pl.paidAt = new Date();
-                    await pl.save();
-                    const io2 = req.app.get('io');
-                    if (io2) io2.to(`workspace:${pl.workspace}`).emit('payment_link_paid', { id: String(pl._id), amount: pl.amount, contact: String(pl.contact) });
-                    require('../services/paymentAutomation').deliverPaymentOutcome(pl._id, 'success', io2);
-                  } else if (['failed', 'canceled'].includes(status.status) && pl.status !== 'paid') {
-                    require('../services/paymentAutomation').deliverPaymentOutcome(pl._id, 'failure', req.app.get('io'));
-                  }
-                }
-              } catch (e) { console.error('[WAPay]', e.message); }
-              continue;
-            }
+            
             const statusUpdate = { status: status.status };
             if (status.errors?.length) {
               const e = status.errors[0];
@@ -661,7 +640,6 @@ const handleWhatsAppWebhook = async (req, res) => {
               { workspace: workspace._id, waMessageId: status.id },
               statusUpdate
             );
-            require('../services/apiWebhookDispatcher').dispatch(workspace, 'message.status', { wa_message_id: status.id, status: status.status, recipient: status.recipient_id }).catch(() => {});
           }
         }
 
@@ -707,9 +685,6 @@ const handleWhatsAppWebhook = async (req, res) => {
                   waId: from,
                   lastMessageAt: new Date(),
                   source: 'whatsapp',
-                  leadClosed: false,
-                  leadClosedAt: null,
-                  leadCloseReason: '',
                   ...(profName ? { profileName: profName } : {}),
                 },
                 $setOnInsert: { name: profName || from },
@@ -721,7 +696,6 @@ const handleWhatsAppWebhook = async (req, res) => {
               await Contact.updateOne({ _id: contact._id }, { name: profName });
             }
             if (contact.createdAt && Date.now() - new Date(contact.createdAt).getTime() < 5000) {
-              require('../services/apiWebhookDispatcher').dispatch(workspace, 'contact.created', { contact_id: contact._id, name: contact.name, phone: contact.phone }).catch(() => {});
               try { require('../services/googleSheets').appendLead(workspace._id, contact); } catch (e) { console.error('[Sheets]', e.message); }
             }
             try {
@@ -952,11 +926,7 @@ const handleWhatsAppWebhook = async (req, res) => {
                   }
                   // High-value customer
                   const hvAmt = Number(_st?.ownerAlerts?.highValueAmount) || 0;
-                  if (hvAmt > 0) {
-                    const Order = require('../models/Order');
-                    const agg = await Order.aggregate([{ $match: { workspace: workspace._id, contact: contact._id } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]);
-                    if ((agg[0]?.total || 0) >= hvAmt) ownerNotify.highValueMsg(workspace._id, contact, agg[0].total).catch(() => {});
-                  }
+                  
                 } catch (_e) { /* noop */ }
               }
               const isNewContact = contact.createdAt && Date.now() - new Date(contact.createdAt).getTime() < 5000;
@@ -980,10 +950,9 @@ const handleWhatsAppWebhook = async (req, res) => {
                 conversationId: conversation._id,
               });
               try { require('./pushController').notifyWorkspace(workspace._id, { title: (contact && (contact.name || contact.phone)) || 'New message', body: ((message && message.text) || '').slice(0, 120) || 'New message', url: '/client/chat', tag: String(conversation._id) }); } catch (e) { /* noop */ }
-              const populatedConv = await Conversation.findById(conversation._id).populate('contact', 'name phone avatar profileName leadScore');
+              const populatedConv = await Conversation.findById(conversation._id).populate('contact', 'name phone avatar profileName');
               io.to(`workspace:${workspace._id}`).emit('conversation_updated', populatedConv);
               console.log('[WH-EMIT] emitted new_message to workspace:', workspace._id.toString());
-              require('../services/apiWebhookDispatcher').dispatch(workspace, 'message.received', { conversation_id: conversation._id, contact_id: contact._id, phone: contact.phone, type: msg.type, text: messageData.text || '' }).catch(() => {});
             }
             // Predefined Actions (on_message) + Event Triggers (message_received / contact_created)
             try {
@@ -1008,7 +977,6 @@ const handleWhatsAppWebhook = async (req, res) => {
               try {
                 const aiFeatures = require('../services/aiFeatures');
                 aiFeatures.analyzeInbound({ workspace, conversation, contact, io }).catch(() => {});
-                aiFeatures.maybeCreateTicket({ workspace, conversation, contact, text: messageData.text, io }).catch(() => {});
               } catch (e) { /* noop */ }
             }
 
@@ -1040,7 +1008,7 @@ const handleWhatsAppWebhook = async (req, res) => {
                 if (oo.changed) {
                   keywordMatched = true;
                   if (io) {
-                    const pcOO = await Conversation.findById(conversation._id).populate('contact', 'name phone avatar profileName leadScore status');
+                    const pcOO = await Conversation.findById(conversation._id).populate('contact', 'name phone avatar profileName status');
                     io.to(`workspace:${workspace._id}`).emit('conversation_updated', pcOO);
                   }
                   console.log('[optOut]', oo.type, 'for', from);
@@ -1077,10 +1045,6 @@ const handleWhatsAppWebhook = async (req, res) => {
               // Automations (bot flows, keywords, automation builder) run first;
               // AI only replies when nothing matched (see keywordMatched gate below).
               const aiHandles = false;
-
-              // 0. Check for Appointment reply commands (RESCHEDULE, CANCEL, date replies)
-              const fromClean = from.replace(/[^0-9]/g, '');
-              const fromLast10 = fromClean.slice(-10);
 
               // Preset quick-reply button tap -> send its configured value
               const presetBtnId = msg.type === 'interactive' ? (msg.interactive?.button_reply?.id || msg.interactive?.list_reply?.id || '') : '';
@@ -1125,9 +1089,9 @@ const handleWhatsAppWebhook = async (req, res) => {
                 try {
                   const botFlowEngine = require('../services/botFlowEngine');
                   const fbRate = presetBtnId.match(/^fbrate_([1-5])$/);
-                  const bfProd = presetBtnId.match(/^bfprod_([0-9a-f]{24})_(.+)_([0-9a-f]{24})$/);
-                  const prsProd = presetBtnId.match(/^prsprod_(?:[0-9a-f]{24}|x)_([0-9a-f]{24})$/);
-                  const bfSlot = presetBtnId.match(/^bfslot_([0-9a-f]{24})_(.+)_(\d{4}-\d{2}-\d{2})_(\d{2}:\d{2})$/);
+                  
+                  
+                  
                   const bfBtn = presetBtnId.match(/^bf_([0-9a-f]{24})_(.+)$/);
                   if (fbRate) {
                     const Feedback = require('../models/Feedback');
@@ -1140,12 +1104,6 @@ const handleWhatsAppWebhook = async (req, res) => {
                       : 'Thank you for your feedback 🙏 We will do our best to improve.';
                     await sendAndLog(wa, from, thanks, io, workspace, conversation, contact, 'feedback');
                     keywordMatched = true;
-                  } else if (bfProd) {
-                    if (await botFlowEngine.sendProductDetail({ flowId: bfProd[1], nodeId: bfProd[2], productId: bfProd[3], workspace, conversation, contact, to: from, io })) keywordMatched = true;
-                  } else if (prsProd) {
-                    if (await botFlowEngine.sendPresetProductDetail({ productId: prsProd[1], workspace, conversation, contact, to: from, io })) keywordMatched = true;
-                  } else if (bfSlot) {
-                    if (await botFlowEngine.bookChosenSlot({ flowId: bfSlot[1], nodeId: bfSlot[2], dateStr: bfSlot[3], timeStr: bfSlot[4], workspace, conversation, contact, to: from, io })) keywordMatched = true;
                   } else if (bfBtn) {
                     if (await botFlowEngine.sendFlowNode({ flowId: bfBtn[1], nodeId: bfBtn[2].replace(/_\d+$/, ''), workspace, conversation, contact, to: from, io })) keywordMatched = true;
                   } else if (msg.type === 'text' || voiceText || templateBtnText) {
@@ -1154,124 +1112,10 @@ const handleWhatsAppWebhook = async (req, res) => {
                 } catch (e) { console.error('[BotFlow] error:', e.message); }
               }
               
-              if (incomingText === 'reschedule' || incomingText === 'cancel' || incomingText === 'confirm') {
-                try {
-                  const Appointment = require('../models/Appointment');
-                  // Match phone with or without country code
-                  const latestAppt = await Appointment.findOne({
-                    workspace: workspace._id,
-                    $or: [
-                      { contactPhone: { $regex: fromLast10 + '$' } },
-                      { contact: contact?._id },
-                    ],
-                    status: { $in: ['scheduled', 'confirmed', 'rescheduled'] },
-                  }).sort('-createdAt');
-
-                  if (latestAppt) {
-                    const wa = new WhatsAppService(workspace.whatsapp.accessToken, workspace.whatsapp.phoneNumberId);
-                    if (incomingText === 'confirm') {
-                      latestAppt.status = 'confirmed';
-                      await latestAppt.save();
-                      const d = new Date(latestAppt.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
-                      await sendAndLog(wa, from, 'Your appointment is confirmed: "' + latestAppt.title + '" — ' + d + ' at ' + latestAppt.startTime + '. Thank you!', io, workspace, conversation, contact, 'appointment');
-                      keywordMatched = true;
-                      console.log('[Appointment] Customer confirmed via reply:', latestAppt.title);
-                    } else if (incomingText === 'cancel') {
-                      latestAppt.status = 'cancelled';
-                      await latestAppt.save();
-                      await sendAndLog(wa, from, 'Your appointment "' + latestAppt.title + '" has been cancelled. Reply BOOK to schedule a new one.', io, workspace, conversation, contact, 'appointment');
-                      keywordMatched = true;
-                      console.log('[Appointment] Customer cancelled via reply:', latestAppt.title);
-                    } else if (incomingText === 'reschedule') {
-                      // Mark as pending reschedule so we can track the date reply
-                      latestAppt.pendingReschedule = true;
-                      await latestAppt.save();
-                      await sendAndLog(wa, from, 'To reschedule your appointment "' + latestAppt.title + '", please reply with new date and time in format:\n\nDD/MM/YYYY HH:MM\n\nExample: 15/07/2026 14:30', io, workspace, conversation, contact, 'appointment');
-                      keywordMatched = true;
-                      console.log('[Appointment] Customer requested reschedule:', latestAppt.title);
-                    }
-                  }
-                } catch (apptErr) {
-                  console.error('[Appointment] Reply handling error:', apptErr.message);
-                }
-              }
+              
 
               // 0b. Check for reschedule date reply (DD/MM/YYYY HH:MM format)
-              if (!keywordMatched) {
-                const dateMatch = incomingText.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{2})$/);
-                if (dateMatch) {
-                  try {
-                    const Appointment = require('../models/Appointment');
-                    const pendingAppt = await Appointment.findOne({
-                      workspace: workspace._id,
-                      $or: [
-                        { contactPhone: { $regex: fromLast10 + '$' } },
-                        { contact: contact?._id },
-                      ],
-                      status: { $in: ['scheduled', 'confirmed', 'rescheduled'] },
-                    }).sort('-createdAt');
-
-                    if (pendingAppt) {
-                      const [, day, month, year, hour, minute] = dateMatch;
-                      const newDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                      
-                      if (isNaN(newDate.getTime()) || newDate < new Date()) {
-                        const wa = new WhatsAppService(workspace.whatsapp.accessToken, workspace.whatsapp.phoneNumberId);
-                        await sendAndLog(wa, from, 'Invalid date. Please enter a future date in format DD/MM/YYYY HH:MM\n\nExample: 15/07/2026 14:30', io, workspace, conversation, contact, 'appointment');
-                      } else {
-                        // Check time slot conflict
-                        const newStartTime = hour.padStart(2, '0') + ':' + minute;
-                        const endH = parseInt(hour) + Math.floor((parseInt(minute) + 30) / 60);
-                        const endM = (parseInt(minute) + 30) % 60;
-                        const newEndTime = String(endH).padStart(2, '0') + ':' + String(endM).padStart(2, '0');
-                        
-                        const dayStart = new Date(newDate.getFullYear(), newDate.getMonth(), newDate.getDate());
-                        const dayEnd = new Date(dayStart.getTime() + 86400000);
-                        const conflictAppt = await Appointment.findOne({
-                          workspace: workspace._id,
-                          _id: { $ne: pendingAppt._id },
-                          date: { $gte: dayStart, $lt: dayEnd },
-                          status: { $in: ['scheduled', 'confirmed', 'rescheduled'] },
-                          $expr: {
-                            $and: [
-                              { $lt: [{ $toInt: { $replaceAll: { input: '$startTime', find: ':', replacement: '' } } }, parseInt(newEndTime.replace(':', ''))] },
-                              { $gt: [{ $toInt: { $replaceAll: { input: '$endTime', find: ':', replacement: '' } } }, parseInt(newStartTime.replace(':', ''))] },
-                            ]
-                          }
-                        });
-                        
-                        if (conflictAppt) {
-                          const wa = new WhatsAppService(workspace.whatsapp.accessToken, workspace.whatsapp.phoneNumberId);
-                          await sendAndLog(wa, from, 'Sorry! This time slot is already booked ("' + conflictAppt.title + '" at ' + conflictAppt.startTime + '-' + conflictAppt.endTime + '). Please choose a different time.\n\nReply with: DD/MM/YYYY HH:MM', io, workspace, conversation, contact, 'appointment');
-                          keywordMatched = true;
-                        } else {
-                        pendingAppt.previousDate = pendingAppt.date;
-                        pendingAppt.previousTime = pendingAppt.startTime;
-                        pendingAppt.date = newDate;
-                        pendingAppt.startTime = hour.padStart(2, '0') + ':' + minute;
-                        const endH = parseInt(hour) + Math.floor((parseInt(minute) + 30) / 60);
-                        const endM = (parseInt(minute) + 30) % 60;
-                        pendingAppt.endTime = String(endH).padStart(2, '0') + ':' + String(endM).padStart(2, '0');
-                        pendingAppt.status = 'rescheduled';
-                        pendingAppt.pendingReschedule = false;
-                        pendingAppt.rescheduleCount = (pendingAppt.rescheduleCount || 0) + 1;
-                        pendingAppt.reminder1hSent = false;
-                        pendingAppt.reminder24hSent = false;
-                        await pendingAppt.save();
-
-                        const wa = new WhatsAppService(workspace.whatsapp.accessToken, workspace.whatsapp.phoneNumberId);
-                        const dateStr = newDate.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
-                        await sendAndLog(wa, from, 'Your appointment "' + pendingAppt.title + '" has been rescheduled to ' + dateStr + ' at ' + pendingAppt.startTime + ' (IST). See you then!', io, workspace, conversation, contact, 'appointment');
-                        console.log('[Appointment] Customer rescheduled via reply:', pendingAppt.title, 'to', dateStr);
-                        }
-                      }
-                      keywordMatched = true;
-                    }
-                  } catch (apptErr) {
-                    console.error('[Appointment] Date reply error:', apptErr.message);
-                  }
-                }
-              }
+              
 
               // 0c. Automation settings: welcome / out-of-office / auto-assign
               if (!aiHandles) {
@@ -1557,7 +1401,7 @@ const handleWhatsAppWebhook = async (req, res) => {
                       
                       const knowledgeBlock = await aiResolver.buildKnowledgeBlock(workspace._id, aiSettings);
                       const systemMsg = (aiSettings.systemPrompt || '') + knowledgeBlock
-                        + '\n\nTOOLS: You can book appointments (book_appointment: collect name, date, time, purpose first), save sales leads (save_lead), schedule an AI callback call (schedule_callback), notify the human team (transfer_to_human), cancel a scheduled callback (cancel_callback), send the catalog/price list (send_catalog), and look up order status (get_order_status). For relative times like "abhi", "2 minute baad", "aadhe ghante baad" use schedule_callback with minutes_from_now instead of date/time. Always confirm to the customer after a tool succeeds. To CHANGE a callback time, call schedule_callback again with the new time (it updates the same reminder, never create a duplicate). To CANCEL a callback, call cancel_callback. Current date/time: ' + new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' (IST).'
+                        + '\n\nTOOLS: You can schedule an AI callback call (schedule_callback), notify the human team (transfer_to_human), cancel a scheduled callback (cancel_callback). For relative times like "abhi", "2 minute baad", "aadhe ghante baad" use schedule_callback with minutes_from_now instead of date/time. Always confirm to the customer after a tool succeeds. To CHANGE a callback time, call schedule_callback again with the new time (it updates the same reminder, never create a duplicate). To CANCEL a callback, call cancel_callback. Current date/time: ' + new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' (IST).'
                         + '\n\nLANGUAGE: Start and greet in English by default. Mirror the language of the customer\'s most recent message — Hindi → reply in Hindi, Hinglish (Roman Hindi) → reply in Hinglish, any other language → that language. If the language is unclear, use English.'
                         + '\n\nCALLBACK REMINDER: If the customer asks you to call them back (later / on phone) and has not given an exact time, politely ask what time you should call (accept relative times like \"kal 4 baje\", \"shaam 6 baje\", \"2 ghante baad\"). Once the customer states a time, confirm it warmly in your reply, then append on a NEW LINE at the very end this hidden marker (the customer will NOT see it): [[REMIND: YYYY-MM-DD HH:MM]] using 24-hour IST computed from the current date/time above. Only emit the marker after the customer has actually given a time.';
                       const messages = [{ role: 'system', content: systemMsg }, ...chatHistory];
@@ -1577,13 +1421,9 @@ const handleWhatsAppWebhook = async (req, res) => {
                           agent: chatAgent,
                         };
                         const toolDefs = [
-                          { type: 'function', function: { name: 'book_appointment', description: 'Book an appointment for the customer.', parameters: { type: 'object', properties: { name: { type: 'string' }, date: { type: 'string', description: 'YYYY-MM-DD' }, time: { type: 'string', description: '24h HH:MM IST' }, purpose: { type: 'string' } }, required: ['date', 'time'] } } },
-                          { type: 'function', function: { name: 'save_lead', description: 'Save the customer as a sales lead when they show interest.', parameters: { type: 'object', properties: { name: { type: 'string' }, requirement: { type: 'string' }, budget: { type: 'string' } }, required: ['requirement'] } } },
                           { type: 'function', function: { name: 'schedule_callback', description: 'Schedule an AI phone callback. For a specific date/time pass date+time; for relative requests ("abhi", "in 2 minutes", "after half an hour") pass minutes_from_now instead.', parameters: { type: 'object', properties: { date: { type: 'string', description: 'YYYY-MM-DD' }, time: { type: 'string', description: '24h HH:MM IST' }, minutes_from_now: { type: 'number', description: 'Minutes from now (use for relative/immediate requests)' }, reason: { type: 'string' } } } } },
                           { type: 'function', function: { name: 'cancel_callback', description: 'Cancel a pending callback/reminder for the customer when they say they no longer want the call. Logs the cancellation.', parameters: { type: 'object', properties: { reason: { type: 'string' } } } } },
                           { type: 'function', function: { name: 'transfer_to_human', description: 'Notify the human team that the customer wants to talk to a person.', parameters: { type: 'object', properties: { reason: { type: 'string' } } } } },
-                          { type: 'function', function: { name: 'send_catalog', description: 'Send the business catalog/price list to the customer on WhatsApp.', parameters: { type: 'object', properties: {} } } },
-                          { type: 'function', function: { name: 'get_order_status', description: 'Look up order status by order number or latest order.', parameters: { type: 'object', properties: { order_number: { type: 'string' } } } } },
                         ];
                         const convo = [...messages];
                         let usage = null;
@@ -1705,253 +1545,9 @@ const handleWhatsAppWebhook = async (req, res) => {
 };
 
 // @POST /api/webhook/razorpay
-const handleRazorpayWebhook = async (req, res) => {
-  try {
-    const event = req.body;
-    // Collect every secret this event could be signed with: the master's global
-    // secret (env / SystemSettings) plus the per-workspace Razorpay integration
-    // secret, because payment links are created with each workspace's own
-    // Razorpay account (whose webhook is configured with that account's secret).
-    const secrets = [];
-    if (process.env.RAZORPAY_WEBHOOK_SECRET) secrets.push(process.env.RAZORPAY_WEBHOOK_SECRET);
-    try {
-      const SystemSettings = require('../models/SystemSettings');
-      const sysSettings = await SystemSettings.findOne().select('paymentGateways.razorpay.webhookSecret').lean();
-      const gs = sysSettings?.paymentGateways?.razorpay?.webhookSecret;
-      if (gs) secrets.push(gs);
-    } catch (e) { /* ignore */ }
-    try {
-      const wsId = event?.payload?.payment_link?.entity?.notes?.workspace
-        || event?.payload?.payment?.entity?.notes?.workspace
-        || event?.payload?.subscription?.entity?.notes?.workspace
-        || event?.payload?.order?.entity?.notes?.workspace;
-      if (wsId) {
-        const Integration = require('../models/Integration');
-        const integ = await Integration.findOne({ workspace: wsId, type: 'razorpay' }).select('config webhookSecret').lean();
-        const ws = integ?.config?.webhookSecret || integ?.webhookSecret;
-        if (ws) secrets.push(ws);
-      }
-    } catch (e) { /* ignore */ }
-    if (secrets.length && req.rawBody) {
-      const crypto = require('crypto');
-      const signature = req.headers['x-razorpay-signature'] || '';
-      const sigBuf = Buffer.from(signature);
-      const valid = secrets.some((s) => {
-        const expected = crypto.createHmac('sha256', s).update(req.rawBody).digest('hex');
-        return sigBuf.length === expected.length && crypto.timingSafeEqual(Buffer.from(expected), sigBuf);
-      });
-      if (!valid) return res.status(401).json({ success: false, message: 'Invalid signature' });
-    }
-    const Payment = require('../models/Payment');
-    const User = require('../models/User');
-    const WalletTransaction = require('../models/WalletTransaction');
 
-    if (event.event === 'payment_link.paid') {
-      const PaymentLink = require('../models/PaymentLink');
-      const entity = event.payload.payment_link.entity;
-      const pl = await PaymentLink.findOne({ razorpayLinkId: entity.id });
-      if (pl && pl.status !== 'paid') {
-        pl.status = 'paid';
-        pl.paidAt = new Date();
-        await pl.save();
-        const io = req.app.get('io');
-        if (io) io.to(`workspace:${pl.workspace}`).emit('payment_link_paid', { id: String(pl._id), amount: pl.amount, contact: String(pl.contact) });
-        require('../services/paymentAutomation').deliverPaymentOutcome(pl._id, 'success', io);
-      }
-    }
-
-    if (event.event === 'payment.failed') {
-      const paymentEntity = event.payload?.payment?.entity;
-      const plId = paymentEntity?.notes?.plId;
-      if (plId) {
-        const PaymentLink = require('../models/PaymentLink');
-        const pl = await PaymentLink.findById(plId);
-        if (pl && pl.status !== 'paid') {
-          require('../services/paymentAutomation').deliverPaymentOutcome(pl._id, 'failure', req.app.get('io'));
-        }
-      }
-    }
-
-    if (event.event === 'payment.captured') {
-      const paymentEntity = event.payload.payment.entity;
-      const payment = await Payment.findOne({ gatewayOrderId: paymentEntity.order_id });
-
-      if (payment && payment.status !== 'completed') {
-        payment.status = 'completed';
-        payment.gatewayPaymentId = paymentEntity.id;
-        await payment.save();
-
-        if (payment.type === 'wallet_topup') {
-          const user = await User.findById(payment.user);
-          user.walletBalance += payment.amount;
-          await user.save();
-
-          await WalletTransaction.create({
-            user: user._id,
-            type: 'credit',
-            amount: payment.amount,
-            balanceAfter: user.walletBalance,
-            description: 'Wallet top-up',
-            category: 'topup',
-            reference: payment._id.toString(),
-          });
-        } else if (payment.type === 'subscription') {
-          const user = await User.findById(payment.user);
-          const Plan = require('../models/Plan');
-          const paidPlan = await Plan.findById(payment.plan);
-          let endDate = null;
-          if (paidPlan && paidPlan.price > 0) {
-            if (paidPlan.interval === 'monthly') endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-            else if (paidPlan.interval === 'yearly') endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-          }
-          user.plan = payment.plan;
-          user.planExpiry = endDate;
-          await user.save();
-          const Subscription = require('../models/Subscription');
-          await Subscription.updateMany({ vendor: user._id, status: 'active' }, { status: 'expired' });
-          await Subscription.create({ vendor: user._id, plan: payment.plan, status: 'active', endDate, assignedBy: 'auto', payment: payment._id, notes: 'Razorpay payment (webhook)' });
-          if (payment.metadata?.couponCode) {
-            const Coupon = require('../models/Coupon');
-            await Coupon.updateOne({ code: payment.metadata.couponCode }, { $inc: { usedCount: 1 } });
-          }
-        }
-      }
-    }
-
-    if (event.event === 'subscription.charged') {
-      const subEnt = event.payload?.subscription?.entity;
-      const payEnt = event.payload?.payment?.entity;
-      if (subEnt && payEnt && !(await Payment.findOne({ gatewayPaymentId: payEnt.id }))) {
-        const Subscription = require('../models/Subscription');
-        const sub = await Subscription.findOne({ gatewaySubscriptionId: subEnt.id }).sort('-createdAt');
-        const userDoc = sub
-          ? await User.findById(sub.vendor)
-          : await User.findOne({ 'walletAutoTopup.gatewaySubscriptionId': subEnt.id });
-        if (sub && userDoc) {
-          // Plan renewal: extend expiry by one billing cycle
-          const Plan = require('../models/Plan');
-          const paidPlan = await Plan.findById(sub.plan);
-          const cycleMs = (paidPlan?.interval === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000;
-          const base = sub.endDate && sub.endDate > new Date() ? sub.endDate.getTime() : Date.now();
-          sub.endDate = new Date(base + cycleMs);
-          sub.status = 'active';
-          await sub.save();
-          userDoc.plan = sub.plan;
-          userDoc.planExpiry = sub.endDate;
-          await userDoc.save();
-          await Payment.create({
-            user: userDoc._id, plan: sub.plan, amount: (payEnt.amount || 0) / 100, gateway: 'razorpay',
-            gatewayPaymentId: payEnt.id, gatewaySubscriptionId: subEnt.id,
-            type: 'subscription', status: 'completed', description: 'Auto-renew charge',
-          });
-        } else if (!sub && !userDoc) {
-          // First charge where the browser verify step never ran: activate from the pending payment
-          const pendingPay = await Payment.findOne({ gatewaySubscriptionId: subEnt.id, status: 'pending' }).sort('-createdAt');
-          if (pendingPay) {
-            const owner = await User.findById(pendingPay.user);
-            pendingPay.status = 'completed';
-            pendingPay.gatewayPaymentId = payEnt.id;
-            await pendingPay.save();
-            if (owner && pendingPay.type === 'subscription' && pendingPay.plan) {
-              const Plan = require('../models/Plan');
-              const paidPlan = await Plan.findById(pendingPay.plan);
-              const cycleMs = (paidPlan?.interval === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000;
-              const endDate = new Date(Date.now() + cycleMs);
-              owner.plan = pendingPay.plan;
-              owner.planExpiry = endDate;
-              await owner.save();
-              const Subscription2 = require('../models/Subscription');
-              await Subscription2.updateMany({ vendor: owner._id, status: 'active' }, { status: 'expired' });
-              await Subscription2.create({
-                vendor: owner._id, plan: pendingPay.plan, status: 'active', endDate,
-                autoRenew: true, gatewaySubscriptionId: subEnt.id, assignedBy: 'auto',
-                payment: pendingPay._id, notes: 'Razorpay auto-renew (webhook)',
-              });
-            } else if (owner && pendingPay.type === 'wallet_topup') {
-              owner.walletBalance += pendingPay.amount;
-              owner.walletAutoTopup = { active: true, amount: pendingPay.amount, gatewaySubscriptionId: subEnt.id };
-              await owner.save();
-              await WalletTransaction.create({
-                user: owner._id, type: 'credit', amount: pendingPay.amount, balanceAfter: owner.walletBalance,
-                description: 'Wallet auto top-up', category: 'topup', reference: pendingPay._id.toString(),
-              });
-            }
-          }
-        } else if (userDoc && userDoc.walletAutoTopup?.active) {
-          // Wallet auto top-up charge
-          const amount = (payEnt.amount || 0) / 100;
-          userDoc.walletBalance += amount;
-          await userDoc.save();
-          const payDoc = await Payment.create({
-            user: userDoc._id, amount, gateway: 'razorpay',
-            gatewayPaymentId: payEnt.id, gatewaySubscriptionId: subEnt.id,
-            type: 'wallet_topup', status: 'completed', description: 'Monthly auto wallet top-up',
-          });
-          await WalletTransaction.create({
-            user: userDoc._id, type: 'credit', amount, balanceAfter: userDoc.walletBalance,
-            description: 'Wallet auto top-up', category: 'topup', reference: payDoc._id.toString(),
-          });
-        }
-      }
-    }
-
-    if (['subscription.cancelled', 'subscription.halted', 'subscription.completed'].includes(event.event)) {
-      const subEnt = event.payload?.subscription?.entity;
-      if (subEnt) {
-        const Subscription = require('../models/Subscription');
-        await Subscription.updateMany({ gatewaySubscriptionId: subEnt.id }, { autoRenew: false });
-        await User.updateMany(
-          { 'walletAutoTopup.gatewaySubscriptionId': subEnt.id },
-          { $set: { walletAutoTopup: { active: false, amount: 0, gatewaySubscriptionId: '' } } }
-        );
-      }
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Razorpay webhook error:', error);
-    res.json({ success: true });
-  }
-};
 
 // @POST /api/webhook/stripe
-const handleStripeWebhook = async (req, res) => {
-  try {
-    const event = req.body;
-    const Payment = require('../models/Payment');
-    const User = require('../models/User');
 
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      const payment = await Payment.findOne({ gatewayPaymentId: session.id });
 
-      if (payment && payment.status !== 'completed') {
-        payment.status = 'completed';
-        payment.gatewaySubscriptionId = session.subscription;
-        await payment.save();
-
-        const user = await User.findById(payment.user);
-        const Plan = require('../models/Plan');
-        const paidPlan = await Plan.findById(payment.plan);
-        let endDate = null;
-        if (paidPlan && paidPlan.price > 0) {
-          if (paidPlan.interval === 'monthly') endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-          else if (paidPlan.interval === 'yearly') endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-        }
-        user.plan = payment.plan;
-        user.planExpiry = endDate;
-        await user.save();
-        const Subscription = require('../models/Subscription');
-        await Subscription.updateMany({ vendor: user._id, status: 'active' }, { status: 'expired' });
-        await Subscription.create({ vendor: user._id, plan: payment.plan, status: 'active', endDate, assignedBy: 'auto', payment: payment._id, notes: 'Stripe payment (webhook)' });
-      }
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Stripe webhook error:', error);
-    res.json({ success: true });
-  }
-};
-
-module.exports = { verifyWebhook, handleWhatsAppWebhook, handleRazorpayWebhook, handleStripeWebhook };
+module.exports = { verifyWebhook, handleWhatsAppWebhook };
