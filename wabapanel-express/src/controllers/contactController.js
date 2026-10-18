@@ -1,4 +1,5 @@
 const Contact = require('../models/Contact');
+const escapeRegex = require('../utils/escapeRegex');
 const Tag = require('../models/Tag');
 const { sendPaginated } = require('../utils/apiResponse');
 
@@ -10,9 +11,9 @@ const getContacts = async (req, res) => {
 
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { name: { $regex: escapeRegex(search), $options: 'i' } },
+        { phone: { $regex: escapeRegex(search), $options: 'i' } },
+        { email: { $regex: escapeRegex(search), $options: 'i' } },
       ];
     }
     if (tag) query.tags = tag;

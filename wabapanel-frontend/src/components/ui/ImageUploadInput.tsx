@@ -14,7 +14,7 @@ interface ImageUploadInputProps {
   accept?: string;
 }
 
-export default function ImageUploadInput({ label, value, onChange, hint, folder = 'branding', accept = 'image/*,.ico,.svg' }: ImageUploadInputProps) {
+export default function ImageUploadInput({ label, value, onChange, hint, folder = 'branding', accept = 'image/png,image/jpeg,image/webp,image/gif,.ico' }: ImageUploadInputProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 

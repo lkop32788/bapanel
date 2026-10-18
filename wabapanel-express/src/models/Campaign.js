@@ -11,8 +11,9 @@ const campaignSchema = new mongoose.Schema({
   // Target audience
   targetType: { type: String, enum: ['all', 'segment', 'tag', 'contacts', 'numbers'], default: 'all' },
   targetChannel: { type: String, default: '' },
-  // 'whatsapp_qr' sends via the QR (Baileys) socket instead of the Cloud API
-  sendChannel: { type: String, enum: ['cloud', 'whatsapp_qr'], default: 'cloud' },
+  // 'whatsapp_qr' sends via the QR (Baileys) socket, 'whatsapp_chatapp' via
+  // Aliyun Chat App, instead of the Meta Cloud API.
+  sendChannel: { type: String, enum: ['cloud', 'whatsapp_qr', 'whatsapp_chatapp'], default: 'cloud' },
   // WhatsApp phone number ID to send from (empty = workspace default number)
   senderNumberId: { type: String, default: '' },
   targetSegments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Segment' }],
@@ -60,5 +61,7 @@ const campaignSchema = new mongoose.Schema({
   variables: { type: mongoose.Schema.Types.Mixed, default: {} },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
+
+campaignSchema.index({ status: 1, scheduledAt: 1 });
 
 module.exports = mongoose.model('Campaign', campaignSchema);

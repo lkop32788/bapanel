@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const escapeRegex = require('../utils/escapeRegex');
 const Integration = require('../models/Integration');
 const axios = require('axios');
 const Template = require('../models/Template');
@@ -568,9 +569,9 @@ const getAllLeads = async (req, res) => {
     const query = { workspace: req.workspace._id, tags: 'lead' };
     if (source) query.tags = { $all: ['lead', source] };
     if (search) query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { phone: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
+      { name: { $regex: escapeRegex(search), $options: 'i' } },
+      { phone: { $regex: escapeRegex(search), $options: 'i' } },
+      { email: { $regex: escapeRegex(search), $options: 'i' } },
     ];
     const [items, total] = await Promise.all([
       Contact.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(Number(limit)).select('name phone email tags createdAt').lean(),

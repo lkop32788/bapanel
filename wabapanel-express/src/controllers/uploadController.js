@@ -3,18 +3,20 @@ const SystemSettings = require('../models/SystemSettings');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const { execFile } = require('child_process');
+const execFileP = require('util').promisify(execFile);
+const FFMPEG_OPTS = { maxBuffer: 64 * 1024 * 1024 };
 const { resolveFfmpeg } = require('../utils/ffmpegPath');
 const FFMPEG = resolveFfmpeg();
 
 // Browsers record webm (Chrome) or mp4/aac (Safari). Convert recorded voice audio to MP3,
 // which WhatsApp Cloud API processes reliably (its ogg/opus processing rejects even valid files).
-const convertVoiceAudio = (file) => {
+const convertVoiceAudio = async (file) => {
   const tmpIn = path.join(os.tmpdir(), `voice_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   const tmpOut = tmpIn + '.mp3';
   try {
     fs.writeFileSync(tmpIn, file.buffer);
-    execFileSync(FFMPEG, ['-y', '-i', tmpIn, '-vn', '-c:a', 'libmp3lame', '-b:a', '64k', '-ar', '44100', '-ac', '1', tmpOut], { stdio: 'ignore' });
+    await execFileP(FFMPEG, ['-y', '-i', tmpIn, '-vn', '-c:a', 'libmp3lame', '-b:a', '64k', '-ar', '44100', '-ac', '1', tmpOut], { ...FFMPEG_OPTS });
     const buffer = fs.readFileSync(tmpOut);
     const base = (file.originalname || 'voice').replace(/\.[^.]+$/i, '');
     return {
@@ -39,12 +41,12 @@ const convertVoiceAudio = (file) => {
 
 // WhatsApp Cloud API only accepts video/mp4 (H.264 + AAC, max 16MB).
 // Convert any other video format (mov/webm/mkv/...) to a compatible mp4.
-const convertVideo = (file) => {
+const convertVideo = async (file) => {
   const tmpIn = path.join(os.tmpdir(), `vid_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   const tmpOut = tmpIn + '.mp4';
   try {
     fs.writeFileSync(tmpIn, file.buffer);
-    execFileSync(FFMPEG, ['-y', '-i', tmpIn, '-c:v', 'libx264', '-preset', 'fast', '-crf', '26', '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', tmpOut], { stdio: 'ignore', timeout: 240000 });
+    await execFileP(FFMPEG, ['-y', '-i', tmpIn, '-c:v', 'libx264', '-preset', 'fast', '-crf', '26', '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', tmpOut], { ...FFMPEG_OPTS, timeout: 240000 });
     const buffer = fs.readFileSync(tmpOut);
     const base = (file.originalname || 'video').replace(/\.[^.]+$/i, '');
     return { ...file, buffer, size: buffer.length, mimetype: 'video/mp4', originalname: base + '.mp4' };
@@ -59,7 +61,7 @@ const convertVideo = (file) => {
 // WhatsApp stickers must be WebP: static <=100KB (animated <=500KB), 512x512.
 // Convert any uploaded image/gif to a compliant WebP, padded to 512x512 with
 // transparency preserved. Drops quality progressively to stay under the limit.
-const convertSticker = (file) => {
+const convertSticker = async (file) => {
   const isAnim = /gif|webp/i.test(file.mimetype || '') || /\.(gif|webp)$/i.test(file.originalname || '');
   const limit = isAnim ? 500000 : 100000;
   const tmpIn = path.join(os.tmpdir(), `stk_${Date.now()}_${Math.random().toString(36).slice(2)}`);
@@ -70,7 +72,7 @@ const convertSticker = (file) => {
     let buffer = null;
     for (const q of [80, 60, 40, 25]) {
       try {
-        execFileSync(FFMPEG, ['-y', '-i', tmpIn, '-vf', vf, '-c:v', 'libwebp', '-loop', '0', '-lossless', '0', '-qscale', String(q), '-preset', 'default', '-an', tmpOut], { stdio: 'ignore', timeout: 120000 });
+        await execFileP(FFMPEG, ['-y', '-i', tmpIn, '-vf', vf, '-c:v', 'libwebp', '-loop', '0', '-lossless', '0', '-qscale', String(q), '-preset', 'default', '-an', tmpOut], { ...FFMPEG_OPTS, timeout: 120000 });
         buffer = fs.readFileSync(tmpOut);
         if (buffer.length <= limit) break;
       } catch { /* try lower quality */ }
@@ -100,7 +102,7 @@ const uploadFile = async (req, res) => {
     const isVoice = mt.startsWith('audio/') && !mt.startsWith('audio/mpeg');
     if (isVoice) {
       try {
-        req.file = convertVoiceAudio(req.file);
+        req.file = await convertVoiceAudio(req.file);
       } catch (e) {
         if (e && e.code === 'VOICE_CONVERT_FAILED') {
           return res.status(422).json({ success: false, message: 'Voice note could not be processed on the server (audio converter unavailable). Please try again or contact support.' });
@@ -109,11 +111,11 @@ const uploadFile = async (req, res) => {
       }
     }
     if (mt.startsWith('video/') && mt !== 'video/mp4') {
-      req.file = convertVideo(req.file);
+      req.file = await convertVideo(req.file);
     }
     const wantSticker = (req.body.folder === 'stickers') || String(req.body.asSticker) === 'true';
     if (wantSticker && mt.startsWith('image/')) {
-      req.file = convertSticker(req.file);
+      req.file = await convertSticker(req.file);
     }
 
     const settings = await SystemSettings.findOne();
@@ -183,6 +185,9 @@ const uploadMultiple = async (req, res) => {
 // @DELETE /api/upload
 const deleteFile = async (req, res) => {
   try {
+    if (!req.user || req.user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, message: 'Super admin access required' });
+    }
     const { key } = req.body;
     if (!key) {
       return res.status(400).json({ success: false, message: 'File key required' });

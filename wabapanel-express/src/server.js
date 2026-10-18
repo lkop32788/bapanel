@@ -22,13 +22,17 @@ process.on('uncaughtException', (err) => {
 });
 
 const app = express();
+const setUploadHeaders = (res, filePath) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  if (/\.(svg|html?|xhtml|shtml|xml)$/i.test(filePath)) res.setHeader('Content-Security-Policy', 'sandbox');
+};
 app.set('trust proxy', 1);
-app.use('/uploads', require('express').static(require('path').join(__dirname, '..', 'uploads')));
+app.use('/uploads', require('express').static(require('path').join(__dirname, '..', 'uploads'), { setHeaders: setUploadHeaders }));
 // Also serve uploads under the /api prefix. Every install proxies /api to this
 // backend, but some reverse-proxy setups route bare /uploads to the frontend
 // (breaking white-label logos/favicons). Serving via /api/uploads guarantees
 // uploaded assets load regardless of the proxy config.
-app.use('/api/uploads', require('express').static(require('path').join(__dirname, '..', 'uploads')));
+app.use('/api/uploads', require('express').static(require('path').join(__dirname, '..', 'uploads'), { setHeaders: setUploadHeaders }));
 const server = http.createServer(app);
 
 // Socket.io setup
@@ -120,8 +124,10 @@ app.use('/api/forms', require('./routes/forms'));
 // Public short link redirect (clean URL)
 const { redirectShortLink } = require('./controllers/shortLinkController');
 app.get('/s/:code', redirectShortLink);
+app.get('/api/public/short-link/:code', require('./controllers/shortLinkController').getPublicShortLink);
 
 app.use('/api/short-links', require('./routes/shortLinks'));
+app.use('/api/rotation-links', require('./routes/rotationLinks'));
 
 app.use('/api/teams', require('./routes/teams'));
 
@@ -143,11 +149,14 @@ app.use('/api/followups', require('./routes/followups'));
 
 app.use('/api/webhook', require('./routes/webhooks'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/admin/partners', require('./routes/adminPartners'));
 app.use('/api/admin/kkhs-license', require('./routes/kkhsLicense'));
+app.use('/api/partners', require('./routes/partners'));
 app.use("/api/embedded-signup", require("./routes/embeddedSignup"));
 app.use("/api/data-fields", require("./routes/dataFields"));
 app.use("/api/badges", require("./routes/badges"));
 app.use("/api/ai-settings", require("./routes/aiSettings"));
+app.use("/api/ai-tools", require("./routes/aiTools"));
 
 app.use("/api/integrations", require("./routes/integrations"));
 app.use("/api/media", require("./routes/media"));

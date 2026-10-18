@@ -351,6 +351,9 @@ const resendLoginOTP = async (req, res) => {
     } catch {
       return res.status(401).json({ success: false, message: 'Session expired, please login again' });
     }
+    if (decoded.twofa !== true) {
+      return res.status(401).json({ success: false, message: 'Invalid verification session' });
+    }
     const user = await User.findById(decoded.id);
     if (!user || !user.twoFactorEnabled || user.twoFactorMethod !== 'email') {
       return res.status(400).json({ success: false, message: 'Cannot resend code' });

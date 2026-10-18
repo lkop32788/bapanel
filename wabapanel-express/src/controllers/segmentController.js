@@ -1,6 +1,7 @@
 const Segment = require('../models/Segment');
 const Contact = require('../models/Contact');
 const mongoose = require('mongoose');
+const escapeRegex = require('../utils/escapeRegex');
 const sanitizeSegmentBody = (body) => {
   const b = { ...body };
   if (Array.isArray(b.behaviorRules)) b.behaviorRules = b.behaviorRules.filter(r => r && mongoose.Types.ObjectId.isValid(r.campaign));
@@ -72,10 +73,10 @@ const resolveSegmentContacts = async (workspaceId, segment) => {
       switch (r.operator) {
         case 'equals': return { [f]: v };
         case 'not_equals': return { [f]: { $ne: v } };
-        case 'contains': return { [f]: { $regex: v, $options: 'i' } };
-        case 'not_contains': return { [f]: { $not: { $regex: v, $options: 'i' } } };
-        case 'starts_with': return { [f]: { $regex: '^' + v, $options: 'i' } };
-        case 'ends_with': return { [f]: { $regex: v + '$', $options: 'i' } };
+        case 'contains': return { [f]: { $regex: escapeRegex(v), $options: 'i' } };
+        case 'not_contains': return { [f]: { $not: { $regex: escapeRegex(v), $options: 'i' } } };
+        case 'starts_with': return { [f]: { $regex: '^' + escapeRegex(v), $options: 'i' } };
+        case 'ends_with': return { [f]: { $regex: escapeRegex(v) + '$', $options: 'i' } };
         case 'greater_than': return { [f]: { $gt: isNaN(Number(v)) ? v : Number(v) } };
         case 'less_than': return { [f]: { $lt: isNaN(Number(v)) ? v : Number(v) } };
         case 'is_empty': return { $or: [{ [f]: '' }, { [f]: null }, { [f]: { $exists: false } }] };

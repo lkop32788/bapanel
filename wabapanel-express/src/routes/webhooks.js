@@ -1,11 +1,15 @@
 const router = require('express').Router();
 const { verifyWebhook, handleWhatsAppWebhook } = require('../controllers/webhookController');
 const { verifyFacebookLeadWebhook, handleFacebookLeadWebhook } = require('../controllers/facebookLeadController');
+const { handleWebhook: handleChatAppWebhook } = require('../controllers/chatAppWebhookController');
 
 router.get('/whatsapp', verifyWebhook);
 router.post('/whatsapp', handleWhatsAppWebhook);
 router.get('/facebook-leads', verifyFacebookLeadWebhook);
 router.post('/facebook-leads', handleFacebookLeadWebhook);
+// Aliyun Chat App Message Service (public, one URL for every workspace —
+// routed internally by CustSpaceId; see chatAppWebhookController).
+router.post('/chatapp', handleChatAppWebhook);
 
 // Telegram bot webhook (public, one per workspace)
 router.post('/telegram/:workspaceId', async (req, res) => {

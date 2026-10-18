@@ -77,7 +77,7 @@ function getSender(workspace, conversation) {
     };
     return sender;
   }
-  if (conversation && ['telegram', 'facebook', 'instagram'].includes(conversation.channel)) {
+  if (conversation && ['telegram', 'facebook', 'instagram', 'whatsapp_chatapp'].includes(conversation.channel)) {
     const qrAuto = require('./qrAutomation');
     const label = conversation.channel;
     const wrap = async (fn) => {

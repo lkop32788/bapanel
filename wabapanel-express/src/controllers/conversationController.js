@@ -1,4 +1,5 @@
 const Conversation = require('../models/Conversation');
+const escapeRegex = require('../utils/escapeRegex');
 const Message = require('../models/Message');
 const Contact = require('../models/Contact');
 const WhatsAppService = require('../services/whatsappService');
@@ -30,8 +31,8 @@ const getConversations = async (req, res) => {
       const contacts = await Contact.find({
         workspace: req.workspace._id,
         $or: [
-          { name: { $regex: search, $options: 'i' } },
-          { phone: { $regex: search, $options: 'i' } },
+          { name: { $regex: escapeRegex(search), $options: 'i' } },
+          { phone: { $regex: escapeRegex(search), $options: 'i' } },
         ],
       }).select('_id');
       const searchIds = contacts.map(c => c._id);
@@ -49,7 +50,8 @@ const getConversations = async (req, res) => {
       .populate('assignedAgent', 'name avatar')
       .sort({ pinnedAt: -1, updatedAt: -1 })
       .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     sendPaginated(res, conversations, total, page, limit);
   } catch (error) {
@@ -101,13 +103,17 @@ const getConversation = async (req, res) => {
 // @GET /api/conversations/:id/messages
 const getMessages = async (req, res) => {
   try {
-    const { page = 1, limit = 50 } = req.query;
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 2000);
+    const owned = await Conversation.exists({ _id: req.params.id, workspace: req.workspace._id });
+    if (!owned) return res.status(404).json({ success: false, message: 'Conversation not found' });
     const total = await Message.countDocuments({ conversation: req.params.id });
     const messages = await Message.find({ conversation: req.params.id })
       .populate('sentBy', 'name avatar')
       .sort('-createdAt')
       .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+      .limit(limit)
+      .lean();
 
     sendPaginated(res, messages.reverse(), total, page, limit);
   } catch (error) {
@@ -219,6 +225,35 @@ const sendMessage = async (req, res) => {
         message.errorMessage = e.message;
       }
       await message.save();
+    }
+    // WhatsApp via Aliyun Chat App conversations send via Alibaba Cloud (AK/SK + CustSpaceId).
+    else if (conversation.channel === 'whatsapp_chatapp') {
+      const ca = req.workspace.chatApp || {};
+      if (!ca.enabled || !ca.accessKeyId || !ca.accessKeySecret) {
+        message.status = 'failed';
+        message.errorMessage = 'Aliyun Chat App is not connected (add your AccessKey on the Channels page)';
+        await message.save();
+      } else {
+        try {
+          const chatApp = require('../services/chatAppService');
+          const phone = conversation.contact.phone;
+          let result;
+          if (type === 'template') {
+            result = await chatApp.sendTemplate(ca, phone, template.name, template.language, template.params);
+          } else if (['image', 'video', 'audio', 'document'].includes(type)) {
+            result = await chatApp.sendMedia(ca, phone, type, media.url, media.caption || text);
+          } else {
+            result = await chatApp.sendText(ca, phone, text || '', contextWamid);
+          }
+          message.waMessageId = result?.messageId ? 'ca_' + result.messageId : '';
+          message.status = result?.success ? 'sent' : 'failed';
+          if (!result?.success) message.errorMessage = result?.error || 'Failed to send';
+        } catch (e) {
+          message.status = 'failed';
+          message.errorMessage = e.message;
+        }
+        await message.save();
+      }
     }
     // Email conversations send via the workspace SMTP settings.
     else if (conversation.channel === 'email') {

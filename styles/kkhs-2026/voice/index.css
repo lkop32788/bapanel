@@ -1,0 +1,9 @@
+/* WabaPanel New UI — Voice v3.
+   Loaded last, after the 2026 theme, so these rules win. Everything inside is
+   still scoped to html[data-kkhs="on"]: with the flag off the panel is byte
+   for byte the panel it was before. */
+@import "./fonts.css";
+@import "./tokens.css";
+@import "./shell.css";
+@import "./pages.css";
+@import "./auth.css";

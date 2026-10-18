@@ -139,14 +139,14 @@ async function summarizeConversation({ workspaceId, conversationId }) {
 
 
 // Converts raw s16le PCM to an mp3 in /uploads/voice and returns its absolute URL.
-function pcmToMp3(pcm, rate) {
-  const { execFileSync } = require('child_process');
+async function pcmToMp3(pcm, rate) {
+  const execFileP = require('util').promisify(require('child_process').execFile);
   const dir = path.join(__dirname, '..', '..', 'uploads', 'voice');
   fs.mkdirSync(dir, { recursive: true });
   const base = `ai_${Date.now()}`;
   const raw = path.join(dir, base + '.pcm');
   fs.writeFileSync(raw, pcm);
-  execFileSync('ffmpeg', ['-y', '-f', 's16le', '-ar', String(rate), '-ac', '1', '-i', raw, '-b:a', '64k', path.join(dir, base + '.mp3')]);
+  await execFileP('ffmpeg', ['-y', '-f', 's16le', '-ar', String(rate), '-ac', '1', '-i', raw, '-b:a', '64k', path.join(dir, base + '.mp3')], { maxBuffer: 64 * 1024 * 1024 });
   fs.unlinkSync(raw);
   return `${process.env.BACKEND_URL || "https://api.wabapanel.com"}/uploads/voice/${base}.mp3`;
 }
@@ -167,7 +167,7 @@ async function textToSpeech(workspaceId, text) {
       if (agent) {
         const { TTS } = require('./externalVoice');
         const { pcm, rate } = await TTS[agent.voiceProvider]({ apiKey: agent.voiceConfig.apiKey, voiceId: agent.voiceId, text: String(text).slice(0, 3000) });
-        return pcmToMp3(pcm, rate);
+        return await pcmToMp3(pcm, rate);
       }
     } catch (e) { console.error('[AI Voice] agent voice failed, falling back to OpenAI:', e.message); }
   }

@@ -73,11 +73,29 @@ function noteDecryptFailure(id, state) {
   }
 }
 
+// Per-workspace in-flight guard: startSession awaits (auth state load, version
+// fetch) before it sets state.sock, so without this two concurrent calls (user
+// double-click, restoreAll racing a manual connect, reconnect timers) would
+// both pass the `state.sock` check and open TWO sockets on the SAME auth
+// folder, corrupting the session.
+const startInFlight = new Map(); // workspaceId -> Promise<state>
+
 async function startSession(workspaceId) {
   const id = String(workspaceId);
   const state = getState(id);
   if (state.sock) return state;
+  const inFlight = startInFlight.get(id);
+  if (inFlight) return inFlight;
+  const promise = doStartSession(id, state);
+  startInFlight.set(id, promise);
+  try {
+    return await promise;
+  } finally {
+    startInFlight.delete(id);
+  }
+}
 
+async function doStartSession(id, state) {
   const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
   const pino = require('pino');
   const authDir = path.join(SESSIONS_DIR, id);
@@ -109,6 +127,11 @@ async function startSession(workspaceId) {
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', async (update) => {
+    // Stale-socket guard: if this socket has been replaced (syncSession,
+    // rescan reset, disconnect, or a newer connect), ignore its events so a
+    // dying socket can't null the new socket's state or schedule a duplicate
+    // reconnect on top of it.
+    if (state.sock !== sock) return;
     const { connection, lastDisconnect, qr } = update;
     if (connection || qr) console.log(`[waQr:${id}] connection=${connection || 'qr'} code=${lastDisconnect?.error?.output?.statusCode || ''}`);
     if (qr) {
@@ -129,9 +152,20 @@ async function startSession(workspaceId) {
         ws.waQr = ws.waQr || {};
         ws.waQr.enabled = true;
         ws.waQr.status = 'connected';
+        const phoneChanged = ws.waQr.phone && ws.waQr.phone !== state.phone;
         ws.waQr.phone = state.phone;
         if (!ws.waQr.warmupStartedAt) ws.waQr.warmupStartedAt = new Date();
         await ws.save();
+        if (phoneChanged) {
+          // Keep rotation-link snapshots pointing at the workspace's current number after a re-scan
+          try {
+            await require('../models/RotationLink').updateMany(
+              { 'numbers.workspace': id },
+              { $set: { 'numbers.$[n].phone': state.phone } },
+              { arrayFilters: [{ 'n.workspace': id }] }
+            );
+          } catch (e) { /* noop */ }
+        }
       }
       if (global.io) global.io.to(`workspace:${id}`).emit('waqr:status', { status: 'connected', phone: state.phone });
     }
@@ -441,6 +475,28 @@ async function handleIncoming(workspaceId, m, state) {
     global.io.to(`workspace:${workspaceId}`).emit('conversation_updated', conversation);
   }
   if (!outbound) { try { require('../controllers/pushController').notifyWorkspace(workspaceId, { title: (contact && (contact.name || contact.phone)) || 'New message', body: (text || '[media]').slice(0, 120), url: '/client/chat', tag: String(conversation._id) }); } catch (e) { /* noop */ } }
+  // Rotation-link session attribution: inbound text containing [CODE] counts once per contact+link per 24h
+  if (!outbound && !isGroup && text) {
+    try {
+      const mt = text.match(/\[([A-Z2-9]{6})\]/);
+      if (mt) {
+        const RotationLink = require('../models/RotationLink');
+        const RotationHit = require('../models/RotationHit');
+        const rl = await RotationLink.findOne({ code: mt[1], isActive: true, 'numbers.workspace': workspaceId });
+        if (rl) {
+          const since = new Date(Date.now() - 24 * 3600 * 1000);
+          const visitorPhone = String(contact.phone || '').replace(/\D/g, '');
+          // Dedupe by the visitor's phone across workspaces: the same person routed to two numbers counts once
+          const dup = await RotationHit.exists({
+            link: rl._id, kind: 'session', at: { $gt: since },
+            $or: [{ contactPhone: visitorPhone }, { contact: contact._id }],
+          });
+          const num = rl.numbers.find((x) => String(x.workspace) === String(workspaceId));
+          if (!dup && num) await RotationHit.create({ link: rl._id, workspace: workspaceId, phone: num.phone, kind: 'session', contact: contact._id, contactPhone: visitorPhone });
+        }
+      }
+    } catch (e) { /* never break message processing */ }
+  }
   const Workspace = require('../models/Workspace');
   const workspace = await Workspace.findById(workspaceId);
   if (workspace) {
@@ -647,9 +703,13 @@ async function purgeQrData(workspaceId) {
 async function disconnect(workspaceId) {
   const id = String(workspaceId);
   const state = getState(id);
-  try { if (state.sock) await state.sock.logout(); } catch (e) { /* noop */ }
-  try { if (state.sock) state.sock.end(); } catch (e) { /* noop */ }
+  // Detach first (intentional close): the close handler then bails via the
+  // stale-socket guard, so a manual disconnect can never auto-reconnect or
+  // double-run the logged-out cleanup below.
+  const oldSock = state.sock;
   state.sock = null;
+  try { if (oldSock) await oldSock.logout(); } catch (e) { /* noop */ }
+  try { if (oldSock) oldSock.end(); } catch (e) { /* noop */ }
   state.status = 'disconnected';
   state.qr = null;
   try { fs.rmSync(path.join(SESSIONS_DIR, id), { recursive: true, force: true }); } catch (e) { /* noop */ }
@@ -671,9 +731,13 @@ async function setDailyLimit(workspaceId, limit) {
 async function syncSession(workspaceId) {
   const id = String(workspaceId);
   const state = getState(id);
-  try { if (state.sock) state.sock.end(); } catch (e) { /* noop */ }
+  // Detach first: once state.sock no longer points at the old socket, its
+  // close handler bails (stale-socket guard) instead of nulling the new
+  // socket or scheduling a competing reconnect.
+  const oldSock = state.sock;
   state.sock = null;
   state.status = 'reconnecting';
+  try { if (oldSock) oldSock.end(); } catch (e) { /* noop */ }
   return startSession(id);
 }
 

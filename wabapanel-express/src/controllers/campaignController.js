@@ -38,8 +38,8 @@ const getCampaigns = async (req, res) => {
     const query = { workspace: req.workspace._id };
     if (type) query.type = type;
     if (status) query.status = status;
-    if (sendChannel === 'whatsapp_qr') query.sendChannel = 'whatsapp_qr';
-    else if (sendChannel === 'cloud') query.sendChannel = { $ne: 'whatsapp_qr' };
+    if (sendChannel === 'whatsapp_qr' || sendChannel === 'whatsapp_chatapp') query.sendChannel = sendChannel;
+    else if (sendChannel === 'cloud') query.sendChannel = { $nin: ['whatsapp_qr', 'whatsapp_chatapp'] };
 
     const total = await Campaign.countDocuments(query);
     let campaigns = await Campaign.find(query)
@@ -108,6 +108,8 @@ const createCampaign = async (req, res) => {
       ...mapAudience(req.body),
       workspace: req.workspace._id,
       createdBy: req.user._id,
+      status: 'draft',
+      stats: undefined,
     });
 
     res.status(201).json({ success: true, data: campaign });
@@ -141,7 +143,7 @@ const updateCampaign = async (req, res) => {
   try {
     const campaign = await Campaign.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      mapAudience(req.body),
+      (({ workspace, stats, createdBy, _id, status, ...rest }) => rest)(mapAudience(req.body)),
       { new: true }
     );
 
@@ -180,6 +182,20 @@ const nextRunDate = (rec) => {
   else if (rec === 'weekly') d.setDate(d.getDate() + 7);
   else if (rec === 'monthly') d.setMonth(d.getMonth() + 1);
   return d;
+};
+
+// Campaign sends: new_message only to the open chat's room (agents that joined
+// conversation:<id>); the workspace room gets at most one conversation_updated
+// per conversation per run so the inbox list learns about it without a per-recipient storm.
+const emitCampaignMsg = (io, workspaceId, conversation, cMsg, seen) => {
+  if (!io) return;
+  const cid = String(conversation._id);
+  io.to(`conversation:${cid}`).emit('new_message', { message: cMsg, conversationId: conversation._id });
+  if (seen && !seen.has(cid)) {
+    seen.add(cid);
+    const plain = typeof conversation.toObject === 'function' ? conversation.toObject() : conversation;
+    io.to(`workspace:${workspaceId}`).emit('conversation_updated', plain);
+  }
 };
 
 const finishCampaign = async (campaign) => {
@@ -222,7 +238,7 @@ const runCampaignCore = async (campaign, workspace, io) => {
     } else if (campaign.targetType === 'numbers') {
       contacts = (campaign.targetNumbers || []).map((p) => ({ _id: null, phone: p }));
     } else {
-      contacts = await Contact.find({ _id: { $in: campaign.targetContacts }, status: 'active' });
+      contacts = await Contact.find({ _id: { $in: campaign.targetContacts }, workspace: workspace._id, status: 'active' });
     }
 
     // Restrict to a single platform if a channel filter is set (numbers list has no channel).
@@ -249,6 +265,13 @@ const runCampaignCore = async (campaign, workspace, io) => {
       if (prior.length) {
         const done = new Set(prior.map((p) => String(p.contact)).filter(Boolean));
         contacts = contacts.filter((c) => !(c._id && done.has(String(c._id))));
+        if (campaign.targetType === 'numbers') {
+          // numbers targets have no _id: match by phone (last 10 digits) via the contacts upserted when sending
+          const l10 = (p) => String(p || '').replace(/\D/g, '').slice(-10);
+          const doneContacts = await Contact.find({ _id: { $in: [...done] } }).select('phone').lean();
+          const donePhones = new Set(doneContacts.map((c) => l10(c.phone)).filter(Boolean));
+          contacts = contacts.filter((c) => !donePhones.has(l10(c.phone)));
+        }
         campaign.stats.sent = Math.max(campaign.stats.sent || 0, prior.filter((p) => p.status !== 'failed').length);
         campaign.stats.failed = Math.max(campaign.stats.failed || 0, prior.filter((p) => p.status === 'failed').length);
       }
@@ -289,6 +312,19 @@ const runCampaignCore = async (campaign, workspace, io) => {
       return;
     }
 
+    // Aliyun Chat App campaigns send through Alibaba Cloud (AK/SK) — also no
+    // Cloud API template/24h-window restriction, and no warm-up cap either
+    // since it is a rate-limited official API rather than a device session.
+    if (campaign.sendChannel === 'whatsapp_chatapp' && campaign.presetMessage) {
+      const chatAppCampaign = require('../services/chatAppCampaign');
+      setImmediate(() => {
+        chatAppCampaign.execute(campaign, workspace, contacts, io).catch((e) =>
+          console.error('[ChatAppCampaign] execute error:', e.message)
+        );
+      });
+      return;
+    }
+
     // Send messages asynchronously — from the campaign's selected number if it
     // belongs to this workspace, otherwise the default number.
     const validSenderIds = [
@@ -310,6 +346,7 @@ const runCampaignCore = async (campaign, workspace, io) => {
       // Campaign-time media override (in-memory only; the saved preset is untouched)
       const presetMediaOverride = campaign.variables && campaign.variables._headerMediaUrl;
       if (presetMediaOverride) preset.mediaUrl = presetMediaOverride;
+      const emitSeen = new Set();
       setImmediate(async () => {
         for (let contact of contacts) {
           try {
@@ -342,9 +379,7 @@ const runCampaignCore = async (campaign, workspace, io) => {
               await Conversation.findByIdAndUpdate(conversation._id, {
                 lastMessage: { text: renderedText || preset.body, timestamp: new Date(), direction: 'outbound', type: 'text' },
               });
-              if (io) {
-                io.to(`workspace:${workspaceId}`).emit('new_message', { message: cMsg, conversationId: conversation._id });
-              }
+              emitCampaignMsg(io, workspaceId, { ...(conversation.toObject ? conversation.toObject() : conversation), lastMessage: { text: renderedText || preset.body, timestamp: new Date(), direction: 'outbound', type: 'text' } }, cMsg, emitSeen);
             } else {
               campaign.stats.failed++;
             }
@@ -429,6 +464,7 @@ const runCampaignCore = async (campaign, workspace, io) => {
     }
     const abSplit = Math.min(100, Math.max(0, campaign.abTest?.splitPercent || 50));
 
+    const emitSeen = new Set();
     setImmediate(async () => {
       let contactIndex = -1;
       for (let contact of contacts) {
@@ -511,9 +547,7 @@ const runCampaignCore = async (campaign, workspace, io) => {
               status: 'sent',
               metadata: { source: 'campaign', campaignId: campaign._id, ...(abVariant ? { abVariant } : {}) },
             });
-            if (io) {
-              io.to(`workspace:${workspaceId}`).emit('new_message', { message: cMsg, conversationId: conversation._id });
-            }
+            emitCampaignMsg(io, workspaceId, conversation, cMsg, emitSeen);
           } else {
             campaign.stats.failed++;
             await recordFailedRecipient(workspaceId, campaign, contact, toPhone, useTemplate, abVariant,
@@ -585,6 +619,10 @@ const startCampaign = async (req, res) => {
       const st = await require('../services/waQrService').getStatus(req.workspace._id);
       if (st.status !== 'connected') {
         return res.status(400).json({ success: false, message: 'WhatsApp by QR is not connected (scan the QR on the Channels page)' });
+      }
+    } else if (campaign.sendChannel === 'whatsapp_chatapp') {
+      if (!req.workspace.chatApp?.enabled || !req.workspace.chatApp?.isConnected) {
+        return res.status(400).json({ success: false, message: 'Aliyun Chat App is not connected (add your AccessKey on the Channels page)' });
       }
     } else if (!req.workspace.whatsapp?.isConnected) {
       return res.status(400).json({ success: false, message: 'WhatsApp not connected' });
@@ -882,6 +920,7 @@ const resendFailed = async (req, res) => {
     } catch (e) { /* noop */ }
 
     let resent = 0, stillFailed = 0;
+    const emitSeen = new Set();
     res.json({ success: true, data: { started: failedMsgs.length, message: `Resending to ${failedMsgs.length} ${audience} recipient(s)...` } });
 
     setImmediate(async () => {
@@ -927,7 +966,7 @@ const resendFailed = async (req, res) => {
               waMessageId: result.data?.messages?.[0]?.id || '', status: 'sent',
               metadata: { source: 'campaign', campaignId: campaign._id },
             });
-            if (io) io.to(`workspace:${workspaceId}`).emit('new_message', { message: cMsg, conversationId: conversation._id });
+            emitCampaignMsg(io, workspaceId, conversation, cMsg, emitSeen);
           } else {
             stillFailed++;
             if (isFailedResend) await Message.updateOne({ _id: fm._id }, { errorMessage: String(result.error?.message || result.error || 'Send failed'), createdAt: new Date() });
@@ -947,7 +986,7 @@ const resendFailed = async (req, res) => {
 const resumeRunningCampaigns = async (io) => {
   try {
     const Workspace = require('../models/Workspace');
-    const running = await Campaign.find({ status: 'running' }).populate('template').populate('presetMessage');
+    const running = await Campaign.find({ status: 'running', type: { $ne: 'drip' } }).populate('template').populate('presetMessage');
     let n = 0;
     for (const campaign of running) {
       const workspace = await Workspace.findById(campaign.workspace);

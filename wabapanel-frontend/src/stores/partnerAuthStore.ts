@@ -61,6 +61,7 @@ export const usePartnerAuthStore = create<PartnerAuthState>((set, get) => ({
       throw new Error('This login is only for affiliate partners');
     }
     localStorage.setItem('token', token);
+    localStorage.removeItem('adminToken'); // a fresh login ends any impersonation
     localStorage.removeItem('workspaceId');
     set({ profile: user, isAuthenticated: true, isLoading: false });
     await get().loadPartner();
@@ -86,6 +87,7 @@ export const usePartnerAuthStore = create<PartnerAuthState>((set, get) => ({
 
   logout: () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('adminToken'); // logout must not leave an admin switch-back token
     localStorage.removeItem('workspaceId');
     set({ profile: null, account: null, isAuthenticated: false, isLoading: false });
   },

@@ -1,4 +1,5 @@
 const Template = require('../models/Template');
+const escapeRegex = require('../utils/escapeRegex');
 const WhatsAppService = require('../services/whatsappService');
 const { sendPaginated } = require('../utils/apiResponse');
 const axios = require('axios');
@@ -83,8 +84,8 @@ const getTemplates = async (req, res) => {
     if (category) query.category = category;
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { body: { $regex: search, $options: 'i' } },
+        { name: { $regex: escapeRegex(search), $options: 'i' } },
+        { body: { $regex: escapeRegex(search), $options: 'i' } },
       ];
     }
 

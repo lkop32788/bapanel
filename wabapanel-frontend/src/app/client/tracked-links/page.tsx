@@ -10,6 +10,7 @@ import Table from '@/components/ui/Table';
 import Badge from '@/components/ui/Badge';
 import { trackedLinkApi, tagApi } from '@/lib/api';
 import ShortLinksPage from '@/components/ShortLinks';
+import RotationLinks from '@/components/RotationLinks';
 import toast from 'react-hot-toast';
 
 interface TrackedLink {
@@ -36,7 +37,7 @@ const SOURCES = [
 ];
 
 export default function TrackedLinksPage() {
-  const [tab, setTab] = useState<'qr' | 'short'>('qr');
+  const [tab, setTab] = useState<'qr' | 'short' | 'rotation'>('qr');
   const [links, setLinks] = useState<TrackedLink[]>([]);
   const [tags, setTags] = useState<{ _id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,7 +129,7 @@ export default function TrackedLinksPage() {
       </div>
 
       <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
-        {([['qr', "潜在客户来源和二维码"], ['short', "短链接"]] as const).map(([k, label]) => (
+        {([['qr', "潜在客户来源和二维码"], ['short', "短链接"], ['rotation', "轮询链接"]] as const).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setTab(k)}
             className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 ${tab === k ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             {label}
@@ -138,6 +139,8 @@ export default function TrackedLinksPage() {
 
       {tab === 'short'
         ? <ShortLinksPage embedded />
+        : tab === 'rotation'
+        ? <RotationLinks />
         : <Table columns={columns} data={links} loading={loading} emptyText={"还没有跟踪链接"} />}
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editLink ? "编辑链接" : "创建跟踪链接"}>

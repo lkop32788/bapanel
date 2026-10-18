@@ -1,0 +1,84 @@
+/* ==========================================================================
+   WabaPanel New UI — Voice v3 sign-in and sign-up.
+   Left panel becomes the aurora gradient, right panel the white form column.
+   Scoped to html[data-kkhs="on"]; the markup is untouched.
+   ========================================================================== */
+
+/* the aurora panel (AuthSide) */
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600 {
+  background: linear-gradient(140deg, #2f5df0 0%, #2246c9 32%, #5b3fd1 62%, #0e9f8a 100%) !important;
+  position: relative; overflow: hidden;
+  padding: 56px !important;
+}
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600::before,
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600::after {
+  content: ""; position: absolute; border-radius: 50%; filter: blur(50px); pointer-events: none;
+}
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600::before { width: 340px; height: 340px; left: -90px; top: -70px; background: rgb(255 255 255 / .16); }
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600::after { width: 300px; height: 300px; right: -80px; bottom: -60px; background: rgb(255 255 255 / .10); }
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600 > * { position: relative; z-index: 1; }
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600 h2 {
+  font-size: 38px !important; font-weight: 600 !important; letter-spacing: -.035em !important; line-height: 1.12 !important;
+}
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600 p { font-size: 15px !important; }
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600 ul li { font-size: 14px !important; }
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600 ul li svg { width: 18px !important; height: 18px !important; }
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-linear-to-br.from-violet-600 span.rounded-xl {
+  border-radius: 16px !important; padding: 10px 16px !important; box-shadow: none !important;
+}
+
+/* the form column */
+html[data-kkhs="on"] .min-h-screen.flex > div.bg-gray-50 { background: #fff !important; }
+html[data-kkhs="on"] .min-h-screen.flex .bg-white.rounded-xl.shadow-sm {
+  background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important;
+}
+html[data-kkhs="on"] .min-h-screen.flex h1 {
+  font-size: 38px !important; font-weight: 600 !important; letter-spacing: -.035em !important; line-height: 1.1 !important;
+  color: var(--v-ink) !important;
+}
+html[data-kkhs="on"] .min-h-screen.flex h1 + p { font-size: 14px !important; color: var(--v-ink-2) !important; margin-top: 8px !important; }
+html[data-kkhs="on"] .min-h-screen.flex .text-center.mb-6 { text-align: left !important; margin-bottom: 26px !important; }
+
+html[data-kkhs="on"] .min-h-screen.flex input:not([type=checkbox]):not([type=radio]) {
+  height: 50px !important; border-radius: 14px !important;
+  border: 1px solid var(--v-hair-2) !important; background: #fff !important;
+  font-size: 15px !important; padding: 0 16px !important;
+}
+html[data-kkhs="on"] .min-h-screen.flex input:focus {
+  border-color: var(--v-accent) !important; box-shadow: 0 0 0 4px var(--v-accent-soft) !important;
+}
+html[data-kkhs="on"] .min-h-screen.flex label { font-size: 13px !important; color: var(--v-ink-2) !important; }
+html[data-kkhs="on"] .min-h-screen.flex form button[type=submit],
+html[data-kkhs="on"] .min-h-screen.flex form [data-kkhs-btn] {
+  width: 100%; height: 52px !important; border-radius: 999px !important;
+  background: var(--v-grad) !important; color: #fff !important; border: 0 !important;
+  font-size: 15px !important; font-weight: 600 !important;
+  box-shadow: 0 16px 36px -18px rgb(40 87 224 / .8) !important;
+  transition: transform 160ms var(--v-ease), filter 200ms var(--v-ease);
+}
+html[data-kkhs="on"] .min-h-screen.flex form button[type=submit]:hover { filter: brightness(1.06); }
+html[data-kkhs="on"] .min-h-screen.flex form button[type=submit]:active { transform: scale(.985); }
+html[data-kkhs="on"] .min-h-screen.flex form button[type=button] {
+  border-radius: 999px !important; height: 46px !important; font-size: 14px !important;
+  border: 1px solid var(--v-hair-2) !important; background: var(--v-surface) !important; color: var(--v-ink) !important;
+}
+html[data-kkhs="on"] .min-h-screen.flex a { color: var(--v-accent) !important; }
+html[data-kkhs="on"] .min-h-screen.flex .bg-red-50,
+html[data-kkhs="on"] .min-h-screen.flex .bg-amber-50 { border-radius: 16px !important; border: 0 !important; font-size: 13px !important; }
+
+/* show-password button stays inside the taller input */
+html[data-kkhs="on"] .min-h-screen.flex form .relative > button.absolute {
+  top: auto !important; bottom: 16px !important; transform: none !important;
+}
+
+/* icons inside the sign-in fields keep their room (this file loads after pages.css) */
+html[data-kkhs="on"] .min-h-screen.flex input.pl-10 { padding-left: 42px !important; }
+html[data-kkhs="on"] .min-h-screen.flex input.pl-9 { padding-left: 38px !important; }
+html[data-kkhs="on"] .min-h-screen.flex input.pr-10 { padding-right: 42px !important; }
+/* the show-password toggle is not a pill button */
+html[data-kkhs="on"] .min-h-screen.flex form button[type=button].absolute {
+  height: auto !important; border: 0 !important; background: none !important; padding: 0 !important; border-radius: 0 !important;
+}
+html[data-kkhs="on"] .min-h-screen.flex input.pl-10:not([type=checkbox]):not([type=radio]) { padding-left: 42px !important; }
+html[data-kkhs="on"] .min-h-screen.flex input.pl-9:not([type=checkbox]):not([type=radio]) { padding-left: 38px !important; }
+html[data-kkhs="on"] .min-h-screen.flex input.pr-10:not([type=checkbox]):not([type=radio]) { padding-right: 42px !important; }

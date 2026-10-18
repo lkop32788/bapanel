@@ -19,6 +19,13 @@ class DripScheduler {
     cron.schedule('* * * * *', () => this._processDripSteps());
     // Continue Web WhatsApp (QR) campaigns that auto-paused on the daily limit
     cron.schedule('*/5 * * * *', () => require('./qrCampaign').resumePending().catch((e) => console.error('QR campaign resume error:', e.message)));
+    // Boot recovery: a drip claimed (scheduled->running) but killed before _startDrip persisted its
+    // tracking fields would sit 'running' forever; put it back to 'scheduled' so it is re-claimed.
+    Campaign.updateMany(
+      { type: 'drip', status: 'running', 'variables.contactIds': { $exists: false } },
+      { $set: { status: 'scheduled' } }
+    ).then((r) => { if (r && r.modifiedCount) console.log(`[Drip] recovered ${r.modifiedCount} half-started drip(s)`); })
+      .catch((e) => console.error('Drip recovery error:', e.message));
     console.log('Drip scheduler started');
   }
 
@@ -27,15 +34,15 @@ class DripScheduler {
       const now = new Date();
       const campaigns = await Campaign.find({
         status: 'scheduled',
+        type: 'drip', // broadcast/preset scheduled campaigns are owned by campaignScheduler
         scheduledAt: { $lte: now },
       }).populate('template');
 
       for (const campaign of campaigns) {
-        if (campaign.type === 'broadcast') {
-          await this._executeBroadcast(campaign);
-        } else if (campaign.type === 'drip') {
-          await this._startDrip(campaign);
-        }
+        // Atomic claim so overlapping ticks cannot start the same drip twice
+        const claimed = await Campaign.findOneAndUpdate({ _id: campaign._id, status: 'scheduled' }, { $set: { status: 'running' } });
+        if (!claimed) continue;
+        await this._startDrip(campaign);
       }
     } catch (error) {
       console.error('Scheduled campaign processing error:', error.message);
@@ -130,6 +137,7 @@ class DripScheduler {
       campaign.variables.currentStep = 0;
       campaign.variables.contactIds = contacts.map(c => c._id.toString());
       campaign.variables.stepSentAt = new Date().toISOString();
+      campaign.markModified('variables'); // Mixed type: without this the tracking fields may not persist until after step 0
       await campaign.save();
 
       // Execute first step immediately

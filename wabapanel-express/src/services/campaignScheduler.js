@@ -19,7 +19,12 @@ class CampaignScheduler {
       try {
         const workspace = await Workspace.findById(campaign.workspace);
         if (!workspace) continue;
-        if (campaign.sendChannel !== 'whatsapp_qr' && !workspace.whatsapp?.isConnected) continue;
+        const usesOwnChannel = campaign.sendChannel === 'whatsapp_qr' || campaign.sendChannel === 'whatsapp_chatapp';
+        if (!usesOwnChannel && !workspace.whatsapp?.isConnected) continue;
+        // Atomic claim: only one tick/process may start this campaign.
+        const claimed = await Campaign.findOneAndUpdate({ _id: campaign._id, status: 'scheduled' }, { $set: { status: 'running' } });
+        if (!claimed) continue;
+        campaign.status = 'running';
         const { runCampaignCore } = require('../controllers/campaignController');
         console.log('[CampaignScheduler] running scheduled campaign', String(campaign._id), campaign.name);
         await runCampaignCore(campaign, workspace, this.io);

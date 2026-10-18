@@ -30,7 +30,7 @@ const conversationSchema = new mongoose.Schema({
   resolvedAt: { type: Date },
   resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   windowExpiresAt: { type: Date }, // 24-hour window
-  channel: { type: String, enum: ['whatsapp', 'whatsapp_qr', 'facebook', 'instagram', 'telegram', 'telegram_personal', 'email'], default: 'whatsapp' },
+  channel: { type: String, enum: ['whatsapp', 'whatsapp_qr', 'whatsapp_chatapp', 'facebook', 'instagram', 'telegram', 'telegram_personal', 'email'], default: 'whatsapp' },
   snoozedUntil: { type: Date },
   aiEnabled: { type: Boolean, default: false },
   aiDisabled: { type: Boolean, default: false },
@@ -55,5 +55,6 @@ conversationSchema.index({ 'botFlowWait.expiresAt': 1 });
 conversationSchema.index({ workspace: 1, contact: 1, channel: 1 }, { unique: true });
 conversationSchema.index({ workspace: 1, status: 1 });
 conversationSchema.index({ workspace: 1, assignedAgent: 1 });
+conversationSchema.index({ workspace: 1, pinnedAt: -1, updatedAt: -1 });
 
 module.exports = mongoose.model('Conversation', conversationSchema);

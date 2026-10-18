@@ -42,8 +42,90 @@
   "localCustomizations": [
     "zh-CN",
     "login redirect",
-    "license checks removed"
+    "license checks removed",
+    "security-p0-20261018"
   ],
+  "securityP0_20261018": {
+    "note": "P0 安全修复，供应商补丁覆盖这些文件后必须重新应用",
+    "backend": {
+      "middleware/auth.js": "protect 拒绝带 twofa 标记的 challengeToken",
+      "sockets/socketHandler.js": "socket 认证拒绝 twofa token 与非 active 用户；join_workspace/join_conversation 校验 workspace 成员身份",
+      "controllers/teamController.js": "loginAsAgent/removeAgent/updateAgent 限定本 workspace 成员 + 管理者角色；loginAsAgent 改用 generateToken(id,'24h')",
+      "controllers/adminController.js": "loginAsVendor 改用 generateToken(id,'24h')，统一 JWT fallback",
+      "utils/generateToken.js": "新增可选 expiresIn 参数",
+      "controllers/webhookController.js": "WhatsApp webhook X-Hub-Signature-256 验签（SystemSettings appSecret 或 META_APP_SECRET 存在时强制 403）",
+      "controllers/campaignController.js": "create 强制 status=draft 并剔除 stats；targetContacts 按 workspace 过滤",
+      "controllers/dripController.js": "targetContacts 按 workspace 过滤",
+      "controllers/mediaController.js": "update 剥离 url/workspace/_id；remove 限定 uploads 目录内删除",
+      "controllers/uploadController.js": "DELETE /api/upload 仅 super_admin",
+      "routes/media.js": "上传 fileFilter 拒绝 html/svg",
+      "server.js": "/uploads 与 /api/uploads 静态服务加 nosniff + CSP sandbox"
+    },
+    "frontend": {
+      "src/stores/partnerAuthStore.ts": "login/logout 清除 adminToken",
+      "src/app/partner/login/page.tsx": "消费 ?token= 后立即 router.replace 清 URL；已有 adminToken 时不覆盖",
+      "src/components/ui/ImageUploadInput.tsx": "accept 默认值移除 .svg（后端已封禁 SVG 上传防 XSS）",
+      "src/app/admin/site-settings/page.tsx": "提示文案 PNG/SVG 改为 PNG"
+    },
+    "backendExtra": {
+      "controllers/campaignController.js(update)": "updateCampaign 剥离 workspace/stats/createdBy/_id/status",
+      "controllers/dripController.js(create/update)": "create 强制 draft；update 剥离危险字段含 type",
+      "controllers/teamController.js(orphan)": "无任何 workspace 归属的遗留 agent 仍可清理",
+      "controllers/authController.js": "resendLoginOTP 要求 twofa challenge token",
+      "routes/upload.js": "fileFilter 拒绝 svg/html/xml"
+    },
+    "deployNote": "webhook 验签需配置 SystemSettings.whatsapp.appSecret 或 META_APP_SECRET 才强制；配置前为警告放行。若有租户自带 Meta app，需确保其 app secret 也在可接受列表内"
+  },
+  "perfP1_20261018": {
+    "note": "P1 性能/稳定性修复，供应商补丁覆盖后需重新应用；索引已在线创建",
+    "backend": {
+      "controllers/uploadController.js": "ffmpeg 转码改异步 execFile（不再阻塞事件循环）",
+      "services/aiFeatures.js": "pcmToMp3 改异步",
+      "sockets/socketHandler.js": "user_status_change 只发所属 workspace 房间（socket.data.workspaceIds）",
+      "routes/upload.js + routes/media.js": "multer 拒绝/超限返回 400 而非 500",
+      "services/dripScheduler.js": "只认领 type:drip + findOneAndUpdate 原子认领",
+      "services/campaignScheduler.js": "只认领非 drip + 原子认领（消除双调度器重复发送）",
+      "controllers/campaignController.js": "resumeRunningCampaigns 排除 drip",
+      "models/*": "新增 6 个索引：Conversation{workspace,pinnedAt,updatedAt}、Message{workspace,contact,createdAt}、Campaign{status,scheduledAt}、Workspace whatsapp.phoneNumberId 与 whatsapp.extraNumbers.phoneNumberId(sparse)、ContactNote{reminderSent,remindAt}",
+      "utils/escapeRegex.js(新增) + contact/conversation/template/integration 控制器": "搜索 $regex 转义（修复搜 + 号 500 与 ReDoS）"
+    },
+    "frontend": {
+      "src/app/client/chat/page.tsx": "未知会话 new_message 触发的列表刷新改 2s 尾沿去抖（群发风暴防护）"
+    }
+  },
+  "p2_20261018": {
+    "note": "P2 修复（Baileys 竞态/群发健壮性/权限收口/性能），供应商补丁覆盖后需重新应用",
+    "backend": {
+      "services/waQrService.js": "startSession 加 in-flight map 防双 socket；close handler 识别过期 socket；主动断开不再自动重连",
+      "services/dripScheduler.js": "启动恢复：claim 后崩溃的 drip（无 variables.contactIds）重置回 scheduled",
+      "controllers/campaignController.js": "群发 new_message 只发 conversation 房间 + 每会话一次 conversation_updated；numbers 目标按手机后 10 位断点续发",
+      "controllers/teamController.js": "removeAgent 两分支均需管理者；member-admin 只能管 agent，动 admin 需 owner 级",
+      "sockets/socketHandler.js": "workspace 旁路仅 super_admin（对齐 REST）",
+      "controllers/adminController.js": "挂起/删除用户时强制断开其 socket；用户/商家搜索 regex 转义",
+      "controllers/segmentController.js": "分群条件 regex 转义",
+      "routes/upload.js + routes/media.js": "上传中间件所有错误（含 busboy 畸形表单）返回 400",
+      "controllers/conversationController.js": "会话/消息列表 .lean()；消息 limit 钳制 1-2000"
+    },
+    "frontend": {
+      "src/app/client/chat/page.tsx": "conversation_updated 未知会话刷新共用 2s 去抖；filteredConversations/matchIds 改 useMemo"
+    }
+  },
+  "featureRotationLinks_20261018": {
+    "note": "自研功能「轮询链接」（多号聚合 wa.me 轮询跳转），非供应商代码，补丁覆盖相关文件后需重新应用",
+    "backend": {
+      "models/RotationLink.js(新增)": "链接定义：owner、code、prefillText、numbers[{workspace,phone快照,dailyCap}]",
+      "models/RotationHit.js(新增)": "click/session 事件，30d TTL，按访客手机号去重",
+      "routes/rotationLinks.js(新增)": "/api/rotation-links CRUD + /numbers，严格 owner 校验",
+      "controllers/shortLinkController.js": "pickRotationNumber 选号（上限内最少会话→最少点击→轮转）；新增 getPublicShortLink（/api/public/short-link/:code，顺带修好了供应商断掉的 /s/ 短链解析）",
+      "server.js": "挂载 /api/rotation-links 与 /api/public/short-link/:code",
+      "services/waQrService.js": "入站 [CODE] 会话归因（按访客手机号 24h 去重）；重新扫码换号时同步刷新链接内号码快照"
+    },
+    "frontend": {
+      "src/components/RotationLinks.tsx(新增)": "轮询链接 tab 组件",
+      "src/app/client/tracked-links/page.tsx": "第三个 tab「轮询链接」",
+      "src/lib/api.ts": "rotationLinkApi"
+    }
+  },
   "backupArchive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz",
   "theme": "omniclick-reference",
   "uiStyleRevision": "2026-09-17-detail",

@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 
 const router = express.Router();
 
@@ -14,6 +14,23 @@ const isInstalled = () => fs.existsSync(LOCK_FILE);
 router.get('/status', (req, res) => {
   res.json({ success: true, installed: isInstalled() });
 });
+
+// Ensure pm2 is installed globally; install it if missing.
+function ensurePm2() {
+  return new Promise((resolve, reject) => {
+    try {
+      execSync('pm2 --version', { stdio: 'ignore' });
+      return resolve(); // already installed
+    } catch (_) {
+      // not found — install globally
+    }
+    const child = spawn('npm', ['install', '-g', 'pm2'], { stdio: 'pipe' });
+    let out = '';
+    child.stdout.on('data', (d) => { out += d.toString(); });
+    child.stderr.on('data', (d) => { out += d.toString(); });
+    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error('pm2 install failed: ' + out.slice(-500)))));
+  });
+}
 
 // Run the seed script (permissions, settings, default admin) in a child process.
 function runSeed() {
@@ -38,10 +55,13 @@ router.post('/complete', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Valid admin email and a password of at least 6 characters are required.' });
     }
 
-    // 1. Seed base data (idempotent — safe to run once).
+    // 1. Ensure pm2 is available.
+    await ensurePm2();
+
+    // 2. Seed base data (idempotent — safe to run once).
     await runSeed();
 
-    // 2. Set the super-admin credentials to the ones provided.
+    // 3. Set the super-admin credentials to the ones provided.
     const User = require('../models/User');
     let admin = await User.findOne({ role: 'super_admin' });
     if (!admin) {
@@ -53,7 +73,7 @@ router.post('/complete', async (req, res) => {
     admin.status = 'active';
     await admin.save();
 
-    // 3. Apply the site/brand name.
+    // 4. Apply the site/brand name.
     if (siteName && String(siteName).trim()) {
       const SystemSettings = require('../models/SystemSettings');
       let settings = await SystemSettings.findOne();
@@ -62,7 +82,7 @@ router.post('/complete', async (req, res) => {
       await settings.save();
     }
 
-    // 4. Write the lock file so the installer cannot run again.
+    // 5. Write the lock file so the installer cannot run again.
     fs.writeFileSync(LOCK_FILE, JSON.stringify({ installedAt: new Date().toISOString(), siteName: siteName || '' }, null, 2));
 
     res.json({ success: true, message: 'Installation complete.' });

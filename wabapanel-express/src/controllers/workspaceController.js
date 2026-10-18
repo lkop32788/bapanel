@@ -79,6 +79,22 @@ const updateWorkspace = async (req, res) => {
       }
     }
 
+    // Aliyun Chat App: no lightweight "verify credentials" API is published,
+    // so just require the fields needed to sign/route requests; real
+    // send/receive errors surface later into chatApp.lastError.
+    if (req.body.chatApp) {
+      const ca = req.body.chatApp;
+      if (ca.enabled) {
+        if (!ca.accessKeyId || !ca.accessKeySecret || !ca.custSpaceId || !ca.phoneNumber) {
+          return res.status(400).json({ success: false, message: 'Aliyun Chat App requires AccessKey ID, AccessKey Secret, CustSpaceId and a sender phone number' });
+        }
+        workspace.chatApp.isConnected = true;
+        workspace.chatApp.lastError = '';
+      } else {
+        workspace.chatApp.isConnected = false;
+      }
+    }
+
     // Connecting Facebook Messenger / Instagram: subscribe the Page so its
     // messages reach our webhook.
     const mc = req.body.metaChat;

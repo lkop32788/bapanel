@@ -1,6 +1,36 @@
 const Team = require('../models/Team');
 const User = require('../models/User');
-const jwt = require('jsonwebtoken');
+const generateToken = require('../utils/generateToken');
+
+const isWorkspaceManager = (ws, user) => {
+  if (['super_admin', 'admin'].includes(user.role)) return true;
+  const uid = String(user._id);
+  if (String(ws.owner) === uid) return true;
+  return (ws.members || []).some(m => String(m.user) === uid && ['owner', 'admin'].includes(m.role));
+};
+
+const isWorkspaceAgent = (ws, targetId) => {
+  const tid = String(targetId);
+  if (String(ws.owner) === tid) return false;
+  return (ws.members || []).some(m => String(m.user) === tid);
+};
+
+// Owner-level: platform super_admin, workspace owner, or member with role 'owner'.
+const isWorkspaceOwnerLevel = (ws, user) => {
+  if (user.role === 'super_admin') return true;
+  const uid = String(user._id);
+  if (String(ws.owner) === uid) return true;
+  return (ws.members || []).some(m => String(m.user) === uid && m.role === 'owner');
+};
+
+// A manager may manage a target if owner-level, or if the target is a plain 'agent' member.
+const canManageMember = (ws, actor, targetId) => {
+  if (isWorkspaceOwnerLevel(ws, actor)) return true;
+  const tid = String(targetId);
+  if (String(ws.owner) === tid) return false;
+  const m = (ws.members || []).find(x => String(x.user) === tid);
+  return !!m && m.role === 'agent';
+};
 
 const getTeams = async (req, res) => {
   try {
@@ -132,6 +162,9 @@ const addAgent = async (req, res) => {
 const removeAgent = async (req, res) => {
   try {
     const { teamId } = req.query;
+    if (!isWorkspaceManager(req.workspace, req.user)) {
+      return res.status(403).json({ success: false, message: 'Not allowed' });
+    }
     if (teamId || req.params.teamId) {
       const team = await Team.findOne({ _id: teamId || req.params.teamId, workspace: req.workspace._id });
       if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
@@ -141,6 +174,19 @@ const removeAgent = async (req, res) => {
     }
 
     // No team specified: delete the agent account itself.
+    if (!isWorkspaceManager(req.workspace, req.user)) {
+      return res.status(403).json({ success: false, message: 'Not allowed' });
+    }
+    if (!isWorkspaceAgent(req.workspace, req.params.id)) {
+      const Workspace = require('../models/Workspace');
+      const linked = await Workspace.exists({
+        $or: [{ owner: req.params.id }, { 'members.user': req.params.id }],
+      });
+      if (linked) return res.status(404).json({ success: false, message: 'Agent not found' });
+    }
+    if (!canManageMember(req.workspace, req.user, req.params.id)) {
+      return res.status(403).json({ success: false, message: 'Only the workspace owner can delete admins' });
+    }
     if (String(req.user._id) === String(req.params.id)) {
       return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
     }
@@ -151,6 +197,7 @@ const removeAgent = async (req, res) => {
     }
     await Team.updateMany({ workspace: req.workspace._id }, { $pull: { members: target._id } });
     await User.findByIdAndDelete(target._id);
+    try { global.io?.in('user:' + target._id).disconnectSockets(true); } catch {}
     res.json({ success: true, message: 'Agent deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -163,9 +210,12 @@ const loginAsAgent = async (req, res) => {
     if (req.user.role === 'agent') {
       return res.status(403).json({ success: false, message: 'Not allowed' });
     }
-    const target = await User.findOne({ _id: req.params.id, role: { $in: ['agent', 'user'] } });
+    if (!isWorkspaceManager(req.workspace, req.user) || !isWorkspaceAgent(req.workspace, req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Agent not found' });
+    }
+    const target = await User.findOne({ _id: req.params.id, role: { $in: ['agent', 'user'] }, status: 'active' });
     if (!target) return res.status(404).json({ success: false, message: 'Agent not found' });
-    const token = jwt.sign({ id: target._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '24h' });
+    const token = generateToken(target._id, '24h');
     target.lastLogin = new Date();
     await target.save();
     const userData = target.toObject();
@@ -287,6 +337,15 @@ module.exports = {
 async function updateAgent(req, res) {
   try {
     const { role, permissions, allowedChannels, inboxScope } = req.body;
+    if (!isWorkspaceManager(req.workspace, req.user)) {
+      return res.status(403).json({ success: false, message: 'Not allowed' });
+    }
+    if (!isWorkspaceAgent(req.workspace, req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Agent not found' });
+    }
+    if (!canManageMember(req.workspace, req.user, req.params.id)) {
+      return res.status(403).json({ success: false, message: 'Only the workspace owner can modify admins' });
+    }
     const update = {};
     if (Array.isArray(permissions)) update.permissions = permissions;
     if (Array.isArray(allowedChannels)) update.allowedChannels = allowedChannels;

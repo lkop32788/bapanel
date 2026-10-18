@@ -11,6 +11,12 @@ const Testimonial = require('../models/Testimonial');
 const Page = require('../models/Page');
 const nodemailer = require('nodemailer');
 const { sendPaginated } = require('../utils/apiResponse');
+const escapeRegex = require('../utils/escapeRegex');
+const kickIfInactive = (u) => {
+  if (u && u.status && u.status !== 'active') {
+    try { global.io?.in('user:' + u._id).disconnectSockets(true); } catch {}
+  }
+};
 
 // ======================== USERS ========================
 const getUsers = async (req, res) => {
@@ -20,8 +26,8 @@ const getUsers = async (req, res) => {
     const query = { role: { $in: ['user', 'admin', 'super_admin'] } };
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { name: { $regex: escapeRegex(search), $options: 'i' } },
+        { email: { $regex: escapeRegex(search), $options: 'i' } },
       ];
     }
     if (status) query.status = status;
@@ -75,6 +81,7 @@ const updateUser = async (req, res) => {
     const { password, ...updateData } = req.body;
     const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true }).select('-password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    kickIfInactive(user);
     // Auto-create workspace if role changed to vendor/user and none exists
     if ((user.role === 'vendor' || user.role === 'user') && !user.currentWorkspace) {
       const existing = await Workspace.countDocuments({ owner: user._id });
@@ -93,6 +100,7 @@ const deleteUser = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    try { global.io?.in('user:' + user._id).disconnectSockets(true); } catch {}
     res.json({ success: true, message: 'User deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -862,9 +870,9 @@ const getVendors = async (req, res) => {
     const query = { role: 'vendor' };
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { companyName: { $regex: search, $options: 'i' } },
+        { name: { $regex: escapeRegex(search), $options: 'i' } },
+        { email: { $regex: escapeRegex(search), $options: 'i' } },
+        { companyName: { $regex: escapeRegex(search), $options: 'i' } },
       ];
     }
     if (status) query.status = status;
@@ -951,6 +959,7 @@ const updateVendor = async (req, res) => {
     if (status !== undefined) vendor.status = status;
     if (password) vendor.password = password;
     await vendor.save();
+    kickIfInactive(vendor);
     const result = vendor.toObject();
     delete result.password;
     res.json({ success: true, data: result });
@@ -963,6 +972,7 @@ const deleteVendor = async (req, res) => {
   try {
     const vendor = await User.findOneAndDelete({ _id: req.params.id, role: 'vendor' });
     if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
+    try { global.io?.in('user:' + vendor._id).disconnectSockets(true); } catch {}
     res.json({ success: true, message: 'Vendor deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -970,12 +980,12 @@ const deleteVendor = async (req, res) => {
 };
 
 // Login as vendor - generates JWT token for admin to access vendor's client panel
-const jwt = require('jsonwebtoken');
+const generateToken = require('../utils/generateToken');
 const loginAsVendor = async (req, res) => {
   try {
     const vendor = await User.findOne({ _id: req.params.id, role: 'vendor' });
     if (!vendor) return res.status(404).json({ success: false, message: 'Vendor not found' });
-    const token = jwt.sign({ id: vendor._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '24h' });
+    const token = generateToken(vendor._id, '24h');
     vendor.lastLogin = new Date();
     await vendor.save();
     const userData = vendor.toObject();

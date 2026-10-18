@@ -25,6 +25,9 @@ const fileFilter = (req, file, cb) => {
   // transcodes non-mp4 videos to WhatsApp-compatible mp4.
   const videoExts = ['mp4', 'mov', 'webm', 'mkv', 'avi', '3gp', 'm4v'];
   const isVideo = file.mimetype.startsWith('video/') || videoExts.includes(ext);
+  if (file.mimetype === 'text/html' || file.mimetype === 'image/svg+xml' || ['svg', 'html', 'htm', 'xhtml', 'shtml', 'xml'].includes(ext)) {
+    return cb(new Error(`File type ${file.mimetype} not allowed`), false);
+  }
   if (isImage || isVideo || allowed.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -38,9 +41,18 @@ const upload = multer({
   limits: { fileSize: 200 * 1024 * 1024 }, // large source ok; media is compressed/transcoded to platform limits
 });
 
+// Map multer errors (fileFilter / limits) to 400 instead of the generic 500 handler.
+const handleUpload = (mw) => (req, res, next) => {
+  mw(req, res, (err) => {
+    if (!err) return next();
+    // Any error from the upload middleware (multer limits, fileFilter, busboy malformed multipart) is a client-input problem.
+    return res.status(400).json({ success: false, message: err.message });
+  });
+};
+
 router.use(protect);
-router.post('/', upload.single('file'), uploadFile);
-router.post('/multiple', upload.array('files', 10), uploadMultiple);
+router.post('/', handleUpload(upload.single('file')), uploadFile);
+router.post('/multiple', handleUpload(upload.array('files', 10)), uploadMultiple);
 router.delete('/', deleteFile);
 
 module.exports = router;

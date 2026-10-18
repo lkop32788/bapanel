@@ -311,6 +311,14 @@ export const trackedLinkApi = {
   delete: (id: string) => api.delete(`/tracked-links/${id}`),
 };
 
+export const rotationLinkApi = {
+  list: () => api.get('/rotation-links'),
+  numbers: () => api.get('/rotation-links/numbers'),
+  create: (data: object) => api.post('/rotation-links', data),
+  update: (id: string, data: object) => api.put(`/rotation-links/${id}`, data),
+  delete: (id: string) => api.delete(`/rotation-links/${id}`),
+};
+
 // Appointments
 
 // Integrations

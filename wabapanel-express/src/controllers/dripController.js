@@ -49,6 +49,8 @@ const createDrip = async (req, res) => {
       type: 'drip',
       workspace: req.workspace._id,
       createdBy: req.user._id,
+      status: 'draft',
+      stats: undefined,
     });
     res.status(201).json({ success: true, data: drip });
   } catch (error) {
@@ -60,7 +62,7 @@ const updateDrip = async (req, res) => {
   try {
     const drip = await Campaign.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id, type: 'drip' },
-      req.body,
+      (({ workspace, stats, createdBy, _id, status, type, ...rest }) => rest)(req.body),
       { new: true, runValidators: true }
     );
     if (!drip) {
@@ -116,7 +118,7 @@ const startDrip = async (req, res) => {
     } else if (drip.targetType === 'tag') {
       contacts = await Contact.find({ workspace: req.workspace._id, tags: { $in: drip.targetTags }, status: 'active' });
     } else {
-      contacts = await Contact.find({ _id: { $in: drip.targetContacts }, status: 'active' });
+      contacts = await Contact.find({ _id: { $in: drip.targetContacts }, workspace: req.workspace._id, status: 'active' });
     }
 
     drip.status = 'running';

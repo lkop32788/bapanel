@@ -15,6 +15,9 @@ const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_jwt_secret');
+    if (decoded.twofa) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
     const user = await User.findById(decoded.id).select('-password').populate('currentWorkspace');
 
     if (!user) {

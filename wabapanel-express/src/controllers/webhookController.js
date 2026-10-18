@@ -12,6 +12,7 @@ const AICallingAgent = require('../models/AICallingAgent');
 const aiCallBridge = require('../services/aiCallBridge');
 const WhatsAppService = require('../services/whatsappService');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // In-memory guard against concurrent duplicate webhook deliveries (Meta retries)
 const recentWamids = new Map();
@@ -579,8 +580,28 @@ async function handleCoexistenceWebhook(change, io) {
 }
 
 // @POST /api/webhook/whatsapp - Incoming messages
+let _sigWarned = false;
 const handleWhatsAppWebhook = async (req, res) => {
   try {
+    // X-Hub-Signature-256 verification (enforced only when an app secret is configured)
+    let secrets = [];
+    try {
+      const st = await SystemSettings.findOne();
+      secrets = [st?.whatsapp?.appSecret, st?.facebook?.appSecret, process.env.META_APP_SECRET].filter(Boolean);
+    } catch { secrets = [process.env.META_APP_SECRET].filter(Boolean); }
+    if (secrets.length) {
+      const sig = String(req.headers['x-hub-signature-256'] || '');
+      const raw = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
+      const ok = sig && secrets.some((sec) => {
+        const exp = Buffer.from('sha256=' + crypto.createHmac('sha256', sec).update(raw).digest('hex'));
+        const got = Buffer.from(sig);
+        return exp.length === got.length && crypto.timingSafeEqual(exp, got);
+      });
+      if (!ok) return res.status(403).json({ message: 'Invalid signature' });
+    } else if (!_sigWarned) {
+      _sigWarned = true;
+      console.warn('[WH] Signature verification DISABLED: set META_APP_SECRET (or app secret in system settings) to enforce X-Hub-Signature-256.');
+    }
     res.status(200).send('EVENT_RECEIVED');
 
     const body = req.body;

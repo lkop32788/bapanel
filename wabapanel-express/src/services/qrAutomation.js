@@ -44,6 +44,15 @@ async function channelSend(workspace, conversation, phone, payload) {
     const r = await axios.post(`https://graph.facebook.com/v21.0/me/messages?access_token=${mc.pageAccessToken}`, body);
     return { id: r.data?.message_id || '' };
   }
+  if (conversation.channel === 'whatsapp_chatapp') {
+    const chatApp = require('./chatAppService');
+    const ca = workspace.chatApp || {};
+    let r;
+    if (payload.media?.url) r = await chatApp.sendMedia(ca, phone, payload.type, payload.media.url, payload.media.caption || payload.text || '');
+    else r = await chatApp.sendText(ca, phone, payload.text || '');
+    if (!r.success) throw new Error(r.error || 'Failed to send');
+    return { id: r.messageId ? `ca_${r.messageId}` : '' };
+  }
   const r = await require('./waQrService').sendMessage(workspace._id, phone, payload);
   return { id: `qr_${r?.key?.id || ''}` };
 }

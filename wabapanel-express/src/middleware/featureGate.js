@@ -28,6 +28,7 @@ const FEATURE_CATALOG = [
   { key: 'presetTemplates', label: 'Preset Templates', path: '/client/save-money/templates', group: 'Save Money' },
   { key: 'presetCampaigns', label: 'Preset Campaigns', path: '/client/save-money/campaigns', group: 'Save Money' },
   { key: 'qrCampaigns', label: 'Web WhatsApp Campaigns', path: '/client/save-money/qr-campaigns', group: 'Save Money' },
+  { key: 'chatappCampaigns', label: 'Aliyun Chat App Campaigns', path: '/client/save-money/chatapp-campaigns', group: 'Save Money' },
   // Automation
   { key: 'automations', label: 'Automation Flows', path: '/client/automations', group: 'Automation' },
   { key: 'botFlows', label: 'Bot Flow Builder', path: '/client/bot-flows', group: 'Automation' },
@@ -49,6 +50,7 @@ const FEATURE_CATALOG = [
   { key: 'auditLog', label: 'Audit Log', path: '/client/audit-log', group: 'Settings' },
   // Add-ons (opt-in: OFF by default; needs a per-client admin toggle)
   { key: 'igAutoDm', label: 'Instagram Auto DM', path: '/client/instagram-auto-dm', group: 'Add-ons', addon: true },
+  { key: 'aiAssistant', label: 'AI Assistant (Tools)', path: '/client/ai-assistant', group: 'Add-ons', addon: true },
 ];
 
 const FEATURE_KEYS = FEATURE_CATALOG.map((f) => f.key);

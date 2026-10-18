@@ -121,7 +121,8 @@ exports.upload = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const file = await MediaFile.findOneAndUpdate({ _id: req.params.id, workspace: req.workspace._id }, req.body, { new: true });
+    const { url, workspace, _id, ...updates } = req.body;
+    const file = await MediaFile.findOneAndUpdate({ _id: req.params.id, workspace: req.workspace._id }, updates, { new: true });
     if (!file) return res.status(404).json({ success: false, message: "File not found" });
     res.json({ success: true, data: file });
   } catch (err) {
@@ -133,8 +134,9 @@ exports.remove = async (req, res) => {
   try {
     const file = await MediaFile.findOneAndDelete({ _id: req.params.id, workspace: req.workspace._id });
     if (!file) return res.status(404).json({ success: false, message: "File not found" });
-    const filePath = path.join(__dirname, "../../uploads", path.basename(file.url));
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    const uploadsDir = path.resolve(__dirname, "../../uploads");
+    const filePath = path.resolve(uploadsDir, path.basename(String(file.url || "")));
+    if (filePath.startsWith(uploadsDir + path.sep) && fs.existsSync(filePath)) fs.unlinkSync(filePath);
     res.json({ success: true, message: "File deleted" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

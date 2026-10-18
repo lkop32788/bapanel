@@ -345,6 +345,8 @@ function ChatPageInner() {
   };
   const [loadingConvs, setLoadingConvs] = useState(true);
   const convPageRef = useRef(1);
+  const unknownRefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (unknownRefetchTimer.current) clearTimeout(unknownRefetchTimer.current); }, []);
   const convTotalPagesRef = useRef(1);
   const [convTotal, setConvTotal] = useState(0);
   const [hasMoreConvs, setHasMoreConvs] = useState(false);
@@ -438,9 +440,10 @@ function ChatPageInner() {
   const [matchIdx, setMatchIdx] = useState(0);
   const [chatSearching, setChatSearching] = useState(false);
   const chatSearchedRef = useRef('');
-  const matchIds = inChatQuery.trim().length >= 2
+  const matchIds = React.useMemo(() => inChatQuery.trim().length >= 2
     ? messages.filter(m => (m.text || '').toLowerCase().includes(inChatQuery.trim().toLowerCase())).map(m => m._id)
-    : [];
+    : [], [messages, inChatQuery]);
+  const matchIdSet = React.useMemo(() => new Set(matchIds), [matchIds]);
 
   // Voice calls of this contact are shown inside the chat, in the same timeline as the messages.
 
@@ -914,6 +917,20 @@ function ChatPageInner() {
     const socket = liveSocket;
     if (!socket) return;
 
+    // Shared trailing debounce (2s) for unknown-conversation refetches (new_message + conversation_updated).
+    const scheduleUnknownRefetch = () => {
+      if (unknownRefetchTimer.current) clearTimeout(unknownRefetchTimer.current);
+      unknownRefetchTimer.current = setTimeout(() => {
+        unknownRefetchTimer.current = null;
+        conversationApi.list({ channel: channelFilter !== 'all' ? channelFilter : undefined } as Record<string, string | undefined>)
+          .then(r => setConversations(prev => {
+            const seen = new Set(prev.map(c => c._id));
+            const fresh = (r.data.data || []).filter((c: Conversation) => !seen.has(c._id));
+            return fresh.length ? [...fresh, ...prev] : prev;
+          })).catch(() => {});
+      }, 2000);
+    };
+
     const onNewMessage = (data: { message: Message; conversationId: string } | Message) => {
       const msg = 'message' in data && data.conversationId ? data.message : data as Message;
       const rawConv = 'conversationId' in data ? data.conversationId : msg.conversation;
@@ -944,12 +961,7 @@ function ChatPageInner() {
         return prev;
       });
       if (!known) {
-        conversationApi.list({ channel: channelFilter !== 'all' ? channelFilter : undefined } as Record<string, string | undefined>)
-          .then(r => setConversations(prev => {
-            const seen = new Set(prev.map(c => c._id));
-            const fresh = (r.data.data || []).filter((c: Conversation) => !seen.has(c._id));
-            return [...fresh, ...prev];
-          })).catch(() => {});
+        scheduleUnknownRefetch();
       }
       if (convId === selectedConv?._id) api.put(`/conversations/${convId}/read`).catch(() => {});
     };
@@ -971,12 +983,7 @@ function ChatPageInner() {
       if (!exists) {
         // Unknown conversation: let the server (which enforces this user's inbox scope)
         // decide if it belongs here, so unassigned chats never leak into a scoped agent's inbox.
-        conversationApi.list({ channel: channelFilter !== 'all' ? channelFilter : undefined } as Record<string, string | undefined>)
-          .then(r => setConversations(prev => {
-            if (prev.some(c => c._id === conv._id)) return prev;
-            const found = (r.data.data || []).find((c: Conversation) => c._id === conv._id);
-            return found ? [found, ...prev] : prev;
-          })).catch(() => {});
+        scheduleUnknownRefetch();
       }
     };
 
@@ -1685,7 +1692,7 @@ function ChatPageInner() {
   };
 
   const convSortTime = (c: Conversation) => new Date((c.lastMessage as unknown as { timestamp?: string })?.timestamp || (c as unknown as { lastMessageAt?: string }).lastMessageAt || c.updatedAt || 0).getTime();
-  const filteredConversations = (() => {
+  const filteredConversations = React.useMemo(() => {
     const base = (searchConvs !== null ? searchConvs : reminderConvs !== null ? reminderConvs : conversations).filter((c) => {
       const convChannel = (c as unknown as { channel?: string }).channel || 'whatsapp';
       if (channelFilter !== 'all' && convChannel !== channelFilter) return false;
@@ -1723,7 +1730,8 @@ function ChatPageInner() {
       if (sortOrder === 'oldest') return at - bt;
       return bt - at;
     });
-  })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchConvs, reminderConvs, conversations, channelFilter, labelFilter, reminderContacts, searchQuery, sortOrder]);
 
   // Channel of the currently open conversation. WhatsApp-only features
   // (templates, presets, voice calls, AI toggles, payment links) are hidden
@@ -2355,7 +2363,7 @@ function ChatPageInner() {
                 const isEmailMsg = (msg as { metadata?: { source?: string } }).metadata?.source === 'email'
                   || (selectedConv as unknown as { channel?: string } | null)?.channel === 'email';
                 return (
-                <div key={msg._id} id={`msg-${msg._id}`} className={`group flex min-w-0 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} ${matchIds.includes(msg._id) ? (matchIds[matchIdx] === msg._id ? 'rounded-lg ring-2 ring-amber-400' : 'rounded-lg ring-1 ring-amber-200') : ''}`}>
+                <div key={msg._id} id={`msg-${msg._id}`} className={`group flex min-w-0 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} ${matchIdSet.has(msg._id) ? (matchIds[matchIdx] === msg._id ? 'rounded-lg ring-2 ring-amber-400' : 'rounded-lg ring-1 ring-amber-200') : ''}`}>
                   <div data-kkhs-msg={msg.direction === 'outbound' ? 'out' : 'in'} className={`${isEmailMsg ? 'max-w-[98%] w-full' : 'max-w-[85%] sm:max-w-[70%]'} min-w-0 wrap-break-word wrap-anywhere rounded-xl px-4 py-2 shadow-sm ${
                     msg.direction === 'outbound' ? 'bg-[#d9fdd3] text-gray-900 rounded-br-sm' : 'bg-white text-gray-900 rounded-bl-sm'
                   }`}>

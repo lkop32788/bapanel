@@ -235,8 +235,8 @@ export default function SiteSettingsPage() {
         <div className="space-y-4 max-w-2xl">
           <h3 className="font-semibold text-gray-800">品牌和标志</h3>
           <p className="text-xs text-gray-500 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">这是管理您的徽标和品牌的单一位置。它适用于任何地方——登录页面、导航栏、页脚以及管理和客户端侧边栏。接受任何图像格式；以下尺寸仅供参考。</p>
-          <ImageUploadInput label={"标志"} value={settings.logo || ''} onChange={v => setS('logo', v)} hint={"推荐：200×60px，透明背景的PNG/SVG"} folder="branding" />
-          <ImageUploadInput label={"深色标志（可选）"} value={settings.logoDark || ''} onChange={v => setS('logoDark', v)} hint={"在深色背景上显示。推荐：200×60px，PNG/SVG"} folder="branding" />
+          <ImageUploadInput label={"标志"} value={settings.logo || ''} onChange={v => setS('logo', v)} hint={"推荐：200×60px，透明背景的PNG"} folder="branding" />
+          <ImageUploadInput label={"深色标志（可选）"} value={settings.logoDark || ''} onChange={v => setS('logoDark', v)} hint={"在深色背景上显示。推荐：200×60px，PNG"} folder="branding" />
           <ImageUploadInput label={"网站图标"} value={settings.favicon || ''} onChange={v => setS('favicon', v)} hint={"推荐：32×32px或64×64px，.ico/.png"} folder="branding" />
           <ImageUploadInput label={"应用程序图标（PWA/安装应用程序）"} value={settings.appIcon || ''} onChange={v => setS('appIcon', v)} hint={"安装的应用程序上显示仅方形图标标记。推荐：512×512px PNG。留空以使用徽标。"} folder="branding" />
           <ImageUploadInput label={"登录页面图像"} value={settings.loginBg || ''} onChange={v => setS('loginBg', v)} hint={"显示在登录和注册页面的左侧。推荐：1200×1600px，JPG/PNG"} folder="branding" />

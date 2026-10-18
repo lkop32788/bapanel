@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import useBranding from '@/lib/useBranding';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, LayoutDashboard, BarChart3, Users, Tags, Layers, FileText, Send, Zap, Keyboard, ShoppingBag, Share2, FormInput, Phone, UserPlus, Settings, ChevronDown, ChevronRight, Menu, X, LogOut, Database, MessageCircle, ImageIcon, Wrench, BookOpen, Brain, Plug, Sparkles, PiggyBank, Shield, Puzzle, QrCode, Bot } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, BarChart3, Users, Tags, Layers, FileText, Send, Zap, Keyboard, ShoppingBag, Share2, FormInput, Phone, UserPlus, Settings, ChevronDown, ChevronRight, Menu, X, LogOut, Database, MessageCircle, ImageIcon, Wrench, BookOpen, Brain, Plug, Sparkles, PiggyBank, Shield, Puzzle, QrCode, Bot, Cloud } from 'lucide-react';
 import { FaWhatsapp, FaInstagram, FaFacebook, FaTelegram, FaEnvelope } from 'react-icons/fa';
 import { OmniNavIcon, OmniSidebarBrand } from '@/components/layout/OmniSidebar';
 import { useAuthStore } from '@/stores/authStore';
@@ -54,6 +54,7 @@ export const navItems: NavItem[] = [
       { label: 'Preset Templates', href: '/client/save-money/templates', icon: <FileText className="w-4 h-4" /> },
       { label: 'Preset Campaigns', href: '/client/save-money/campaigns', icon: <Send className="w-4 h-4" /> },
       { label: 'Web WhatsApp Campaigns', href: '/client/save-money/qr-campaigns', icon: <QrCode className="w-4 h-4" /> },
+      { label: 'Aliyun Chat App Campaigns', href: '/client/save-money/chatapp-campaigns', icon: <Cloud className="w-4 h-4" /> },
     ],
   },
   {
@@ -131,6 +132,7 @@ const ADMIN_FEATURE_MAP: Record<string, string> = {
   '/client/save-money/templates': 'presetTemplates',
   '/client/save-money/campaigns': 'presetCampaigns',
   '/client/save-money/qr-campaigns': 'qrCampaigns',
+  '/client/save-money/chatapp-campaigns': 'chatappCampaigns',
   '/client/predefined-actions': 'predefinedActions',
   '/client/response-resources': 'responseResources',
   '/client/media-library': 'mediaLibrary',

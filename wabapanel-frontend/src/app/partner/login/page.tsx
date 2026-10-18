@@ -27,8 +27,10 @@ export default function PartnerLoginPage() {
   useEffect(() => {
     const token = searchParams.get('token');
     if (!token) return;
+    router.replace('/partner/login'); // strip the token from the URL/history
+    // Keep an existing adminToken: never overwrite the real admin token with a partner token
     const current = localStorage.getItem('token');
-    if (current && current !== token) localStorage.setItem('adminToken', current);
+    if (current && current !== token && !localStorage.getItem('adminToken')) localStorage.setItem('adminToken', current);
     localStorage.setItem('token', token);
     localStorage.removeItem('workspaceId');
     loadPartner().then(() => {

@@ -25,7 +25,7 @@ const contactSchema = new mongoose.Schema({
   optInStatus: { type: Boolean, default: true },
   waId: { type: String, default: '' }, // WhatsApp ID
   isGroup: { type: Boolean, default: false }, // WhatsApp group chat (QR) - hidden from Contacts/CRM/broadcast
-  channel: { type: String, enum: ['whatsapp', 'whatsapp_qr', 'facebook', 'instagram', 'telegram', 'telegram_personal', 'email'], default: 'whatsapp' },
+  channel: { type: String, enum: ['whatsapp', 'whatsapp_qr', 'whatsapp_chatapp', 'facebook', 'instagram', 'telegram', 'telegram_personal', 'email'], default: 'whatsapp' },
   profileName: { type: String, default: '' },
 }, { timestamps: true });
 

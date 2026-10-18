@@ -55,6 +55,18 @@ const workspaceSchema = new mongoose.Schema({
     apiId: { type: String, default: '' },
     apiHash: { type: String, default: '' },
   },
+  // Aliyun Chat App Message Service — Meta Premier BSP, official WhatsApp
+  // channel reached through Alibaba Cloud instead of a direct Meta token.
+  chatApp: {
+    enabled: { type: Boolean, default: false },
+    isConnected: { type: Boolean, default: false },
+    accessKeyId: { type: String, default: '' },
+    accessKeySecret: { type: String, default: '' },
+    endpoint: { type: String, default: 'cams.ap-southeast-1.aliyuncs.com' },
+    custSpaceId: { type: String, default: '' },
+    phoneNumber: { type: String, default: '' },
+    lastError: { type: String, default: '' },
+  },
   emailChannel: {
     enabled: { type: Boolean, default: false },
     imapHost: { type: String, default: '' },
@@ -85,5 +97,8 @@ const workspaceSchema = new mongoose.Schema({
   },
   status: { type: String, enum: ['active', 'inactive'], default: 'active' },
 }, { timestamps: true });
+
+workspaceSchema.index({ 'whatsapp.phoneNumberId': 1 }, { sparse: true });
+workspaceSchema.index({ 'whatsapp.extraNumbers.phoneNumberId': 1 }, { sparse: true });
 
 module.exports = mongoose.model('Workspace', workspaceSchema);

@@ -12,4 +12,6 @@ const contactNoteSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
+contactNoteSchema.index({ reminderSent: 1, remindAt: 1 });
+
 module.exports = mongoose.model('ContactNote', contactNoteSchema);

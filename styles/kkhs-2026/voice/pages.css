@@ -1,0 +1,467 @@
+/* ==========================================================================
+   WabaPanel New UI — Voice v3 page layer.
+   Re-skins the Tailwind classes and data hooks the pages already render:
+   page heads, panels, buttons, chips, tables, inputs, tiles and the inbox.
+   Scoped to html[data-kkhs="on"].
+   ========================================================================== */
+
+/* ============================================================= page head == */
+html[data-kkhs="on"] .page-hero {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 10px 0 2px !important;
+  margin-bottom: 16px !important;
+  color: var(--v-ink) !important;
+}
+html[data-kkhs="on"] .page-hero h1 {
+  font-size: 32px !important; font-weight: 600 !important;
+  letter-spacing: -.035em !important; line-height: 1.1 !important;
+  color: var(--v-ink) !important;
+}
+html[data-kkhs="on"] .page-hero h1 svg { width: 26px !important; height: 26px !important; color: var(--v-accent) !important; }
+html[data-kkhs="on"] .page-hero > div > p,
+html[data-kkhs="on"] .page-hero > p {
+  font-size: 14px !important; color: var(--v-ink-2) !important; margin-top: 6px !important;
+}
+
+/* ============================================================== buttons === */
+html[data-kkhs="on"] main button,
+html[data-kkhs="on"] main a.hero-btn,
+html[data-kkhs="on"] .page-hero button,
+html[data-kkhs="on"] .page-hero a.hero-btn,
+html[data-kkhs="on"] .page-hero label.cursor-pointer,
+html[data-kkhs="on"] main [data-kkhs-btn],
+html[data-kkhs="on"] .kd-btn {
+  border-radius: 999px !important;
+  transition: transform 160ms var(--v-ease), background 200ms var(--v-ease), box-shadow 200ms var(--v-ease);
+}
+html[data-kkhs="on"] main button:active,
+html[data-kkhs="on"] main [data-kkhs-btn]:active,
+html[data-kkhs="on"] .kd-btn:active { transform: scale(.97); }
+
+html[data-kkhs="on"] main [data-kkhs-btn],
+html[data-kkhs="on"] .kd-btn,
+html[data-kkhs="on"] .page-hero button,
+html[data-kkhs="on"] .page-hero a.hero-btn,
+html[data-kkhs="on"] .page-hero label.cursor-pointer {
+  height: 38px !important; padding: 0 16px !important;
+  font-size: 13.5px !important; font-weight: 600 !important; gap: 8px;
+  border: 1px solid var(--v-hair-2) !important;
+  background: var(--v-surface) !important; color: var(--v-ink) !important;
+  box-shadow: none !important;
+}
+html[data-kkhs="on"] main [data-kkhs-btn] svg,
+html[data-kkhs="on"] .kd-btn svg,
+html[data-kkhs="on"] .page-hero button svg { width: 15px !important; height: 15px !important; color: var(--v-ink-2) !important; }
+
+/* primary actions carry the gradient */
+html[data-kkhs="on"] main [data-kkhs-btn="primary"],
+html[data-kkhs="on"] .kd-bp,
+html[data-kkhs="on"] .page-hero button:last-child,
+html[data-kkhs="on"] .page-hero a.hero-btn:last-child,
+html[data-kkhs="on"] .page-hero > div:last-child > button:last-child,
+html[data-kkhs="on"] .page-hero > div:last-child > a.hero-btn:last-child,
+html[data-kkhs="on"] main button.bg-emerald-600,
+html[data-kkhs="on"] main button.bg-emerald-500,
+html[data-kkhs="on"] main button.bg-emerald-700 {
+  background: var(--v-grad) !important; color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 12px 30px -16px rgb(40 87 224 / .75) !important;
+}
+html[data-kkhs="on"] main [data-kkhs-btn="primary"] svg,
+html[data-kkhs="on"] .kd-bp svg,
+html[data-kkhs="on"] .page-hero button:last-child svg,
+html[data-kkhs="on"] .page-hero > div:last-child > button:last-child svg,
+html[data-kkhs="on"] main button.bg-emerald-600 svg { color: #fff !important; }
+html[data-kkhs="on"] main [data-kkhs-btn="primary"]:hover,
+html[data-kkhs="on"] .kd-bp:hover,
+html[data-kkhs="on"] main button.bg-emerald-600:hover { filter: brightness(1.06); background: var(--v-grad) !important; }
+
+html[data-kkhs="on"] main [data-kkhs-btn="ghost"] { background: none !important; border-color: transparent !important; color: var(--v-ink-2) !important; }
+html[data-kkhs="on"] main [data-kkhs-btn="ghost"]:hover { background: var(--v-sunken) !important; color: var(--v-ink) !important; }
+html[data-kkhs="on"] main [data-kkhs-btn="danger"] { background: var(--v-bad-soft) !important; color: var(--v-bad) !important; border-color: transparent !important; }
+html[data-kkhs="on"] main [data-kkhs-btn="danger"] svg { color: var(--v-bad) !important; }
+html[data-kkhs="on"] .kd-bsm { height: 32px !important; padding: 0 12px !important; font-size: 12.5px !important; }
+html[data-kkhs="on"] .kd-link { color: var(--v-accent); font-size: 12.5px; }
+
+/* text links inside a subtitle stay text */
+html[data-kkhs="on"] .page-hero p > button,
+html[data-kkhs="on"] .page-hero p > button:hover {
+  height: auto !important; padding: 0 !important; background: none !important; border: 0 !important;
+  box-shadow: none !important; color: var(--v-warn) !important; font-size: inherit !important; text-decoration: underline;
+}
+
+/* ================================================================ panels == */
+html[data-kkhs="on"] main .bg-white.rounded-xl,
+html[data-kkhs="on"] main .bg-white.rounded-2xl,
+html[data-kkhs="on"] main .bg-white.rounded-lg,
+html[data-kkhs="on"] main [data-kkhs-card],
+html[data-kkhs="on"] .kd-panel,
+html[data-kkhs="on"] .kd-strip,
+html[data-kkhs="on"] [data-kkhs-table] {
+  background: var(--v-surface) !important;
+  border: 1px solid var(--v-hair) !important;
+  border-radius: 18px !important;
+  box-shadow: inset 0 1px 0 #fff !important;
+}
+html[data-kkhs="on"].dark main .bg-white.rounded-xl,
+html[data-kkhs="on"].dark main [data-kkhs-card],
+html[data-kkhs="on"].dark .kd-panel { box-shadow: none !important; }
+html[data-kkhs="on"] main .bg-white.rounded-xl.p-4 { padding: 16px; }
+
+/* stat tiles: mono numbers, coloured icon tile */
+html[data-kkhs="on"] [data-kkhs-card="stat"] p.text-sm { font-size: 13px !important; color: var(--v-ink-2) !important; }
+html[data-kkhs="on"] [data-kkhs-card="stat"] p.text-2xl,
+html[data-kkhs="on"] main .bg-white.rounded-xl .text-2xl.font-bold,
+html[data-kkhs="on"] main .bg-white.rounded-2xl .text-2xl.font-bold,
+html[data-kkhs="on"] main .bg-white.rounded-xl .text-3xl.font-bold,
+html[data-kkhs="on"] main .bg-white.rounded-2xl .text-3xl.font-bold {
+  font-family: var(--v-mono) !important; font-size: 30px !important; font-weight: 500 !important;
+  letter-spacing: -.03em !important; line-height: 1.1 !important; color: var(--v-ink) !important;
+}
+html[data-kkhs="on"] [data-kkhs-card="stat"] .w-12.h-12 {
+  width: 38px !important; height: 38px !important; border-radius: 12px !important; box-shadow: none !important;
+}
+html[data-kkhs="on"] [data-kkhs-card="stat"] .w-12.h-12 svg { width: 18px !important; height: 18px !important; }
+
+/* ================================================== dashboard hero tile === */
+html[data-kkhs="on"] .kd-strip {
+  background: var(--v-grad) !important;
+  border-color: transparent !important;
+  border-radius: 24px !important;
+  box-shadow: var(--v-grad-shadow) !important;
+  color: #fff !important;
+  padding: 22px 24px !important;
+  margin-bottom: 16px !important;
+  position: relative;
+  overflow: hidden;
+}
+html[data-kkhs="on"] .kd-strip::after {
+  content: ""; position: absolute; right: -60px; top: -80px; width: 280px; height: 280px;
+  border-radius: 50%; background: rgb(255 255 255 / .10); filter: blur(30px); pointer-events: none;
+}
+html[data-kkhs="on"] .kd-strip > * { position: relative; z-index: 1; }
+html[data-kkhs="on"] .kd-strip .kd-big b {
+  font-family: var(--v-mono); font-size: 56px !important; font-weight: 500 !important;
+  letter-spacing: -.04em !important; color: #fff !important;
+}
+html[data-kkhs="on"] .kd-strip .kd-big span { color: rgb(255 255 255 / .78) !important; font-size: 13px !important; }
+html[data-kkhs="on"] .kd-strip .kd-kpi {
+  background: rgb(255 255 255 / .12) !important;
+  border: 1px solid rgb(255 255 255 / .18) !important;
+  border-radius: 16px !important;
+}
+html[data-kkhs="on"] .kd-strip .kd-kpi:hover { background: rgb(255 255 255 / .18) !important; }
+html[data-kkhs="on"] .kd-strip .kd-kpi span { color: rgb(255 255 255 / .75) !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; }
+html[data-kkhs="on"] .kd-strip .kd-kpi b { color: #fff !important; font-family: var(--v-mono); font-size: 19px !important; font-weight: 500 !important; }
+html[data-kkhs="on"] .kd-strip .kd-chip { background: rgb(255 255 255 / .18) !important; color: #fff !important; border-radius: 999px !important; }
+
+/* panel heads */
+html[data-kkhs="on"] .kd-ph h1 {
+  font-size: 32px !important; font-weight: 600 !important; letter-spacing: -.035em !important; line-height: 1.1;
+}
+html[data-kkhs="on"] .kd-ph p { font-size: 14px !important; color: var(--v-ink-2) !important; margin-top: 6px !important; }
+html[data-kkhs="on"] .kd-ph2 { padding: 14px 18px !important; border-bottom: 1px solid var(--v-hair) !important; }
+html[data-kkhs="on"] .kd-ph2 h3 { font-size: 16px !important; font-weight: 600 !important; }
+html[data-kkhs="on"] .kd-row { padding: 12px 18px !important; border-bottom: 1px solid var(--v-hair) !important; }
+html[data-kkhs="on"] .kd-t { font-size: 14px !important; font-weight: 600 !important; }
+html[data-kkhs="on"] .kd-s { font-size: 12.5px !important; color: var(--v-ink-2) !important; }
+html[data-kkhs="on"] .kd-hov:hover { background: var(--v-sunken) !important; }
+html[data-kkhs="on"] .kd-av { width: 34px !important; height: 34px !important; border-radius: 999px !important; background: var(--v-accent-soft) !important; color: var(--v-accent) !important; }
+html[data-kkhs="on"] .kd-meter,
+html[data-kkhs="on"] .kd-meter i { border-radius: 999px !important; }
+html[data-kkhs="on"] .kd-meter { height: 8px !important; background: var(--v-sunken) !important; }
+html[data-kkhs="on"] .kd-meter i { background: var(--v-accent) !important; }
+html[data-kkhs="on"] .kd-hours i { background: var(--v-accent-soft) !important; border-radius: 6px 6px 2px 2px !important; }
+html[data-kkhs="on"] .kd-hours i.pk { background: linear-gradient(180deg, #4d7bff, var(--v-accent)) !important; }
+html[data-kkhs="on"] .kd-qa-i { border-radius: 999px !important; border-color: var(--v-hair-2) !important; font-size: 13px !important; }
+html[data-kkhs="on"] .kd-qa-i:hover { background: var(--v-accent-soft) !important; border-color: var(--v-accent) !important; }
+html[data-kkhs="on"] .kd-unread { font-family: var(--v-mono); }
+
+/* ============================================================ chips/pills = */
+html[data-kkhs="on"] [data-kkhs-pill],
+html[data-kkhs="on"] .kd-pill,
+html[data-kkhs="on"] main .rounded-full.text-xs,
+html[data-kkhs="on"] main tbody td .rounded-full.text-xs,
+html[data-kkhs="on"] main tbody td .rounded-md.text-xs,
+html[data-kkhs="on"] main tbody td .rounded.text-xs {
+  border-radius: 999px !important;
+  font-size: 12px !important; font-weight: 500 !important;
+  padding: 4px 11px !important;
+  box-shadow: none !important;
+}
+html[data-kkhs="on"] [data-kkhs-pill="success"] { background: var(--v-ok-soft) !important; color: var(--v-ok) !important; }
+html[data-kkhs="on"] [data-kkhs-pill="warning"] { background: var(--v-warn-soft) !important; color: var(--v-warn) !important; }
+html[data-kkhs="on"] [data-kkhs-pill="danger"]  { background: var(--v-bad-soft) !important; color: var(--v-bad) !important; }
+html[data-kkhs="on"] [data-kkhs-pill="info"]    { background: var(--v-blue-soft) !important; color: var(--v-blue) !important; }
+html[data-kkhs="on"] [data-kkhs-pill="default"] { background: var(--v-sunken) !important; color: var(--v-ink-2) !important; }
+
+/* filter chips */
+html[data-kkhs="on"] main button.rounded-lg.text-sm.font-medium.border,
+html[data-kkhs="on"] main button.rounded-xl.text-sm.font-medium.border,
+html[data-kkhs="on"] main button.rounded-full.text-sm.font-medium.border,
+html[data-kkhs="on"] main button.rounded-full.text-xs.font-medium.border {
+  height: 34px !important; padding: 0 14px !important; font-size: 13px !important; font-weight: 500 !important;
+  border-radius: 999px !important; border: 1px dashed var(--v-hair-3) !important;
+  background: transparent !important; color: var(--v-ink-2) !important;
+}
+html[data-kkhs="on"] main button.rounded-lg.text-sm.font-medium.bg-emerald-600,
+html[data-kkhs="on"] main button.rounded-xl.text-sm.font-medium.bg-emerald-600,
+html[data-kkhs="on"] main button.rounded-full.text-sm.font-medium.bg-emerald-600,
+html[data-kkhs="on"] main button.rounded-full.text-xs.font-medium.bg-emerald-600,
+html[data-kkhs="on"] main button.rounded-lg.text-sm.font-medium.bg-emerald-50 {
+  height: 34px !important; padding: 0 14px !important; font-size: 13px !important; font-weight: 600 !important;
+  border-radius: 999px !important; border: 1px solid transparent !important;
+  background: var(--v-grad) !important; color: #fff !important;
+}
+html[data-kkhs="on"] main button.rounded-lg.text-sm.font-medium.bg-emerald-600 svg,
+html[data-kkhs="on"] main button.rounded-full.text-sm.font-medium.bg-emerald-600 svg { color: #fff !important; }
+
+/* tabs */
+html[data-kkhs="on"] [data-kkhs-tabs] { border-bottom: 1px solid var(--v-hair) !important; gap: 4px; }
+html[data-kkhs="on"] [data-kkhs-tabs] > button { font-size: 13.5px !important; padding: 8px 14px !important; }
+html[data-kkhs="on"] [data-kkhs-tabs] > button[aria-selected="true"] { color: var(--v-accent) !important; border-bottom-color: var(--v-accent) !important; }
+
+/* ================================================================ inputs == */
+html[data-kkhs="on"] main input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),
+html[data-kkhs="on"] main select,
+html[data-kkhs="on"] main textarea,
+html[data-kkhs="on"] [data-kkhs-inp] {
+  height: 40px; border-radius: 14px !important;
+  border: 1px solid var(--v-hair-2) !important;
+  background: var(--v-surface) !important;
+  font-size: 13.5px !important; color: var(--v-ink) !important;
+  padding-left: 14px !important; padding-right: 14px !important;
+  box-shadow: none !important;
+}
+html[data-kkhs="on"] main textarea { height: auto; padding-top: 10px !important; padding-bottom: 10px !important; }
+html[data-kkhs="on"] main input:focus,
+html[data-kkhs="on"] main select:focus,
+html[data-kkhs="on"] main textarea:focus {
+  border-color: var(--v-accent) !important;
+  box-shadow: 0 0 0 4px var(--v-accent-soft) !important;
+}
+html[data-kkhs="on"] main input[type=checkbox] { width: 16px; height: 16px; border-radius: 5px; accent-color: var(--v-accent); }
+html[data-kkhs="on"] main label.text-sm.font-medium,
+html[data-kkhs="on"] main label.block.text-sm { font-size: 13px !important; font-weight: 500 !important; color: var(--v-ink-2) !important; }
+
+/* search inputs read as pills */
+html[data-kkhs="on"] main input[type=search],
+html[data-kkhs="on"] main input[placeholder*="Search"],
+html[data-kkhs="on"] main input[placeholder*="search"] { border-radius: 999px !important; }
+
+/* ================================================================ tables == */
+html[data-kkhs="on"] thead th {
+  background: transparent !important;
+  color: var(--v-ink-3) !important;
+  font-size: 12.5px !important; font-weight: 500 !important;
+  padding: 0 14px 12px !important;
+  border-bottom: 1px solid var(--v-hair) !important;
+}
+html[data-kkhs="on"] tbody td {
+  height: 52px; padding: 0 14px !important;
+  font-size: 13.5px !important; color: var(--v-ink) !important;
+  border-bottom: 1px solid var(--v-hair) !important;
+}
+html[data-kkhs="on"] tbody tr:hover { background: var(--v-sunken) !important; }
+html[data-kkhs="on"] tbody td .text-sm { font-size: 13px !important; }
+html[data-kkhs="on"] tbody td .text-xs { font-size: 12px !important; }
+html[data-kkhs="on"] tbody td .w-8.h-8.rounded-full,
+html[data-kkhs="on"] tbody td .w-9.h-9.rounded-full,
+html[data-kkhs="on"] tbody td .w-10.h-10.rounded-full {
+  width: 32px !important; height: 32px !important; border-radius: 999px !important; font-size: 12px !important;
+}
+html[data-kkhs="on"] tbody td button.p-1,
+html[data-kkhs="on"] tbody td button.p-1\.5,
+html[data-kkhs="on"] tbody td button.p-2 {
+  width: 30px !important; height: 30px !important; border-radius: 999px !important;
+  border: 1px solid var(--v-hair-2) !important; background: var(--v-surface) !important; color: var(--v-ink-2) !important;
+}
+html[data-kkhs="on"] tbody td button.p-1 svg,
+html[data-kkhs="on"] tbody td button.p-1\.5 svg,
+html[data-kkhs="on"] tbody td button.p-2 svg { width: 14px !important; height: 14px !important; }
+html[data-kkhs="on"] [data-kkhs-table] { overflow-x: auto; overflow-y: hidden; }
+html[data-kkhs="on"] [data-kkhs-table] > .flex.items-center.justify-between.px-4,
+html[data-kkhs="on"] [data-kkhs-table] > .flex.items-center.justify-between.px-6 {
+  padding: 14px 18px !important; font-size: 13px !important; border-top: 1px solid var(--v-hair) !important;
+}
+
+/* =============================================================== kanban === */
+html[data-kkhs="on"] [data-kkhs-kcol] { border-radius: 24px !important; background: var(--v-shell) !important; border-color: var(--v-hair) !important; padding: 10px !important; }
+html[data-kkhs="on"] [data-kkhs-kc] { border-radius: 16px !important; border-color: var(--v-hair) !important; box-shadow: inset 0 1px 0 #fff !important; padding: 12px !important; }
+html[data-kkhs="on"] [data-kkhs-kc] .font-medium, html[data-kkhs="on"] [data-kkhs-kc] .font-semibold { font-size: 13px !important; }
+
+/* =============================================================== modals === */
+html[data-kkhs="on"] .fixed.inset-0 .bg-white.rounded-2xl,
+html[data-kkhs="on"] .fixed.inset-0 .bg-white.rounded-xl {
+  border-radius: 24px !important; box-shadow: var(--v-float) !important; border: 1px solid var(--v-hair-2) !important;
+}
+html[data-kkhs="on"] .fixed.inset-0.bg-black\/50,
+html[data-kkhs="on"] .fixed.inset-0.bg-black\/40 { backdrop-filter: blur(2px); }
+
+/* ================================================================= inbox == */
+html[data-kkhs="on"] [data-kkhs-inbox] { border-radius: 18px; overflow: hidden; border: 1px solid var(--v-hair) !important; }
+html[data-kkhs="on"] [data-kkhs-thread] [data-kkhs-msg="in"],
+html[data-kkhs="on"] [data-kkhs-thread] [data-kkhs-msg="out"] {
+  border-radius: 18px !important; padding: 9px 13px !important; font-size: 13.5px !important;
+}
+html[data-kkhs="on"] [data-kkhs-thread] [data-kkhs-msg="in"] { border-bottom-left-radius: 6px !important; }
+html[data-kkhs="on"] [data-kkhs-thread] [data-kkhs-msg="out"] { border-bottom-right-radius: 6px !important; background: var(--v-accent-soft) !important; }
+html[data-kkhs="on"] [data-kkhs-list] input[type="text"] { border-radius: 999px !important; height: 36px; background: var(--v-sunken) !important; }
+html[data-kkhs="on"] [data-kkhs-conv] > button { padding: 12px 14px !important; }
+html[data-kkhs="on"] [data-kkhs-conv] > button p.text-sm { font-size: 13.5px !important; }
+html[data-kkhs="on"] [data-kkhs-conv] > button p.text-xs { font-size: 12.5px !important; }
+html[data-kkhs="on"] [data-kkhs-conv][aria-selected="true"] > button { background: var(--v-accent-soft) !important; }
+html[data-kkhs="on"] [data-kkhs-conv] > button .bg-emerald-600.text-white.rounded-full { background: var(--v-accent) !important; border-radius: 999px !important; font-family: var(--v-mono); font-size: 11.5px !important; height: 20px !important; }
+html[data-kkhs="on"] [data-kkhs-composer] textarea { border-radius: 18px !important; font-size: 13.5px !important; }
+html[data-kkhs="on"] [data-kkhs-composer] button.rounded-full { border-radius: 999px !important; height: 30px !important; font-size: 12px !important; padding: 0 12px !important; }
+html[data-kkhs="on"] [data-kkhs-composer] .bg-emerald-600.text-white { background: var(--v-grad) !important; border-radius: 999px !important; }
+html[data-kkhs="on"] .kx-tab { font-size: 12.5px !important; }
+html[data-kkhs="on"] .kx-s > p { text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; font-weight: 600 !important; }
+
+/* ================================================================ misc ==== */
+html[data-kkhs="on"] main .uppercase.tracking-wide,
+html[data-kkhs="on"] main .uppercase.tracking-wider,
+html[data-kkhs="on"] main .uppercase.text-xs { text-transform: none !important; letter-spacing: 0 !important; }
+html[data-kkhs="on"] main .text-center.py-12 > svg,
+html[data-kkhs="on"] main .text-center.py-16 > svg,
+html[data-kkhs="on"] main .p-8.text-center > svg,
+html[data-kkhs="on"] main .p-12.text-center > svg {
+  width: 48px !important; height: 48px !important; padding: 13px; border-radius: 999px !important;
+  background: var(--v-accent-soft) !important; color: var(--v-accent) !important;
+}
+
+/* ============================================================== motion ==== */
+@keyframes v-rise { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > div > .page-hero,
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > div > .grid,
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > div > .bg-white,
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > div > [data-kkhs-table],
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > .kd-ph,
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > .kd-strip,
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > .kd-g2 {
+  animation: v-rise 700ms var(--v-ease) both;
+}
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > div > *:nth-child(2) { animation-delay: 60ms; }
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > div > *:nth-child(3) { animation-delay: 120ms; }
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > div > *:nth-child(4) { animation-delay: 180ms; }
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > div > *:nth-child(5) { animation-delay: 240ms; }
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > *:nth-child(2) { animation-delay: 60ms; }
+html[data-kkhs="on"] main.flex-1.overflow-y-auto > *:nth-child(3) { animation-delay: 120ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-kkhs="on"] *,
+  html[data-kkhs="on"] *::before,
+  html[data-kkhs="on"] *::after {
+    animation-duration: .01ms !important; transition-duration: .01ms !important;
+  }
+}
+
+/* ======================================================= review fixes ===== */
+/* Inputs that carry a leading or trailing icon keep room for it. */
+html[data-kkhs="on"] main input.pl-8 { padding-left: 34px !important; }
+html[data-kkhs="on"] main input.pl-9 { padding-left: 38px !important; }
+html[data-kkhs="on"] main input.pl-10, html[data-kkhs="on"] .min-h-screen.flex input.pl-10 { padding-left: 42px !important; }
+html[data-kkhs="on"] main input.pr-10 { padding-right: 42px !important; }
+html[data-kkhs="on"] main input.pr-7 { padding-right: 30px !important; }
+
+/* The panel paints its primary surfaces with an emerald or teal gradient.
+   Saturated stops become the accent gradient; the pale tints are left alone. */
+html[data-kkhs="on"] [class~="from-emerald-500"],
+html[data-kkhs="on"] [class~="from-emerald-600"],
+html[data-kkhs="on"] [class~="from-emerald-700"],
+html[data-kkhs="on"] [class~="from-teal-500"],
+html[data-kkhs="on"] [class~="from-teal-600"],
+html[data-kkhs="on"] [class~="from-green-500"],
+html[data-kkhs="on"] [class~="from-green-600"] { background-image: var(--v-grad) !important; }
+
+/* solid brand buttons outside the page body (floating help, sticky bars) */
+html[data-kkhs="on"] body button.bg-emerald-600:not([data-kkhs-btn]),
+html[data-kkhs="on"] body a.bg-emerald-600 {
+  background: var(--v-grad) !important; color: #fff !important; border-radius: 999px !important;
+}
+
+/* Cards that paint themselves with a gradient keep it (their text is white).
+   Only plain white cards become Voice panels. */
+html[data-kkhs="on"] main .bg-white.rounded-xl[class*="from-"],
+html[data-kkhs="on"] main .bg-white.rounded-2xl[class*="from-"],
+html[data-kkhs="on"] main [data-kkhs-card][class*="from-"],
+html[data-kkhs="on"] main [class*="bg-linear"],
+html[data-kkhs="on"] main [class*="bg-gradient"] {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+html[data-kkhs="on"] main [class*="bg-linear"][class*="emerald"],
+html[data-kkhs="on"] main [class*="bg-gradient"][class*="emerald"],
+html[data-kkhs="on"] main [class*="bg-linear"][class*="teal"],
+html[data-kkhs="on"] main [class*="bg-gradient"][class*="teal"],
+html[data-kkhs="on"] main [class*="bg-linear"][class*="green"] {
+  background-image: var(--v-grad) !important;
+  border-color: transparent !important;
+}
+
+/* The generic input rule above carries a long :not() chain, so the icon-padding
+   overrides have to match its weight to win. */
+html[data-kkhs="on"] main input.pl-8:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]) { padding-left: 34px !important; }
+html[data-kkhs="on"] main input.pl-9:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]) { padding-left: 38px !important; }
+html[data-kkhs="on"] main input.pl-10:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]) { padding-left: 42px !important; }
+html[data-kkhs="on"] main input.pl-11:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]) { padding-left: 46px !important; }
+html[data-kkhs="on"] main input.pr-7:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]) { padding-right: 30px !important; }
+html[data-kkhs="on"] main input.pr-10:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]) { padding-right: 42px !important; }
+
+/* pale brand text that the pages use on gradient cards stays readable when the
+   card is white */
+html[data-kkhs="on"] main .bg-white:not([class*="bg-linear"]):not([class*="bg-gradient"]):not([class*="from-"]) .text-emerald-100,
+html[data-kkhs="on"] main .bg-white:not([class*="bg-linear"]):not([class*="bg-gradient"]):not([class*="from-"]) .text-emerald-200 { color: var(--v-ink-2) !important; }
+
+/* The gradient remap above is global, so the top-bar controls restate their
+   white pill after it. */
+html[data-kkhs="on"] [data-kkhs-top-actions] button[class*="bg-emerald"],
+html[data-kkhs="on"] [data-kkhs-top-actions] button[class*="bg-linear"],
+html[data-kkhs="on"] [data-kkhs-top-actions] button[class*="from-"],
+html[data-kkhs="on"] [data-kkhs-top-actions] a[class*="from-"] {
+  background: var(--v-surface) !important;
+  background-image: none !important;
+  color: var(--v-ink) !important;
+  border: 1px solid var(--v-hair-2) !important;
+}
+html[data-kkhs="on"] [data-kkhs-top-actions] button[class*="bg-emerald"] svg,
+html[data-kkhs="on"] [data-kkhs-top-actions] button[class*="from-"] svg { color: var(--v-accent) !important; }
+
+/* ...and it has to outrank the "solid brand button" rule above, which carries
+   one more type selector. */
+html[data-kkhs="on"] body [data-kkhs-top-actions] button[class*="bg-emerald"],
+html[data-kkhs="on"] body [data-kkhs-top-actions] button[class*="bg-linear"],
+html[data-kkhs="on"] body [data-kkhs-top-actions] button[class*="from-"],
+html[data-kkhs="on"] body [data-kkhs-top-actions] a[class*="bg-emerald"] {
+  background: var(--v-surface) !important;
+  background-image: none !important;
+  color: var(--v-ink) !important;
+  border: 1px solid var(--v-hair-2) !important;
+}
+html[data-kkhs="on"] body [data-kkhs-top-actions] button[class*="bg-emerald"] svg { color: var(--v-accent) !important; }
+
+/* ================================================ narrow desktop (<=1600) === */
+/* The reply-time figure sits above the six KPI tiles so their labels never wrap. */
+@media (max-width: 1600px) {
+  html[data-kkhs="on"] .kd-strip { grid-template-columns: 1fr !important; gap: 16px !important; padding: 20px 22px !important; }
+  html[data-kkhs="on"] .kd-strip .kd-big b { font-size: 44px !important; }
+  html[data-kkhs="on"] .kd-strip .kd-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; gap: 10px !important; }
+  html[data-kkhs="on"] .kd-strip .kd-kpi { padding: 10px 12px !important; }
+  html[data-kkhs="on"] .kd-strip .kd-kpi span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (max-width: 1199px) {
+  html[data-kkhs="on"] .kd-strip .kd-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 767px) {
+  html[data-kkhs="on"] .kd-strip .kd-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+/* Wide admin tables: tighter cells on laptop widths so the action column stays in view. */
+@media (max-width: 1600px) {
+  html[data-kkhs="on"] thead th { padding: 0 9px 12px !important; }
+  html[data-kkhs="on"] tbody td { padding: 0 9px !important; }
+}

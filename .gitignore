@@ -39,3 +39,13 @@ Thumbs.db
 .next/
 .site-cache/
 installed.lock
+
+# Credentials / runtime data never to commit
+wa_sessions/
+logs/
+uploads/
+backups/
+*.tar.gz
+.next-old/
+.next-build/
+.agents/

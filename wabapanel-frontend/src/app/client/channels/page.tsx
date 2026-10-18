@@ -1,7 +1,7 @@
 'use client';
 import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Camera, Users as FbIcon, CheckCircle, XCircle, ExternalLink, Send, Mail, QrCode, ShieldAlert, ShieldCheck, Copy, Unplug } from 'lucide-react';
+import { MessageSquare, Camera, Users as FbIcon, CheckCircle, XCircle, ExternalLink, Send, Mail, QrCode, ShieldAlert, ShieldCheck, Copy, Unplug, Cloud } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { workspaceApi, waqrApi, tgPersonalApi } from '@/lib/api';
@@ -26,6 +26,7 @@ export default function ChannelsPage() {
   const [metaChat, setMetaChat] = useState({ pageId: '', pageAccessToken: '', igAccountId: '', fbEnabled: false, igEnabled: false });
   const [telegram, setTelegram] = useState({ botToken: '', botUsername: '', enabled: false });
   const [emailCh, setEmailCh] = useState({ enabled: false, imapHost: '', imapPort: 993, smtpHost: '', smtpPort: 587, user: '', pass: '', fromName: '' });
+  const [chatApp, setChatApp] = useState({ enabled: false, isConnected: false, accessKeyId: '', accessKeySecret: '', endpoint: 'cams.ap-southeast-1.aliyuncs.com', custSpaceId: '', phoneNumber: '', lastError: '' });
   const [webhookCfg, setWebhookCfg] = useState<{ webhookUrl: string; webhookVerifyToken: string }>({ webhookUrl: '', webhookVerifyToken: '' });
   const [disconnecting, setDisconnecting] = useState('');
   const [emailStatus, setEmailStatus] = useState<{ lastPolledAt?: string; lastError?: string }>({});
@@ -275,6 +276,8 @@ export default function ChannelsPage() {
         setEmailCh({ enabled: !!ec.enabled, imapHost: ec.imapHost || '', imapPort: ec.imapPort || 993, smtpHost: ec.smtpHost || '', smtpPort: ec.smtpPort || 587, user: ec.user || '', pass: ec.pass || '', fromName: ec.fromName || '' });
         setEmailStatus({ lastPolledAt: ec.lastPolledAt, lastError: ec.lastError });
       }
+      const ca = w?.chatApp;
+      if (ca) setChatApp({ enabled: !!ca.enabled, isConnected: !!ca.isConnected, accessKeyId: ca.accessKeyId || '', accessKeySecret: ca.accessKeySecret || '', endpoint: ca.endpoint || 'cams.ap-southeast-1.aliyuncs.com', custSpaceId: ca.custSpaceId || '', phoneNumber: ca.phoneNumber || '', lastError: ca.lastError || '' });
     }).catch(() => {});
   }, [currentWorkspace]);
 
@@ -296,9 +299,9 @@ export default function ChannelsPage() {
 
   const copyText = (v: string) => { navigator.clipboard.writeText(v); toast.success(translateApiMessage("已复制！")); };
 
-  const saveChannels = async (patch: { metaChat?: typeof metaChat; telegram?: typeof telegram; emailChannel?: typeof emailCh }) => {
+  const saveChannels = async (patch: { metaChat?: typeof metaChat; telegram?: typeof telegram; emailChannel?: typeof emailCh; chatApp?: typeof chatApp }) => {
     if (!currentWorkspace) return;
-    await workspaceApi.update(currentWorkspace._id, { metaChat, telegram, emailChannel: emailCh, ...patch });
+    await workspaceApi.update(currentWorkspace._id, { metaChat, telegram, emailChannel: emailCh, chatApp, ...patch });
   };
 
   const disconnectWa = async () => {
@@ -357,6 +360,14 @@ export default function ChannelsPage() {
     setDisconnecting('');
   };
 
+  const disconnectChatApp = async () => {
+    if (!confirm("断开 Aliyun Chat App 的连接？AccessKey 凭据将被删除。")) return;
+    setDisconnecting('chatapp');
+    const next = { enabled: false, isConnected: false, accessKeyId: '', accessKeySecret: '', endpoint: 'cams.ap-southeast-1.aliyuncs.com', custSpaceId: '', phoneNumber: '', lastError: '' };
+    try { await saveChannels({ chatApp: next }); setChatApp(next); toast.success(translateApiMessage("Aliyun Chat App 已断开连接")); } catch { toast.error(translateApiMessage("操作失败")); }
+    setDisconnecting('');
+  };
+
   const metaConnected = !!(metaChat.pageId && metaChat.pageAccessToken);
 
   const MetaWebhookBox = ({ object, fields }: { object: string; fields: string }) => (
@@ -391,7 +402,7 @@ export default function ChannelsPage() {
     if (!currentWorkspace) return;
     setSaving(true);
     try {
-      await workspaceApi.update(currentWorkspace._id, { metaChat, telegram, emailChannel: emailCh });
+      await workspaceApi.update(currentWorkspace._id, { metaChat, telegram, emailChannel: emailCh, chatApp });
       toast.success(translateApiMessage("通道配置已保存"));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -827,6 +838,56 @@ export default function ChannelsPage() {
           </ol>
         </div>
         <ChannelDiagnose channel="email" />
+      </div>
+
+      {/* Aliyun Chat App */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center"><Cloud className="w-5 h-5 text-orange-600" /></div>
+            <div>
+              <h2 className="font-semibold text-gray-900">Aliyun Chat App</h2>
+              <p className="text-xs text-gray-500">{chatApp.isConnected ? `已连接${chatApp.phoneNumber ? ' — ' + chatApp.phoneNumber : ''}` : "通过阿里云 Chat App 消息服务（Meta 官方 BSP）收发 WhatsApp 消息"}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {chatApp.isConnected ? (
+              <span className="flex items-center gap-1 text-xs text-emerald-600"><CheckCircle className="w-4 h-4" /> 已连接</span>
+            ) : (
+              <span className="flex items-center gap-1 text-xs text-red-500"><XCircle className="w-4 h-4" /> 未连接</span>
+            )}
+            {chatApp.accessKeyId && <Button size="sm" variant="outline" loading={disconnecting === 'chatapp'} onClick={disconnectChatApp}><Unplug className="w-3.5 h-3.5" /> 断开连接</Button>}
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={chatApp.enabled} onChange={(e) => setChatApp({ ...chatApp, enabled: e.target.checked })} className="w-4 h-4 accent-orange-600" />
+              启用
+            </label>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label={"AccessKey ID"} value={chatApp.accessKeyId} onChange={(e) => setChatApp({ ...chatApp, accessKeyId: e.target.value })} placeholder="LTAI5t..." />
+          <Input label={"AccessKey Secret"} type="password" value={chatApp.accessKeySecret} onChange={(e) => setChatApp({ ...chatApp, accessKeySecret: e.target.value })} />
+          <Input label={"Endpoint"} value={chatApp.endpoint} onChange={(e) => setChatApp({ ...chatApp, endpoint: e.target.value })} placeholder="cams.ap-southeast-1.aliyuncs.com" />
+          <Input label={"CustSpaceId"} value={chatApp.custSpaceId} onChange={(e) => setChatApp({ ...chatApp, custSpaceId: e.target.value })} />
+          <Input label={"发送方号码（From）"} value={chatApp.phoneNumber} onChange={(e) => setChatApp({ ...chatApp, phoneNumber: e.target.value })} placeholder="+65xxxxxxxx" />
+        </div>
+        {chatApp.lastError && <p className="text-xs text-red-600">最近一次发送失败：{chatApp.lastError}</p>}
+        <div className="p-2.5 bg-white border border-orange-200 rounded-lg">
+          <p className="text-[11px] text-orange-600 font-medium mb-0.5">Webhook 回调地址（粘贴到阿里云 Chat App 控制台）</p>
+          <div className="flex items-center gap-2">
+            <p className="font-mono text-xs text-gray-900 break-all">{(typeof window !== 'undefined' ? window.location.origin : '')}/api/webhook/chatapp</p>
+            <button type="button" onClick={() => copyText(`${typeof window !== 'undefined' ? window.location.origin : ''}/api/webhook/chatapp`)} className="shrink-0 p-1.5 bg-orange-100 hover:bg-orange-200 rounded transition-colors" aria-label={"复制回调 URL"}><Copy className="w-3.5 h-3.5 text-orange-600" /></button>
+          </div>
+        </div>
+        <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1">
+          <p className="font-semibold text-gray-700">如何连接（逐步）：</p>
+          <ol className="list-decimal pl-4 space-y-1">
+            <li>在阿里云控制台开通 <b>Chat App 消息服务</b> 并完成 WhatsApp Business 账号（WABA）注册。</li>
+            <li>在 <b>RAM 访问控制</b> 中创建一个具有 Chat App 权限的 AccessKey，填入上面的 <b>AccessKey ID / Secret</b>。</li>
+            <li>从 Chat App 控制台复制 <b>CustSpaceId</b> 和已绑定的 WhatsApp <b>发送方号码</b>，填入上面对应字段。</li>
+            <li>把上方的 <b>Webhook 回调地址</b> 粘贴到 Chat App 控制台的回调配置中，用于接收消息。</li>
+            <li>勾选 <b>启用</b> 并点击下方 <b>保存配置</b>。</li>
+          </ol>
+        </div>
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
