@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 // 线性步骤 + 按钮可跳转到任意步骤；复杂分支请用高级设计器。
 
 type EasyType = 'text' | 'image' | 'buttons' | 'list' | 'question' | 'delay' | 'tag' | 'cta';
-interface EasyBtn { title: string; jump: string } // jump: '__next'=下一步 ''=结束 其他=步骤id
+interface EasyBtn { title: string; jump: string; kind: 'jump' | 'url'; url: string } // jump: '__next'=下一步 ''=结束 其他=步骤id
 interface EasyRow { title: string; description: string; jump: string }
 interface EasyCta { text: string; url: string }
 interface EasyStep {
@@ -37,7 +37,7 @@ const TYPE_META: Record<EasyType, { label: string; icon: React.ReactNode; hint: 
 const newStep = (type: EasyType): EasyStep => ({
   id: 'e' + Date.now() + Math.floor(Math.random() * 1000),
   type, text: '', mediaUrl: '', headerMediaUrl: '',
-  buttons: type === 'buttons' ? [{ title: '', jump: '__next' }] : [],
+  buttons: type === 'buttons' ? [{ title: '', jump: '__next', kind: 'jump' as const, url: '' }] : [],
   rows: type === 'list' ? [{ title: '', description: '', jump: '__next' }] : [],
   ctas: type === 'cta' ? [{ text: '', url: '' }] : [],
   listButtonText: '选择', actionTag: '', delayVal: 1, delayUnit: 'hours',
@@ -120,7 +120,11 @@ export default function EasyFlowEditor() {
           s.rows = (n.rows || []).map((rr) => ({ title: rr.title || '', description: rr.description || '', jump: jumpOf(rr.next, idx) }));
         } else if (n.type === 'interactive') {
           s.type = 'buttons';
-          s.buttons = (n.buttons || []).map((b) => ({ title: b.title || '', jump: jumpOf(b.next, idx) }));
+          const nc = n as RawNode & { ctas?: { text?: string; url?: string }[] };
+          s.buttons = [
+            ...(n.buttons || []).map((b) => ({ title: b.title || '', jump: jumpOf(b.next, idx), kind: 'jump' as const, url: '' })),
+            ...((nc.ctas || []).map((c) => ({ title: c.text || '', jump: '__next', kind: 'url' as const, url: c.url || '' }))),
+          ];
         } else if (n.type === 'media') s.type = 'image';
         else if (n.type === 'question') s.type = 'question';
         else if (n.type === 'delay') s.type = 'delay';
@@ -140,7 +144,11 @@ export default function EasyFlowEditor() {
       const resolve = (jump: string, idx: number) => jump === '__next' ? (steps[idx + 1]?.id || '') : jump;
       const nodes = steps.map((s, idx) => {
         const base = { id: s.id, name: `${idx + 1}. ${TYPE_META[s.type].label}`, next: resolve(s.afterJump, idx), x: 40 + (idx % 4) * 260, y: 60 + Math.floor(idx / 4) * 170 };
-        if (s.type === 'buttons') return { ...base, type: 'interactive', mode: 'buttons', text: s.text, headerType: s.headerMediaUrl ? 'image' : 'none', headerMediaUrl: s.headerMediaUrl, buttons: s.buttons.filter(b => b.title.trim()).map(b => ({ title: b.title, next: resolve(b.jump, idx) })), next: '' };
+        if (s.type === 'buttons') return { ...base, type: 'interactive', mode: 'buttons', text: s.text,
+          headerType: s.headerMediaUrl ? 'image' : 'none', headerMediaUrl: s.headerMediaUrl,
+          buttons: s.buttons.filter(b => b.kind !== 'url' && b.title.trim()).map(b => ({ title: b.title, next: resolve(b.jump, idx) })),
+          ctas: s.buttons.filter(b => b.kind === 'url' && b.title.trim() && b.url.trim()).map(b => ({ text: b.title, url: b.url })),
+          next: '' };
         if (s.type === 'cta') return { ...base, type: 'interactive', mode: 'cta', text: s.text, ctas: s.ctas.filter(c => c.text.trim() && c.url.trim()) };
         if (s.type === 'list') return { ...base, type: 'interactive', mode: 'list', text: s.text, listButtonText: s.listButtonText || '选择', rows: s.rows.filter(rr => rr.title.trim()).map(rr => ({ title: rr.title, description: rr.description, next: resolve(rr.jump, idx) })), next: '' };
         if (s.type === 'image') return { ...base, type: 'media', mediaType: 'image', mediaUrl: s.mediaUrl, caption: s.text };
@@ -184,7 +192,9 @@ export default function EasyFlowEditor() {
     headerType: s.headerMediaUrl ? 'image' : '', headerMediaUrl: s.headerMediaUrl,
     mediaType: s.type === 'image' ? 'image' : '', mediaUrl: s.mediaUrl,
     listButtonText: s.listButtonText,
-    buttons: s.buttons, rows: s.rows, ctas: s.ctas,
+    buttons: s.type === 'buttons' ? s.buttons.filter(b => b.kind !== 'url') : s.buttons,
+    rows: s.rows,
+    ctas: s.type === 'buttons' ? s.buttons.filter(b => b.kind === 'url').map(b => ({ text: b.title, url: b.url })) : s.ctas,
     delaySeconds: s.delayVal, delayUnit: s.delayUnit,
   })), [steps]);
 
@@ -267,17 +277,28 @@ export default function EasyFlowEditor() {
                 {s.type === 'buttons' && (<>
                   <input value={s.headerMediaUrl} onChange={e => upd(i, { headerMediaUrl: e.target.value })} placeholder="顶部图片链接（选填，填了就是图文卡片）" className={inputCls} />
                   {s.buttons.map((b, bi) => (
-                    <div key={bi} className="flex items-center gap-2">
+                    <div key={bi} className="flex items-center gap-2 flex-wrap">
                       <input value={b.title} onChange={e => upd(i, { buttons: s.buttons.map((x, xi) => xi === bi ? { ...x, title: e.target.value } : x) })}
                         placeholder={`按钮 ${bi + 1} 文字`} maxLength={20}
-                        className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                      <JumpSelect value={b.jump} self={i} onChange={v => upd(i, { buttons: s.buttons.map((x, xi) => xi === bi ? { ...x, jump: v } : x) })} />
+                        className="w-36 rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      <select value={b.kind} onChange={e => upd(i, { buttons: s.buttons.map((x, xi) => xi === bi ? { ...x, kind: e.target.value as 'jump' | 'url' } : x) })}
+                        className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-600 focus:outline-none">
+                        <option value="jump">点击跳转</option>
+                        <option value="url">打开网址</option>
+                      </select>
+                      {b.kind === 'url' ? (
+                        <input value={b.url} onChange={e => upd(i, { buttons: s.buttons.map((x, xi) => xi === bi ? { ...x, url: e.target.value } : x) })}
+                          placeholder="https://…"
+                          className="flex-1 min-w-40 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      ) : (
+                        <JumpSelect value={b.jump} self={i} onChange={v => upd(i, { buttons: s.buttons.map((x, xi) => xi === bi ? { ...x, jump: v } : x) })} />
+                      )}
                       <button onClick={() => upd(i, { buttons: s.buttons.filter((_, xi) => xi !== bi) })} className="text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   ))}
                   {s.buttons.length < 3 && (
-                    <button onClick={() => upd(i, { buttons: [...s.buttons, { title: '', jump: '__next' }] })}
-                      className="text-xs text-emerald-600 hover:underline">+ 加按钮（最多 3 个）</button>
+                    <button onClick={() => upd(i, { buttons: [...s.buttons, { title: '', jump: '__next', kind: 'jump', url: '' }] })}
+                      className="text-xs text-emerald-600 hover:underline">+ 加按钮（最多 3 个；网址按钮会作为独立消息紧跟发送）</button>
                   )}
                 </>)}
                 {s.type === 'list' && (<>

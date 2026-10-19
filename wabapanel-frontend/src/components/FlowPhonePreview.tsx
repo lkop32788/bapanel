@@ -66,7 +66,7 @@ export default function FlowPhonePreview({ steps, title, highlight, onStepClick,
               <div className="text-center text-[13px] text-[#00a5f4] py-1.5">☰ {s.listButtonText || '选择'}</div>
             </div>
           )}
-          {s.mode === 'cta' && !!(s.ctas || []).filter(c => c.text).length && (
+          {!!(s.ctas || []).filter(c => c.text).length && (
             <div className="border-t border-gray-100 mt-0.5">
               {(s.ctas || []).filter(c => c.text).map((c, ci) => (
                 <div key={ci} className="text-center text-[13px] text-[#00a5f4] py-1.5 border-b border-gray-100 last:border-b-0">↗ {c.text}</div>
