@@ -113,6 +113,11 @@ const listAgents = async (req, res) => {
 
 const addAgent = async (req, res) => {
   try {
+    // SEC-H3：与 removeAgent/updateAgent 对齐——只有工作区 owner/管理员能添加客服。
+    // 此前漏了这道闸，受限 agent 可自建一个全权限新 agent 绕过自身限制。
+    if (!isWorkspaceManager(req.workspace, req.user)) {
+      return res.status(403).json({ success: false, message: '只有工作区所有者或管理员可以添加客服' });
+    }
 
     const { userId, teamId, name, email, password, role, permissions, allowedChannels, inboxScope } = req.body;
 
