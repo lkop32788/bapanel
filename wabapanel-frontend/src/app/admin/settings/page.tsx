@@ -9,7 +9,6 @@ import Card from '@/components/ui/Card';
 import Tabs from '@/components/ui/Tabs';
 import { adminApi } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { SAVER_GROUPS } from '@/lib/saverTypes';
 
 interface SystemSettings {
   general: { appName: string; appEmail: string; appDescription: string; appUrl: string; theme: string; sessionTimeout: string; contactCaptcha: boolean; };
@@ -270,52 +269,12 @@ export default function AdminSettingsPage() {
           <Input label={"接口地址"} value={settings.saver.baseUrl} onChange={e => updateField('saver', 'baseUrl', e.target.value)} placeholder="https://api.th333.cc（留空使用默认）" autoComplete="off" />
           <Input label={"API Token"} type="password" value={settings.saver.apiKey} onChange={e => updateField('saver', 'apiKey', e.target.value)} placeholder={"向筛号平台管理员申请的令牌"} autoComplete="off" />
 
-          <div className="border-t border-gray-100 pt-4 space-y-4">
-            <button type="button" onClick={() => updateField('saver', 'billingEnabled', !settings.saver.billingEnabled)} className="flex items-center justify-between w-full p-3 border border-gray-200 rounded-lg text-left">
-              <span>
-                <span className="block text-sm font-medium text-gray-900">商家计量收费</span>
-                <span className="block text-xs text-gray-500">开启后商家提交检测按「单价 × 号码数」扣余额（人民币），不足无法提交；任务失败自动退款。商家余额在「商家计费」页管理</span>
-              </span>
-              {settings.saver.billingEnabled ? <ToggleRight className="w-8 h-8 text-emerald-500 shrink-0" /> : <ToggleLeft className="w-8 h-8 text-gray-400 shrink-0" />}
-            </button>
-            <Input label={"默认单价（元/条）"} type="number" value={String(settings.saver.priceDefault)} onChange={e => updateField('saver', 'priceDefault', e.target.value)} />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">按检测类型覆盖单价（未设置的类型用默认单价）</label>
-              <div className="space-y-2">
-                {Object.entries(settings.saver.priceOverrides || {}).map(([type, price]) => (
-                  <div key={type} className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700 w-48 truncate">
-                      {SAVER_GROUPS.flatMap(g => g.types).find(t => t.value === type)?.name || type}
-                    </span>
-                    <input type="number" step="0.001" value={price}
-                      onChange={e => {
-                        const v = Number(e.target.value);
-                        setSettings(prev => ({ ...prev, saver: { ...prev.saver, priceOverrides: { ...prev.saver.priceOverrides, [type]: v } } }));
-                      }}
-                      className="w-28 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                    <button onClick={() => setSettings(prev => {
-                      const next = { ...prev.saver.priceOverrides };
-                      delete next[type];
-                      return { ...prev, saver: { ...prev.saver, priceOverrides: next } };
-                    })} className="text-xs text-gray-400 hover:text-red-500">删除</button>
-                  </div>
-                ))}
-                <select value="" onChange={e => {
-                  const type = e.target.value;
-                  if (!type) return;
-                  setSettings(prev => ({ ...prev, saver: { ...prev.saver, priceOverrides: { ...prev.saver.priceOverrides, [type]: Number(prev.saver.priceDefault) || 0.01 } } }));
-                }} className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-500 focus:outline-none">
-                  <option value="">+ 添加类型覆盖价…</option>
-                  {SAVER_GROUPS.map(g => (
-                    <optgroup key={g.slug} label={g.name}>
-                      {g.types.filter(t => !(t.value in (settings.saver.priceOverrides || {}))).map(t => (
-                        <option key={t.value} value={t.value}>{t.name}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-            </div>
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-sm text-gray-600">
+              计费开关与各检测类型单价已移至侧边栏独立菜单
+              <a href="/admin/saver-pricing" className="text-emerald-600 font-medium hover:underline mx-1">「计费单价」</a>
+              管理（支持所有类型分别设价）。
+            </p>
           </div>
 
           <div className="border-t border-gray-100 pt-4 space-y-4">

@@ -77,6 +77,7 @@ export const zhNavigation: Record<string, string> = {
   "Support": "帮助与支持",
   "User Guide": "用户指南",
   "Vendors": "商户管理",
+  "Saver Pricing": "计费单价",
   "Feature Controls": "功能开关",
   "Data Cleanup": "数据清理",
   "Accounting": "财务管理",
