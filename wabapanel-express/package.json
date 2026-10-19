@@ -39,15 +39,11 @@
     "pdf-parse": "^1.1.1",
     "pdfkit": "^0.20.2",
     "qrcode": "^1.5.4",
-    "slugify": "^1.6.9",
     "socket.io": "^4.8.3",
     "speakeasy": "^2.0.0",
     "telegram": "^2.26.22",
     "uuid": "^14.0.1",
     "werift": "^0.23.0",
     "xlsx": "^0.18.5"
-  },
-  "devDependencies": {
-    "patch-package": "^8.0.1"
   }
 }

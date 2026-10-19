@@ -9,15 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.101.1",
-    "@xyflow/react": "^12.11.1",
     "axios": "^1.18.1",
-    "date-fns": "^4.4.0",
     "lucide-react": "^1.21.0",
     "next": "^16.3.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-dropzone": "^15.0.0",
     "react-hot-toast": "^2.6.0",
     "react-icons": "^5.4.0",
     "react-qr-code": "^2.2.0",
