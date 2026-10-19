@@ -36,6 +36,7 @@ export interface WorkspaceMember {
 }
 
 export interface WhatsAppConfig {
+  poolEnabled?: boolean; // 号池模式：多号轮询分配
   extraNumbers?: { phoneNumberId: string; phoneNumber: string; displayName: string; wabaId?: string }[];
   isConnected: boolean;
   connectionMethod: '' | 'embedded' | 'coexistence' | 'qr' | 'manual';
