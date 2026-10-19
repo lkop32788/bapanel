@@ -128,6 +128,7 @@ app.get('/api/public/short-link/:code', require('./controllers/shortLinkControll
 
 app.use('/api/short-links', require('./routes/shortLinks'));
 app.use('/api/rotation-links', require('./routes/rotationLinks'));
+app.use('/api/saver', require('./routes/saver'));
 
 app.use('/api/teams', require('./routes/teams'));
 

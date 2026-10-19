@@ -36,6 +36,12 @@ const systemSettingsSchema = new mongoose.Schema({
     enableCoexistence: { type: Boolean, default: false },
   },
 
+  // 省钱专家：号码状态检测外部 API（见 services/saverCheckService.js）
+  saverApi: {
+    baseUrl: { type: String, default: '' },
+    apiKey: { type: String, default: '' },
+  },
+
   // Floating WhatsApp chat widget (public landing page)
   whatsappWidget: {
     enabled: { type: Boolean, default: false },

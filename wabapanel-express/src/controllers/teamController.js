@@ -83,7 +83,7 @@ const listAgents = async (req, res) => {
   try {
     // Only this workspace's people: current user, owner and members
     const ids = new Set();
-    ids.add(String(req.user._id));
+    if (req.user._id) ids.add(String(req.user._id));
     if (req.workspace.owner) ids.add(String(req.workspace.owner));
     for (const m of (req.workspace.members || [])) {
       if (m.user) ids.add(String(m.user));
@@ -235,18 +235,22 @@ const deleteTeam = async (req, res) => {
   }
 };
 
-// @GET /api/teams/performance — per-agent stats (last 30 days)
-const agentPerformance = async (req, res) => {
-  try {
+// Per-agent stats for a workspace. opts: { from, to } (valid Dates) override `days`;
+// opts.userId = requesting user (always included); opts.onlyUserId = return just that user's row.
+const computeAgentPerformance = async (workspace, days = 30, opts = {}) => {
+  {
     const Conversation = require('../models/Conversation');
     const Message = require('../models/Message');
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const ws = req.workspace._id;
+    const until = opts.from && opts.to ? opts.to : null;
+    const since = opts.from && opts.to ? opts.from : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const ws = workspace._id;
+    const req = { user: { _id: opts.userId }, workspace };
+    const timeRange = until ? { $gte: since, $lte: until } : { $gte: since };
 
     // Scope agents to THIS workspace only (same logic as listAgents), so one
     // vendor's performance table never shows another vendor's agents.
     const ids = new Set();
-    ids.add(String(req.user._id));
+    if (req.user._id) ids.add(String(req.user._id));
     if (req.workspace.owner) ids.add(String(req.workspace.owner));
     for (const m of (req.workspace.members || [])) {
       if (m.user) ids.add(String(m.user));
@@ -265,6 +269,7 @@ const agentPerformance = async (req, res) => {
       }
       for (const c of candidateIds) if (!linkedSet.has(String(c))) ids.add(String(c));
     }
+    if (opts.onlyUserId) { ids.clear(); ids.add(String(opts.onlyUserId)); }
     const agents = await User.find({ _id: { $in: Array.from(ids) }, status: 'active' }).select('name email avatar role').lean();
 
     const [assigned, resolved, sent, responseAgg] = await Promise.all([
@@ -273,15 +278,15 @@ const agentPerformance = async (req, res) => {
         { $group: { _id: '$assignedAgent', count: { $sum: 1 } } },
       ]),
       Conversation.aggregate([
-        { $match: { workspace: ws, isResolved: true, resolvedBy: { $ne: null }, resolvedAt: { $gte: since } } },
+        { $match: { workspace: ws, isResolved: true, resolvedBy: { $ne: null }, resolvedAt: timeRange } },
         { $group: { _id: '$resolvedBy', count: { $sum: 1 } } },
       ]),
       Message.aggregate([
-        { $match: { workspace: ws, direction: 'outbound', sentBy: { $ne: null }, createdAt: { $gte: since } } },
+        { $match: { workspace: ws, direction: 'outbound', sentBy: { $ne: null }, createdAt: timeRange } },
         { $group: { _id: '$sentBy', count: { $sum: 1 } } },
       ]),
       Message.aggregate([
-        { $match: { workspace: ws, createdAt: { $gte: since } } },
+        { $match: { workspace: ws, createdAt: timeRange } },
         { $sort: { conversation: 1, createdAt: 1 } },
         { $project: { conversation: 1, direction: 1, createdAt: 1, sentBy: 1 } },
       ]),
@@ -308,27 +313,36 @@ const agentPerformance = async (req, res) => {
     const toMap = (arr) => Object.fromEntries(arr.map(a => [String(a._id), a.count]));
     const assignedMap = toMap(assigned), resolvedMap = toMap(resolved), sentMap = toMap(sent);
 
-    res.json({
-      success: true,
-      data: agents.map(a => {
-        const id = String(a._id);
-        const rt = respTotals[id];
-        return {
-          ...a,
-          assignedChats: assignedMap[id] || 0,
-          resolvedChats: resolvedMap[id] || 0,
-          messagesSent: sentMap[id] || 0,
-          avgResponseMins: rt ? Math.round(rt.sum / rt.n / 60000 * 10) / 10 : null,
-        };
-      }),
+    return agents.map(a => {
+      const id = String(a._id);
+      const rt = respTotals[id];
+      return {
+        ...a,
+        assignedChats: assignedMap[id] || 0,
+        resolvedChats: resolvedMap[id] || 0,
+        messagesSent: sentMap[id] || 0,
+        avgResponseMins: rt ? Math.round(rt.sum / rt.n / 60000 * 10) / 10 : null,
+      };
     });
+  }
+};
+
+// @GET /api/teams/performance — per-agent stats (last 30 days); non-managers get only their own row
+const agentPerformance = async (req, res) => {
+  try {
+    const manager = isWorkspaceManager(req.workspace, req.user);
+    const data = await computeAgentPerformance(req.workspace, 30, {
+      userId: req.user._id,
+      onlyUserId: manager ? null : req.user._id,
+    });
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 module.exports = {
-  agentPerformance,
+  agentPerformance, computeAgentPerformance, isWorkspaceManager,
   getTeams, getTeam, createTeam, updateTeam, deleteTeam,
   listAgents, addAgent, removeAgent, updateAgent, loginAsAgent,
 };

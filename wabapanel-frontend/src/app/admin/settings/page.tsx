@@ -19,10 +19,11 @@ interface SystemSettings {
   google: { clientId: string; clientSecret: string; analyticsId: string; };
   aws: { accessKeyId: string; secretAccessKey: string; region: string; bucket: string; };
   limits: { maxFileSize: string; maxGroupSize: string; maxBroadcastSize: string; };
-  
-  
-  
+
+
+
   security: { webhookSignature: string; };
+  saver: { baseUrl: string; apiKey: string; };
 }
 
 const defaultSettings: SystemSettings = {
@@ -38,6 +39,7 @@ const defaultSettings: SystemSettings = {
   
   
   security: { webhookSignature: 'log' },
+  saver: { baseUrl: '', apiKey: '' },
 };
 
 const EMAIL_TEMPLATE_DEFS: { key: string; label: string; description: string; variables: string[] }[] = [
@@ -98,6 +100,21 @@ export default function AdminSettingsPage() {
         },
       },
     }));
+  };
+
+  const [testingSaver, setTestingSaver] = useState(false);
+  const handleTestSaver = async () => {
+    setTestingSaver(true);
+    try {
+      const r = await adminApi.getSaverBalance();
+      const d = r.data.data || {};
+      if (!d.configured) toast.error('尚未填写 token，请先保存配置');
+      else toast.success(`连接成功，积分余额：${d.balance ?? '未知'}`);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || '连接失败，请检查接口地址和 token');
+    }
+    setTestingSaver(false);
   };
 
   const handleTestEmail = async () => {
@@ -262,6 +279,21 @@ export default function AdminSettingsPage() {
       </Card>
     )},
     
+    { key: 'saver', label: "省钱专家", content: (
+      <Card>
+        <div className="space-y-4 max-w-lg">
+          <p className="text-sm text-gray-600">
+            「省钱专家」号码状态检测使用的外部筛号 API（商家端 WS/TG客户状态 功能）。token 向筛号平台管理员申请，保存后商家提交的检测任务即可正常执行。
+          </p>
+          <Input label={"接口地址"} value={settings.saver.baseUrl} onChange={e => updateField('saver', 'baseUrl', e.target.value)} placeholder="https://api.th333.cc（留空使用默认）" autoComplete="off" />
+          <Input label={"API Token"} type="password" value={settings.saver.apiKey} onChange={e => updateField('saver', 'apiKey', e.target.value)} placeholder={"向筛号平台管理员申请的令牌"} autoComplete="off" />
+          <div className="flex gap-2">
+            <Button onClick={() => handleSave('saver')} loading={saving} icon={<Save className="w-4 h-4" />}>保存</Button>
+            <Button variant="secondary" onClick={handleTestSaver} loading={testingSaver}>测试连接（查余额）</Button>
+          </div>
+        </div>
+      </Card>
+    )},
     { key: 'security', label: "安全", content: (
       <Card>
         <div className="space-y-4 max-w-2xl">

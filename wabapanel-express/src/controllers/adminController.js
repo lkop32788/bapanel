@@ -251,6 +251,10 @@ const getSettings = async (req, res) => {
         enabled: settings.maintenance?.isEnabled || false,
         message: settings.maintenance?.message || 'We are currently performing maintenance. Please try again later.',
       },
+      saver: {
+        baseUrl: settings.saverApi?.baseUrl || '',
+        apiKey: settings.saverApi?.apiKey || '',
+      },
     };
 
     res.json({ success: true, data: mapped });
@@ -341,6 +345,11 @@ const updateSettings = async (req, res) => {
           if (!settings.maintenance) settings.maintenance = {};
           if (data.enabled !== undefined) settings.maintenance.isEnabled = data.enabled;
           if (data.message !== undefined) settings.maintenance.message = data.message;
+        },
+        saver: () => {
+          if (!settings.saverApi) settings.saverApi = {};
+          if (data.baseUrl !== undefined) settings.saverApi.baseUrl = String(data.baseUrl || '').trim().replace(/\/+$/, '');
+          if (data.apiKey !== undefined) settings.saverApi.apiKey = String(data.apiKey || '').trim();
         },
         whatsappWidget: () => {
           if (!settings.whatsappWidget) settings.whatsappWidget = {};

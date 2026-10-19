@@ -11,6 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import api from '@/lib/api';
 import useBranding from '@/lib/useBranding';
 import Link from 'next/link';
+import { isAgentPayload, AgentStatCards, AgentTrendCard, AgentPerformanceTable, type AgentPayload, type AgentPerformanceRow } from '@/components/AgentDashboard';
 
 interface DashData {
   contacts: number;
@@ -32,6 +33,8 @@ interface DashData {
   campaignTable?: { _id: string; name: string; type: string; status: string; createdAt: string; stats?: { sent?: number; delivered?: number; read?: number; failed?: number; skipped?: number } }[];
   typeBreakdown?: { source: string; count: number }[];
   responseTime?: { avgMinutes: number; medianMinutes: number; samples: number };
+  role?: 'owner' | 'agent';
+  agentPerformance?: AgentPerformanceRow[];
 }
 
 const RANGES = [
@@ -75,6 +78,7 @@ export default function AnalyticsPage() {
   const router = useRouter();
   const brand = useBranding();
   const [data, setData] = useState<DashData | null>(null);
+  const [agentData, setAgentData] = useState<AgentPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
   const [customFrom, setCustomFrom] = useState('');
@@ -90,7 +94,8 @@ export default function AnalyticsPage() {
       const res = await api.get(range
         ? `/dashboard/client?from=${range.from}&to=${range.to}`
         : `/dashboard/client?days=${days}`);
-      setData(res.data.data);
+      if (isAgentPayload(res.data.data)) { setAgentData(res.data.data); setData(null); }
+      else { setAgentData(null); setData(res.data.data); }
     } catch { /* empty */ }
     setLoading(false);
   }, [days, range]);
@@ -198,6 +203,19 @@ export default function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (agentData) {
+    return (
+      <div className="space-y-6">
+        <div className="page-hero">
+          <h1 className="text-2xl font-bold text-gray-900">数据分析</h1>
+          <p className="text-gray-500 text-sm mt-1">我的个人表现</p>
+        </div>
+        <AgentStatCards data={agentData} />
+        <AgentTrendCard data={agentData} />
       </div>
     );
   }
@@ -533,6 +551,8 @@ export default function AnalyticsPage() {
           </div>
         </Card>
       </div>
+
+      {data?.role === 'owner' && <AgentPerformanceTable rows={data.agentPerformance} />}
 
       {/* Summary row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

@@ -319,6 +319,17 @@ export const rotationLinkApi = {
   delete: (id: string) => api.delete(`/rotation-links/${id}`),
 };
 
+// 省钱专家：号码状态批量检测
+export const saverCheckApi = {
+  create: (data: { channel: string; country?: { name: string; dial: string; code: string }; numbers: string[]; fileName?: string; taskType?: string }) =>
+    api.post('/saver/checks', data),
+  balance: () => api.get('/saver/balance'),
+  list: (params: { channel?: string; type?: string; name?: string; country?: string; page?: number; limit?: number }) =>
+    api.get('/saver/checks', { params }),
+  get: (id: string) => api.get(`/saver/checks/${id}`),
+  remove: (id: string) => api.delete(`/saver/checks/${id}`),
+};
+
 // Appointments
 
 // Integrations
@@ -489,6 +500,7 @@ export const adminApi = {
   updatePermissions: (data: object) => api.put('/admin/permissions', data),
   // Settings
   getSettings: () => api.get('/admin/settings'),
+  getSaverBalance: () => api.get('/admin/settings/saver-balance'),
   updateSettings: (data: object) => api.put('/admin/settings', data),
   sendTestEmail: (data: object) => api.post('/admin/settings/test-email', data),
   // Landing Page

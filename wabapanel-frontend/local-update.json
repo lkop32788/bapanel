@@ -126,6 +126,41 @@
       "src/lib/api.ts": "rotationLinkApi"
     }
   },
+  "featureAgentDashboard_20261018": {
+    "note": "自研功能「客服工作台」：agent 角色登录后 dashboard/analytics 只看自己的数据；owner/管理员 analytics 增加客服绩效表和自定义日期区间。非供应商代码，补丁覆盖相关文件后需重新应用",
+    "backend": {
+      "controllers/dashboardController.js": "getClientDashboard 按角色分流：非管理者（members[].role 不是 owner/admin 且非 workspace owner/super_admin）返回 buildAgentDashboard（仅本人 assignedAgent 会话/sentBy 消息/提醒，含 allowedChannels 过滤）；管理者响应加 role:'owner' + agentPerformance；支持 ?from=&to= 自定义区间",
+      "controllers/teamController.js": "agentPerformance 抽成可复用 computeAgentPerformance(workspace, days, opts)，支持 from/to 区间与 onlyUserId；/api/teams/performance 非管理者只返回本人一行；导出 isWorkspaceManager"
+    },
+    "frontend": {
+      "src/components/AgentDashboard.tsx(新增)": "客服工作台组件：统计卡、需要处理（待回复+今日提醒）、个人趋势图、客服绩效表（owner 用）",
+      "src/app/client/dashboard/page.tsx": "role==='agent' 时渲染 AgentDashboard",
+      "src/app/client/analytics/page.tsx": "agent 角色渲染个人表现视图；owner 渲染客服绩效表",
+      "src/components/layout/ClientSidebar.tsx": "agent 且无单独授权页面时隐藏 Analytics 入口"
+    }
+  },
+  "featureSaverExpert_20261018": {
+    "note": "自研功能「省钱专家」：群发前批量检测老客户 WhatsApp/Telegram 账号状态。已对接 th333 筛号 API（https://api.th333.cc/apidoc.html，token 请求头认证，multipart 提交 txt → 轮询 progress → Finish 下载结果文件解析，结果文件中出现的号码视为有效）。token 配置：SystemSettings.saverApi.apiKey 或环境变量 SAVER_API_TOKEN；baseUrl 默认 https://api.th333.cc。非供应商代码，补丁覆盖后需重新应用",
+    "backend": {
+      "models/SaverCheckTask.js(新增)": "检测任务：workspace/channel/taskType/externalTaskId/fileName/country{name,dial,code}/status/checked/startedAt/finishedAt/summary/results",
+      "services/saverCheckService.js(新增)": "th333 对接：createRemoteTask(multipart)/progress 轮询(15s,最长8h)/downloadValidSet(txt或zip-jszip)/getBalance；筛开通无效=未注册(not_found)，筛活跃无效=久未上线(inactive)；启动15s后 resumeAll 恢复进行中任务",
+      "routes/saver.js(新增)": "/api/saver/checks CRUD + /balance；channel 含 more，taskType 按目录校验，输入按类型规范化，邮箱类免国家，上限10万，列表筛选分页",
+      "models/SystemSettings.js": "新增 saverApi { baseUrl, apiKey }",
+      "server.js": "挂载 /api/saver",
+      "controllers/adminController.js": "getSettings/updateSettings 新增 saver section（saverApi.baseUrl/apiKey）",
+      "routes/admin.js": "GET /api/admin/settings/saver-balance 测试筛号API连接（superAdminOnly）",
+      "services/saverTaskTypes.js(新增)": "th333 全量任务类型目录（~50种：ws/tg/社交/通讯/号码/邮箱/交易所），含 input(phone|email|username)/country必填/active 标记和按类型的输入规范化"
+    },
+    "frontend": {
+      "src/components/SaverStatusCheck.tsx(新增)": "平台检测页组件：顶部类型 tab + 搜索表单 + 工具栏 + 复选框任务表格 + 分页；按 taskType 过滤列表，切 tab 重置筛选，邮箱类免国家",
+      "src/components/layout/ClientSidebar.tsx": "省钱专家分组：children 由 SAVER_GROUPS 自动生成（每平台一个菜单项）",
+      "src/lib/zhNavigation.ts": "Saver Expert/WhatsApp Status Check/Telegram Status Check 译名",
+      "src/lib/api.ts": "saverCheckApi",
+      "src/app/admin/settings/page.tsx": "系统偏好设置新增「省钱专家」tab：接口地址 + API Token + 测试连接（查余额）",
+      "src/lib/saverTypes.tsx(新增)": "检测类型目录：19 个平台分组（slug/图标），组内 ~52 种类型（tab名/全名/input/country/hint）",
+      "src/app/client/saver/[type]/page.tsx(新增)": "动态路由：每个平台分组一页（/client/saver/ws 等），组内类型用页内 tab 切换"
+    }
+  },
   "backupArchive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz",
   "theme": "omniclick-reference",
   "uiStyleRevision": "2026-09-17-detail",

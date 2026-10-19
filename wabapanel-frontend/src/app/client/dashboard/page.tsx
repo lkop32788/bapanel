@@ -11,6 +11,7 @@ import { dashboardApi } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import useKkhsTheme from '@/lib/useKkhsTheme';
 import KkhsDashboard, { KkhsWidgets } from '@/components/kkhs/KkhsDashboard';
+import AgentDashboard, { isAgentPayload } from '@/components/AgentDashboard';
 import type * as RechartsModule from 'recharts'; // PERF-16: recharts is loaded on demand below
 
 interface DashboardData {
@@ -100,6 +101,10 @@ export default function DashboardPage() {
         <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
+  }
+
+  if (isAgentPayload(data)) {
+    return <AgentDashboard data={data} userName={user?.name} />;
   }
 
   return (

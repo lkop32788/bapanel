@@ -11,6 +11,7 @@ import api from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import useKkhsTheme from '@/lib/useKkhsTheme';
 import { usePins, PinStar, KkhsBrandbar, KkhsPinned } from '@/components/kkhs/KkhsNav';
+import { SAVER_GROUPS } from '@/lib/saverTypes';
 
 // Map sidebar item href → feature key for lock checking
 
@@ -56,6 +57,15 @@ export const navItems: NavItem[] = [
       { label: 'Web WhatsApp Campaigns', href: '/client/save-money/qr-campaigns', icon: <QrCode className="w-4 h-4" /> },
       { label: 'Aliyun Chat App Campaigns', href: '/client/save-money/chatapp-campaigns', icon: <Cloud className="w-4 h-4" /> },
     ],
+  },
+  {
+    label: 'Saver Expert',
+    icon: <PiggyBank className="w-5 h-5" />,
+    children: SAVER_GROUPS.map(g => ({
+      label: g.name,
+      href: `/client/saver/${g.slug}`,
+      icon: <g.Icon className={`w-4 h-4 ${g.color}`} />,
+    })),
   },
   {
     label: 'Contacts',
@@ -250,7 +260,9 @@ export default function ClientSidebar() {
           // Otherwise keep only the individually granted sub-pages
           return { ...section, children: section.children.filter(c => perms.includes(c.href)) };
         })
-    : unlockedNav;
+    : (user?.role === 'agent' && perms.length === 0)
+      ? unlockedNav.filter(section => section.label !== 'Analytics')
+      : unlockedNav;
 
   // Channel restrictions: agents with allowedChannels only see those inbox links
   const allowedCh = (user as unknown as { allowedChannels?: string[] })?.allowedChannels || [];

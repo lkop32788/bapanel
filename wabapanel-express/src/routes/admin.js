@@ -40,6 +40,14 @@ router.put('/permissions', admin.updatePermissions);
 router.get('/settings', admin.getSettings);
 router.put('/settings', superAdminOnly, admin.updateSettings);
 router.post('/settings/test-email', superAdminOnly, admin.sendTestEmail);
+// 省钱专家：测试筛号 API 连接（查余额）
+router.get('/settings/saver-balance', superAdminOnly, async (req, res) => {
+  try {
+    res.json({ success: true, data: await require('../services/saverCheckService').getBalance() });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // AI Settings
 router.get('/ai-settings', admin.getAISettings);
