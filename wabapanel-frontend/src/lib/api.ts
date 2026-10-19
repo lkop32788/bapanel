@@ -489,8 +489,6 @@ export const adminApi = {
     api.get('/admin/saver-billing/ledger', { params }),
   saverUsdtOrders: (status?: string) =>
     api.get('/admin/saver-billing/usdt-orders', { params: status ? { status } : {} }),
-  saverCreditUsdtOrder: (id: string, note?: string) =>
-    api.post(`/admin/saver-billing/usdt-orders/${id}/credit`, { note }),
   saverTopupRequests: (status?: string) =>
     api.get('/admin/saver-billing/topup-requests', { params: status ? { status } : {} }),
   saverHandleTopupRequest: (id: string, data: { action: 'approve' | 'reject'; adminNote?: string }) =>

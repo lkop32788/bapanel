@@ -119,29 +119,8 @@ router.get('/saver-billing/usdt-orders', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-// 手动补单：商户已转账但超时/未匹配时，管理员确认到账（按当前汇率入账）
-router.post('/saver-billing/usdt-orders/:id/credit', superAdminOnly, async (req, res) => {
-  try {
-    const SaverUsdtOrder = require('../models/SaverUsdtOrder');
-    const { getUsdtConfig } = require('../services/saverUsdtService');
-    const billing = require('../services/saverBillingService');
-    const cfg = await getUsdtConfig();
-    const order = await SaverUsdtOrder.findOne({ _id: req.params.id });
-    if (!order) return res.status(404).json({ success: false, message: '订单不存在' });
-    const rmb = Math.round(order.usdtAmount * cfg.rate * 100) / 100;
-    // 原子抢占：已 paid 的不能重复入账
-    const claimed = await SaverUsdtOrder.findOneAndUpdate(
-      { _id: order._id, status: { $ne: 'paid' } },
-      { $set: { status: 'paid', paidAt: new Date(), credits: rmb, raw: { manual: true, by: String(req.user._id), note: String(req.body?.note || '').slice(0, 200) } } },
-      { new: true });
-    if (!claimed) return res.status(400).json({ success: false, message: '订单已是到账状态' });
-    await billing.adjust(claimed.workspace, rmb, req.user._id,
-      `USDT充值手动补单 ${claimed.usdtAmount}U × ${cfg.rate} = ￥${rmb}（订单 ${claimed.orderNo}）`);
-    res.json({ success: true, message: `已入账 ￥${rmb}` });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+// 手动补单功能已删除（SEC-PAY2：不绑交易hash可致同一笔链上钱双入账）。
+// 晚到的转账由 saverUsdtService 在 48 小时窗口内自动补入原订单。
 
 // 省钱专家：充值申请列表与审批
 router.get('/saver-billing/topup-requests', async (req, res) => {

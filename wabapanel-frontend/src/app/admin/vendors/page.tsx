@@ -257,18 +257,7 @@ export default function VendorsPage() {
     } catch { /* empty */ }
   }, []);
   useEffect(() => { loadOrders(orderFilter); }, [loadOrders, orderFilter]);
-  const creditOrder = async (o: UsdtOrderRow) => {
-    if (!confirm(`手动确认订单 ${o.orderNo} 已到账？将按当前汇率给「${o.workspace?.name || ''}」入账 ${o.usdtAmount} USDT 对应金额`)) return;
-    try {
-      const res = await adminApi.saverCreditUsdtOrder(o._id, '管理员手动补单');
-      toast.success(res.data.message || '已入账');
-      loadOrders(orderFilter);
-      loadWallets();
-    } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || '操作失败');
-    }
-  };
+  // 手动补单已下线：超时后到账的转账由后端在 48 小时内自动补入原订单
 
   // ---------- 充值申请 ----------
   const [reqs, setReqs] = useState<TopupReqRow[]>([]);
@@ -422,10 +411,8 @@ export default function VendorsPage() {
                   </td>
                   <td className="px-3 py-2.5 font-mono text-xs text-gray-400 max-w-32 truncate" title={o.externalId}>{o.externalId || '—'}</td>
                   <td className="px-3 py-2.5 text-xs text-gray-500">{fmtTime(o.createdAt)}{o.paidAt ? <><br />到账 {fmtTime(o.paidAt)}</> : null}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    {o.status !== 'paid' && (
-                      <Button size="sm" variant="outline" icon={<CheckCircle2 className="w-3.5 h-3.5" />} onClick={() => creditOrder(o)}>手动补单</Button>
-                    )}
+                  <td className="px-4 py-2.5 text-right text-xs text-gray-400">
+                    {o.status === 'expired' ? '48h内到账自动补单' : '—'}
                   </td>
                 </tr>
               ))}

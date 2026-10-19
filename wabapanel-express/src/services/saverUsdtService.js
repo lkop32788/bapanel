@@ -8,6 +8,10 @@ const billing = require('./saverBillingService');
 
 const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; // Tron 主网 USDT
 const ORDER_TTL_MS = 15 * 60 * 1000;
+// SEC-PAY1：金额预留窗口。48 小时内所有订单（不分状态）的 payAmount 全局唯一，
+// 过期订单的金额不会被新订单复用——商户转账晚到也只会匹配回自己的原订单，
+// 攻击者无法创建同金额订单冒领；晚到的钱由 tick 自动补入原订单（见下）。
+const LATE_MS = 48 * 60 * 60 * 1000;
 const round2 = (n) => Math.round(n * 100) / 100;
 const round4 = (n) => Math.round(n * 10000) / 10000;
 
@@ -49,12 +53,23 @@ async function createOrder({ workspaceId, userId, usdtAmount }) {
   if (!Number.isFinite(amount) || amount < 1) throw new Error('单笔最低 1 USDT');
   if (amount > 100000) throw new Error('单笔金额过大');
 
+  // SEC-PAY1：限频——每工作区最多 3 笔待支付订单，且两次创建至少间隔 10 秒，
+  // 封死"高频刷订单碰撞金额"的攻击面
+  const pendingCount = await SaverUsdtOrder.countDocuments({ workspace: workspaceId, status: 'pending' });
+  if (pendingCount >= 3) throw new Error('待支付订单过多，请先完成支付或等待超时后再创建');
+  const lastOrder = await SaverUsdtOrder.findOne({ workspace: workspaceId })
+    .sort('-createdAt').select('createdAt').lean();
+  if (lastOrder && Date.now() - new Date(lastOrder.createdAt).getTime() < 10000) {
+    throw new Error('操作过于频繁，请 10 秒后再试');
+  }
+
   let payAmount = 0;
   for (let i = 0; i < 30; i++) {
     const candidate = round2(amount + (Math.floor(Math.random() * 99) + 1) / 100); // 随机 2 位小数尾数
+    // SEC-PAY1：对 48 小时内所有订单（含 paid/expired）去重，金额被预留不可复用
     const clash = await SaverUsdtOrder.exists({
-      status: 'pending', usdtAmount: candidate,
-      createdAt: { $gte: new Date(Date.now() - ORDER_TTL_MS) },
+      usdtAmount: candidate,
+      createdAt: { $gte: new Date(Date.now() - LATE_MS) },
     });
     if (!clash) { payAmount = candidate; break; }
   }
@@ -92,41 +107,62 @@ async function fetchTransfers(cfg, minTimestamp) {
 }
 
 let ticking = false;
+let lastSlowPoll = 0;
 async function tick() {
   if (ticking) return;
   ticking = true;
   try {
-    // 超时订单标记失败
+    // 超时订单标记失败（晚到的钱仍会在 48 小时窗口内自动补入原订单）
     await SaverUsdtOrder.updateMany(
       { status: 'pending', createdAt: { $lt: new Date(Date.now() - ORDER_TTL_MS) } },
       { $set: { status: 'expired' } });
 
-    const pending = await SaverUsdtOrder.find({ status: 'pending' }).lean();
-    if (!pending.length) return;
+    // SEC-PAY1：候选订单 = 待支付 + 48 小时内已过期未入账（晚到自动补单，
+    // 取代已删除的管理员手动补单功能）
+    const candidates = await SaverUsdtOrder.find({
+      status: { $in: ['pending', 'expired'] },
+      createdAt: { $gte: new Date(Date.now() - LATE_MS) },
+    }).lean();
+    if (!candidates.length) return;
+    // 只剩过期订单在守晚到款时降频到 60 秒一查，省 TronGrid 配额
+    const hasPending = candidates.some((o) => o.status === 'pending');
+    if (!hasPending) {
+      if (Date.now() - lastSlowPoll < 60000) return;
+      lastSlowPoll = Date.now();
+    }
     const cfg = await getUsdtConfig();
     if (!cfg.enabled) return;
 
-    const oldest = Math.min(...pending.map(o => new Date(o.createdAt).getTime()));
+    const oldest = Math.min(...candidates.map(o => new Date(o.createdAt).getTime()));
     const transfers = await fetchTransfers(cfg, oldest - 120000);
     for (const tx of transfers) {
       const decimals = Number(tx.token_info?.decimals) || 6;
       const amt = round4(Number(tx.value) / Math.pow(10, decimals));
       if (!amt) continue;
-      const order = pending.find(o =>
+      // SEC-PAY1：只匹配创建时间早于链上交易的订单（原先允许订单晚 60 秒，
+      // 给了"看到转账后抢建同金额订单"的冒领窗口）
+      const order = candidates.find(o =>
         round4(o.usdtAmount) === amt &&
-        tx.block_timestamp >= new Date(o.createdAt).getTime() - 60000);
+        tx.block_timestamp >= new Date(o.createdAt).getTime());
       if (!order) continue;
       const used = await SaverUsdtOrder.exists({ externalId: tx.transaction_id });
       if (used) continue;
-      // 原子抢占，只入账一次
-      const claimed = await SaverUsdtOrder.findOneAndUpdate(
-        { _id: order._id, status: 'pending' },
-        { $set: { status: 'paid', paidAt: new Date(), externalId: tx.transaction_id, credits: round2(amt * cfg.rate), raw: { amt, rate: cfg.rate, from: tx.from } } },
-        { new: true });
+      const late = order.status === 'expired';
+      // 原子抢占，只入账一次；externalId 另有 partial unique 索引兜底并发
+      let claimed = null;
+      try {
+        claimed = await SaverUsdtOrder.findOneAndUpdate(
+          { _id: order._id, status: { $in: ['pending', 'expired'] } },
+          { $set: { status: 'paid', paidAt: new Date(), externalId: tx.transaction_id, credits: round2(amt * cfg.rate), raw: { amt, rate: cfg.rate, from: tx.from, ...(late ? { late: true } : {}) } } },
+          { new: true });
+      } catch (e) {
+        if (e && e.code === 11000) continue; // 该交易已被并发入账
+        throw e;
+      }
       if (!claimed) continue;
       await billing.adjust(claimed.workspace, round2(amt * cfg.rate), claimed.by,
-        `USDT充值 ${amt}U × ${cfg.rate} = ￥${round2(amt * cfg.rate)}（订单 ${claimed.orderNo}）`);
-      console.log(`[recharge] order ${claimed.orderNo} paid ${amt} USDT → ￥${round2(amt * cfg.rate)}`);
+        `USDT充值 ${amt}U × ${cfg.rate} = ￥${round2(amt * cfg.rate)}（订单 ${claimed.orderNo}${late ? '，超时后到账自动补单' : ''}）`);
+      console.log(`[recharge] order ${claimed.orderNo} paid ${amt} USDT → ￥${round2(amt * cfg.rate)}${late ? ' (late)' : ''}`);
     }
   } catch (err) {
     console.error('[recharge] tick:', err.message);

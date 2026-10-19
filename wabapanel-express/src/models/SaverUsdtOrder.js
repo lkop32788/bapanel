@@ -15,4 +15,10 @@ const saverUsdtOrderSchema = new mongoose.Schema({
   raw: { type: mongoose.Schema.Types.Mixed },     // 网关最后一次返回的状态详情
 }, { timestamps: true });
 
+// SEC-PAY1：同一笔链上交易（externalId=交易hash）全局只能入账一次，兜底并发双入账
+saverUsdtOrderSchema.index(
+  { externalId: 1 },
+  { unique: true, partialFilterExpression: { externalId: { $exists: true, $gt: '' } } },
+);
+
 module.exports = mongoose.model('SaverUsdtOrder', saverUsdtOrderSchema);

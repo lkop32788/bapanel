@@ -42,12 +42,13 @@ class S3Service {
   }
 
   async upload(file, folder = 'uploads') {
+    folder = this._safeFolder(folder); // SEC-UP1
     // Use local storage if S3 not configured
     if (!this.bucket || !process.env.AWS_ACCESS_KEY_ID) {
       return this._uploadLocal(file, folder);
     }
     const client = this._getClient();
-    const ext = path.extname(file.originalname);
+    const ext = this._safeExt(file.originalname);
     const key = `${folder}/${uuidv4()}${ext}`;
 
     const command = new PutObjectCommand({
@@ -63,12 +64,29 @@ class S3Service {
     return { key, url, bucket: this.bucket };
   }
 
+  // SEC-UP1：folder 来自请求方（req.body.folder），必须消毒——只允许字母数字_-，
+  // 防止 ../ 路径穿越以 root 身份写任意目录；ext 同样只收常规形态
+  _safeFolder(folder) {
+    const clean = String(folder || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    return clean || 'uploads';
+  }
+
+  _safeExt(name) {
+    const ext = path.extname(String(name || ''));
+    return /^\.[a-zA-Z0-9]{1,10}$/.test(ext) ? ext.toLowerCase() : '';
+  }
+
   _uploadLocal(file, folder = 'uploads') {
-    const uploadDir = path.join(__dirname, '../../uploads', folder);
+    folder = this._safeFolder(folder);
+    const uploadsRoot = path.resolve(__dirname, '../../uploads');
+    const uploadDir = path.resolve(uploadsRoot, folder);
+    if (!uploadDir.startsWith(uploadsRoot + path.sep)) {
+      throw new Error('非法的上传目录');
+    }
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
-    const ext = path.extname(file.originalname);
+    const ext = this._safeExt(file.originalname);
     const filename = uuidv4() + ext;
     const filePath = path.join(uploadDir, filename);
     fs.writeFileSync(filePath, file.buffer);
@@ -77,8 +95,9 @@ class S3Service {
   }
 
   async uploadBuffer(buffer, filename, mimetype, folder = 'uploads') {
+    folder = this._safeFolder(folder); // SEC-UP1
     const client = this._getClient();
-    const ext = path.extname(filename);
+    const ext = this._safeExt(filename);
     const key = `${folder}/${uuidv4()}${ext}`;
 
     const command = new PutObjectCommand({

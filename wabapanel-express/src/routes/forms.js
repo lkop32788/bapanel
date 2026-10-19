@@ -16,8 +16,10 @@ router.post('/:id/upload', (req, res) => {
     try {
       if (err) return res.status(400).json({ success: false, message: '文件过大（上限 8MB）' });
       if (!req.file) return res.status(400).json({ success: false, message: '缺少文件' });
-      if (!/^(image\/|application\/pdf|application\/msword|application\/vnd\.openxmlformats|text\/plain)/.test(req.file.mimetype || '')) {
-        return res.status(400).json({ success: false, message: '只支持图片、PDF、Word、文本文件' });
+      // SEC-XSS：mimetype 是客户端自报的，必须同时用扩展名白名单双重校验
+      if (!/^(image\/|application\/pdf|application\/msword|application\/vnd\.openxmlformats|text\/plain)/.test(req.file.mimetype || '')
+        || !/\.(jpe?g|png|gif|webp|pdf|docx?|xlsx?|txt)$/i.test(req.file.originalname || '')) {
+        return res.status(400).json({ success: false, message: '只支持图片（jpg/png/gif/webp）、PDF、Word、Excel、txt 文件' });
       }
       const Form = require('../models/Form');
       const form = await Form.findById(req.params.id).lean().catch(() => null);

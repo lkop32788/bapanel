@@ -22,9 +22,17 @@ process.on('uncaughtException', (err) => {
 });
 
 const app = express();
+// SEC-XSS：上传目录改白名单放行——只有明确安全的图片/音视频/PDF/纯文本允许内联
+// 渲染，其余一律按附件下载 + CSP sandbox（旧黑名单漏 .xht/.svgz 等可执行脚本的
+// 扩展名，公开表单上传曾可借此在面板同源种存储型 XSS 偷登录 token）。
+// 注意 <img>/<audio>/<video> 标签不受 Content-Disposition 影响，svg logo 不受影响。
+const INLINE_SAFE_RE = /\.(jpe?g|png|gif|webp|avif|bmp|ico|mp3|wav|ogg|oga|m4a|aac|amr|mp4|webm|m4v|mov|pdf|txt|csv)$/i;
 const setUploadHeaders = (res, filePath) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  if (/\.(svg|html?|xhtml|shtml|xml)$/i.test(filePath)) res.setHeader('Content-Security-Policy', 'sandbox');
+  if (!INLINE_SAFE_RE.test(filePath)) {
+    res.setHeader('Content-Disposition', 'attachment');
+    res.setHeader('Content-Security-Policy', 'sandbox');
+  }
 };
 app.set('trust proxy', 1);
 app.use('/uploads', require('express').static(require('path').join(__dirname, '..', 'uploads'), { setHeaders: setUploadHeaders }));
