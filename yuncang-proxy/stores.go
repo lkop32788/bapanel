@@ -64,6 +64,18 @@ func getSetting(k string) string {
 	return v
 }
 
+// 从上游 consume 字段解析本次扣费
+func consumeDeduction(raw json.RawMessage) float64 {
+	if len(raw) == 0 {
+		return 0
+	}
+	var c struct {
+		Deduction float64 `json:"deduction"`
+	}
+	_ = json.Unmarshal(raw, &c)
+	return c.Deduction
+}
+
 // 上游地址：设置里保存的优先，留空回退启动默认（env SAVER_UPSTREAM 或 th333）
 func upstreamURL() string {
 	if v := strings.TrimRight(strings.TrimSpace(getSetting("upstream")), "/"); v != "" {
@@ -451,6 +463,63 @@ func handleAdminBalance(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.Copy(w, io.LimitReader(resp.Body, 1<<20))
 }
 
+// ---------- 消耗统计（计费归属） ----------
+
+func handleBilling(w http.ResponseWriter, _ *http.Request) {
+	owners := []map[string]any{}
+	if rows, err := db.Query(`SELECT owner_id, owner_name, COUNT(*), COALESCE(SUM(total),0),
+		COALESCE(SUM(cached_count),0), COALESCE(SUM(deduction),0)
+		FROM tasks GROUP BY owner_id, owner_name ORDER BY SUM(deduction) DESC, COUNT(*) DESC`); err == nil {
+		for rows.Next() {
+			var oid, oname string
+			var n, total, cached int
+			var ded float64
+			if rows.Scan(&oid, &oname, &n, &total, &cached, &ded) == nil {
+				owners = append(owners, map[string]any{"ownerId": oid, "ownerName": oname,
+					"tasks": n, "total": total, "cached": cached, "forwarded": total - cached, "deduction": ded})
+			}
+		}
+		rows.Close()
+	}
+	storesAgg := []map[string]any{}
+	if rows, err := db.Query(`SELECT s.id, s.name, COUNT(j.id), COALESCE(SUM(j.count),0), COALESCE(SUM(j.deduction),0)
+		FROM store_jobs j JOIN stores s ON s.id=j.store_id GROUP BY s.id, s.name ORDER BY SUM(j.deduction) DESC`); err == nil {
+		for rows.Next() {
+			var id int64
+			var name string
+			var n, cnt int
+			var ded float64
+			if rows.Scan(&id, &name, &n, &cnt, &ded) == nil {
+				storesAgg = append(storesAgg, map[string]any{"id": id, "name": name,
+					"jobs": n, "count": cnt, "deduction": ded})
+			}
+		}
+		rows.Close()
+	}
+	var taskDed, jobDed float64
+	var taskCached, taskForwarded, jobForwarded, storeChecked int
+	_ = db.QueryRow("SELECT COALESCE(SUM(deduction),0), COALESCE(SUM(cached_count),0), COALESCE(SUM(total-cached_count),0) FROM tasks").Scan(&taskDed, &taskCached, &taskForwarded)
+	_ = db.QueryRow("SELECT COALESCE(SUM(deduction),0), COALESCE(SUM(count),0) FROM store_jobs").Scan(&jobDed, &jobForwarded)
+	_ = db.QueryRow("SELECT COUNT(*) FROM store_numbers WHERE status IN ('valid','invalid')").Scan(&storeChecked)
+	// 云仓缓存直出 = 已出结果 - 经作业检测的（含进行中作业会轻微低估，可接受）
+	var jobIngested int
+	_ = db.QueryRow("SELECT COALESCE(SUM(count),0) FROM store_jobs WHERE state='Done'").Scan(&jobIngested)
+	storeCached := storeChecked - jobIngested
+	if storeCached < 0 {
+		storeCached = 0
+	}
+	totalDed := taskDed + jobDed
+	totalCached := taskCached + storeCached
+	forwarded := taskForwarded + jobForwarded
+	saved := 0.0
+	if forwarded > 0 {
+		saved = totalDed / float64(forwarded) * float64(totalCached) // 按平均单价估算
+	}
+	writeJSON(w, map[string]any{"code": 0, "owners": owners, "stores": storesAgg,
+		"totalDeduction": totalDed, "totalCached": totalCached, "totalForwarded": forwarded,
+		"estimatedSaved": saved})
+}
+
 // ---------- 后台工作器：待入仓 → 提交检测 → 沉淀有效/无效 ----------
 
 func storeWorker() {
@@ -548,8 +617,8 @@ func submitPendingStores(token string) {
 			continue
 		}
 		writeMu.Lock()
-		res, _ := db.Exec("INSERT INTO store_jobs (store_id,upstream_id,count,state,created_at) VALUES (?,?,?,?,?)",
-			s.id, ur.Data.TaskID, len(misses), "Waiting", time.Now().Unix())
+		res, _ := db.Exec("INSERT INTO store_jobs (store_id,upstream_id,count,state,created_at,deduction) VALUES (?,?,?,?,?,?)",
+			s.id, ur.Data.TaskID, len(misses), "Waiting", time.Now().Unix(), consumeDeduction(ur.Consume))
 		jobID, _ := res.LastInsertId()
 		upd2, _ := db.Prepare("UPDATE store_numbers SET status='checking', job_id=?, updated_at=? WHERE store_id=? AND value=? AND status='pending'")
 		now2 := time.Now().Unix()

@@ -142,6 +142,15 @@ func main() {
 	if _, err := db.Exec(storeSchema); err != nil {
 		log.Fatal(err)
 	}
+	// 计费归属字段（已存在时报错忽略）
+	for _, stmt := range []string{
+		"ALTER TABLE tasks ADD COLUMN owner_id TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE tasks ADD COLUMN owner_name TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE tasks ADD COLUMN deduction REAL NOT NULL DEFAULT 0",
+		"ALTER TABLE store_jobs ADD COLUMN deduction REAL NOT NULL DEFAULT 0",
+	} {
+		_, _ = db.Exec(stmt)
+	}
 	go gcLoop()
 	go storeWorker()
 
@@ -162,6 +171,7 @@ func main() {
 	mux.HandleFunc("/admin/api/stores/export", requireAdmin(handleStoreExport))
 	mux.HandleFunc("/admin/api/settings", requireAdmin(handleSettings))
 	mux.HandleFunc("/admin/api/balance", requireAdmin(handleAdminBalance))
+	mux.HandleFunc("/admin/api/billing", requireAdmin(handleBilling))
 
 	log.Printf("云仓中转管理 listening on %s:%s → %s (data: %s, admin: %v)", addr, port, upstream, dataDir, adminPass != "")
 	log.Fatal(http.ListenAndServe(addr+":"+port, mux))
@@ -424,9 +434,14 @@ func handleCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// 计费归属：面板在表单里带 bizId/bizName（workspace 标识），没有则记空
+	ownerID := r.FormValue("bizId")
+	ownerName := r.FormValue("bizName")
+
 	localID := genID()
 	state := "Finish"
 	upstreamID := ""
+	deduction := 0.0
 	var consume json.RawMessage
 	if len(misses) > 0 {
 		ur, err := forwardCreate(r, misses, country, taskType, taskName)
@@ -444,13 +459,14 @@ func handleCreate(w http.ResponseWriter, r *http.Request) {
 			state = "Waiting"
 		}
 		consume = ur.Consume
+		deduction = consumeDeduction(ur.Consume)
 	}
 
 	writeMu.Lock()
 	tx, err := db.Begin()
 	if err == nil {
-		_, _ = tx.Exec("INSERT INTO tasks (id,upstream_id,task_type,country,name,total,cached_count,cached_valid,state,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-			localID, upstreamID, taskType, country, taskName, len(values), len(values)-len(misses), cachedValid, state, time.Now().Unix())
+		_, _ = tx.Exec("INSERT INTO tasks (id,upstream_id,task_type,country,name,total,cached_count,cached_valid,state,created_at,owner_id,owner_name,deduction) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+			localID, upstreamID, taskType, country, taskName, len(values), len(values)-len(misses), cachedValid, state, time.Now().Unix(), ownerID, ownerName, deduction)
 		stmt, _ := tx.Prepare("INSERT INTO task_items (task_id,value,source,valid,extra) VALUES (?,?,?,?,?)")
 		for _, v := range values {
 			if h, ok := hits[v]; ok {

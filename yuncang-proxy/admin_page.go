@@ -44,7 +44,8 @@ a.exp:hover{text-decoration:underline}
 <div class="tabs">
 <button id="tabBtn0" class="on" onclick="showTab(0)">概览</button>
 <button id="tabBtn1" onclick="showTab(1)">云仓管理</button>
-<button id="tabBtn2" onclick="showTab(2)">设置</button>
+<button id="tabBtn2" onclick="showTab(2)">消耗统计</button>
+<button id="tabBtn3" onclick="showTab(3)">设置</button>
 </div>
 
 <div id="tab0">
@@ -81,6 +82,17 @@ a.exp:hover{text-decoration:underline}
 </div>
 
 <div id="tab2" style="display:none">
+<div class="row" style="justify-content:flex-end"><button class="btn" onclick="loadBilling()">刷新</button></div>
+<div class="cards" id="bCards"></div>
+<div class="panel"><h2>按商家（面板提交的检测）</h2>
+<table><thead><tr><th>商家</th><th class="r">任务数</th><th class="r">提交号码</th><th class="r">缓存免检</th><th class="r">实际上游检测</th><th class="r">上游扣费</th></tr></thead>
+<tbody id="bOwners"></tbody></table></div>
+<div class="panel"><h2>按云仓（自动检测作业）</h2>
+<table><thead><tr><th>云仓</th><th class="r">作业数</th><th class="r">检测条数</th><th class="r">上游扣费</th></tr></thead>
+<tbody id="bStores"></tbody></table></div>
+</div>
+
+<div id="tab3" style="display:none">
 <div class="panel" style="max-width:520px">
 <h2>上游地址</h2>
 <p class="gray" style="font-size:12px">检测平台的接口地址，保存后立即生效（代理转发、云仓自动检测都用它）。留空则使用默认：<span id="upDefault" class="mono">—</span>。当前生效：<span id="upNow" class="mono">—</span></p>
@@ -133,7 +145,8 @@ var TYPE_GROUPS=[
 var TYPE_LABEL={};TYPE_GROUPS.forEach(function(g){g[1].forEach(function(t){TYPE_LABEL[t[0]]=t[1]})});
 var COUNTRY_NAME={};COUNTRIES.forEach(function(c){COUNTRY_NAME[c[0]]=c[1]});
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function showTab(i){for(var j=0;j<3;j++){document.getElementById('tab'+j).style.display=j===i?'':'none';document.getElementById('tabBtn'+j).className=j===i?'on':''}}
+function showTab(i){for(var j=0;j<4;j++){document.getElementById('tab'+j).style.display=j===i?'':'none';document.getElementById('tabBtn'+j).className=j===i?'on':''}}
+function fmt3(n){return Math.round((n||0)*1000)/1000}
 
 // --- 概览 ---
 function loadStats(){
@@ -229,6 +242,25 @@ document.getElementById('upFile').addEventListener('change',function(){
     });
 });
 
+// --- 消耗统计 ---
+function loadBilling(){
+  fetch('/admin/api/billing').then(function(r){return r.json()}).then(function(d){
+    var cards=[['上游扣费合计',fmt3(d.totalDeduction)+' 积分'],['缓存免检条数',d.totalCached],['实际上游检测',d.totalForwarded],['估算节省',fmt3(d.estimatedSaved)+' 积分']];
+    document.getElementById('bCards').innerHTML=cards.map(function(c){return '<div class="card"><div class="k">'+c[0]+'</div><div class="v">'+esc(c[1])+'</div></div>'}).join('');
+    var os=d.owners||[];
+    document.getElementById('bOwners').innerHTML=os.length?os.map(function(o){
+      var name=o.ownerName||o.ownerId||'未标记';
+      return '<tr><td><b>'+esc(name)+'</b>'+(o.ownerId&&o.ownerName?'<div class="mono">'+esc(o.ownerId)+'</div>':'')+'</td>'+
+        '<td class="r">'+o.tasks+'</td><td class="r">'+o.total+'</td><td class="r green">'+o.cached+'</td>'+
+        '<td class="r">'+o.forwarded+'</td><td class="r"><b>'+fmt3(o.deduction)+'</b></td></tr>'}).join('')
+      :'<tr><td colspan="6" class="gray" style="text-align:center;padding:18px">暂无记录（商家在面板提交检测后这里会出现）</td></tr>';
+    var ss=d.stores||[];
+    document.getElementById('bStores').innerHTML=ss.length?ss.map(function(s){
+      return '<tr><td><b>'+esc(s.name)+'</b></td><td class="r">'+s.jobs+'</td><td class="r">'+s.count+'</td><td class="r"><b>'+fmt3(s.deduction)+'</b></td></tr>'}).join('')
+      :'<tr><td colspan="4" class="gray" style="text-align:center;padding:18px">暂无作业</td></tr>';
+  });
+}
+
 // --- 设置 ---
 function loadSettings(){
   fetch('/admin/api/settings').then(function(r){return r.json()}).then(function(d){
@@ -262,5 +294,5 @@ function testBalance(){
   });
 }
 
-fillSelects();loadStats();loadStores();loadSettings();
+fillSelects();loadStats();loadStores();loadSettings();loadBilling();
 </script></body></html>`

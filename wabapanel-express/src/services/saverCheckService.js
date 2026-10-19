@@ -40,6 +40,13 @@ async function createRemoteTask(cfg, task) {
   if (task.country?.code) form.append('country', task.country.code); // 邮箱类任务无需 country
   form.append('taskType', task.taskType);
   if (task.fileName) form.append('taskName', task.fileName.slice(0, 100));
+  // 计费归属：接口地址是云仓中转代理时，代理按商家记账；直连 th333 时上游会忽略这两个字段
+  try {
+    const Workspace = require('../models/Workspace');
+    const ws = await Workspace.findById(task.workspace).select('name').lean();
+    form.append('bizId', String(task.workspace));
+    form.append('bizName', ws?.name || '');
+  } catch { /* 归属信息拿不到不影响检测 */ }
   const data = await apiJson(cfg, '/api/task/create', { method: 'POST', body: form }, 120000);
   if (!data.data?.taskId) throw new Error(data.message || '检测接口未返回任务编号');
   return data.data.taskId;
