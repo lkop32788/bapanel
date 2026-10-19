@@ -57,22 +57,31 @@ router.post('/checks', async (req, res) => {
       }
     }
 
-    const task = await SaverCheckTask.create({
-      workspace: req.workspace._id,
-      createdBy: req.user._id,
-      channel,
-      taskType,
-      fileName: String(fileName || '').slice(0, 200),
-      country: {
-        name: country?.name || '',
-        dial: String(country?.dial || '').replace(/\D/g, ''),
-        code: String(country?.code || ''),
-      },
-      total: results.length,
-      cost,
-      unitPrice,
-      results,
-    });
+    // SEC-PAY3：已预扣费后建任务失败必须退款（原先直接 500，钱扣了任务没了）
+    let task;
+    try {
+      task = await SaverCheckTask.create({
+        workspace: req.workspace._id,
+        createdBy: req.user._id,
+        channel,
+        taskType,
+        fileName: String(fileName || '').slice(0, 200),
+        country: {
+          name: country?.name || '',
+          dial: String(country?.dial || '').replace(/\D/g, ''),
+          code: String(country?.code || ''),
+        },
+        total: results.length,
+        cost,
+        unitPrice,
+        results,
+      });
+    } catch (createErr) {
+      if (cost > 0) {
+        await billing.refund(req.workspace._id, cost, null, '任务创建失败自动退款').catch((e) => console.error('[saver] create-refund:', e.message));
+      }
+      throw createErr;
+    }
     if (chargeLedgerId) {
       require('../models/SaverLedger').updateOne(
         { _id: chargeLedgerId }, { $set: { task: task._id } }).catch(() => {});
@@ -235,10 +244,14 @@ router.get('/checks/:id', async (req, res) => {
 });
 
 // DELETE /api/saver/checks/:id — 删除任务记录
+// SEC-PAY3：只允许删除已结束的任务（原先删除 processing 任务不退款、上游还在跑）
 router.delete('/checks/:id', async (req, res) => {
   try {
-    const task = await SaverCheckTask.findOneAndDelete({ _id: req.params.id, workspace: req.workspace._id });
-    if (!task) return res.status(404).json({ success: false, message: '任务不存在' });
+    const task = await SaverCheckTask.findOneAndDelete({
+      _id: req.params.id, workspace: req.workspace._id,
+      status: { $in: ['completed', 'failed'] },
+    });
+    if (!task) return res.status(404).json({ success: false, message: '任务不存在，或任务还在检测中（检测中的任务不能删除）' });
     res.json({ success: true, message: '已删除' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

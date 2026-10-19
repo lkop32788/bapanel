@@ -76,14 +76,21 @@ async function createOrder({ workspaceId, userId, usdtAmount }) {
   if (!payAmount) throw new Error('系统繁忙，请稍后重试');
 
   const cfgRmb = round2(payAmount * cfg.rate);
-  const order = await SaverUsdtOrder.create({
-    workspace: workspaceId,
-    by: userId,
-    credits: cfgRmb,       // 预计到账 RMB（结算时按实际到账额更新）
-    usdtAmount: payAmount, // 必须精确转账的 USDT 金额
-    provider: 'trc20',
-    orderNo: 'RC' + Date.now() + Math.floor(Math.random() * 1000),
-  });
+  let order;
+  try {
+    order = await SaverUsdtOrder.create({
+      workspace: workspaceId,
+      by: userId,
+      credits: cfgRmb,       // 预计到账 RMB（结算时按实际到账额更新）
+      usdtAmount: payAmount, // 必须精确转账的 USDT 金额
+      provider: 'trc20',
+      orderNo: 'RC' + Date.now() + Math.floor(Math.random() * 1000),
+    });
+  } catch (e) {
+    // SEC-PAY3：(pending, usdtAmount) 唯一索引兜底并发撞金额
+    if (e && e.code === 11000) throw new Error('系统繁忙，请稍后重试');
+    throw e;
+  }
   return {
     orderNo: order.orderNo,
     payAmount,
@@ -94,16 +101,26 @@ async function createOrder({ workspaceId, userId, usdtAmount }) {
   };
 }
 
-// 拉取收款地址最近的 USDT 入账
+// 拉取收款地址最近的 USDT 入账。SEC-PAY3：按 fingerprint 翻页最多 4 页
+// （原先只取 50 条，高峰期可能漏单）
 async function fetchTransfers(cfg, minTimestamp) {
-  const url = `https://api.trongrid.io/v1/accounts/${cfg.address}/transactions/trc20` +
-    `?only_confirmed=true&only_to=true&limit=50&contract_address=${USDT_CONTRACT}&min_timestamp=${minTimestamp}`;
   const headers = { accept: 'application/json' };
   if (cfg.tronApiKey) headers['TRON-PRO-API-KEY'] = cfg.tronApiKey;
-  const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`TronGrid HTTP ${res.status}`);
-  const data = await res.json().catch(() => ({}));
-  return Array.isArray(data.data) ? data.data : [];
+  const out = [];
+  let fingerprint = '';
+  for (let page = 0; page < 4; page++) {
+    const url = `https://api.trongrid.io/v1/accounts/${cfg.address}/transactions/trc20` +
+      `?only_confirmed=true&only_to=true&limit=50&contract_address=${USDT_CONTRACT}&min_timestamp=${minTimestamp}` +
+      (fingerprint ? `&fingerprint=${encodeURIComponent(fingerprint)}` : '');
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`TronGrid HTTP ${res.status}`);
+    const data = await res.json().catch(() => ({}));
+    const rows = Array.isArray(data.data) ? data.data : [];
+    out.push(...rows);
+    fingerprint = data.meta && data.meta.fingerprint;
+    if (!fingerprint || rows.length < 50) break;
+  }
+  return out;
 }
 
 let ticking = false;
@@ -160,8 +177,17 @@ async function tick() {
         throw e;
       }
       if (!claimed) continue;
-      await billing.adjust(claimed.workspace, round2(amt * cfg.rate), claimed.by,
-        `USDT充值 ${amt}U × ${cfg.rate} = ￥${round2(amt * cfg.rate)}（订单 ${claimed.orderNo}${late ? '，超时后到账自动补单' : ''}）`);
+      // SEC-PAY3：带幂等键入账；失败则把订单回滚待匹配（否则"订单 paid 钱包没加钱"）
+      try {
+        await billing.adjust(claimed.workspace, round2(amt * cfg.rate), claimed.by,
+          `USDT充值 ${amt}U × ${cfg.rate} = ￥${round2(amt * cfg.rate)}（订单 ${claimed.orderNo}${late ? '，超时后到账自动补单' : ''}）`,
+          `usdt:${claimed.orderNo}`);
+      } catch (adjErr) {
+        console.error(`[recharge] adjust failed for ${claimed.orderNo}, reverting:`, adjErr.message);
+        await SaverUsdtOrder.updateOne({ _id: claimed._id },
+          { $set: { status: late ? 'expired' : 'pending' }, $unset: { externalId: 1, paidAt: 1 } }).catch(() => {});
+        continue;
+      }
       console.log(`[recharge] order ${claimed.orderNo} paid ${amt} USDT → ￥${round2(amt * cfg.rate)}${late ? ' (late)' : ''}`);
     }
   } catch (err) {

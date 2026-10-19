@@ -20,5 +20,10 @@ saverUsdtOrderSchema.index(
   { externalId: 1 },
   { unique: true, partialFilterExpression: { externalId: { $exists: true, $gt: '' } } },
 );
+// SEC-PAY3：待支付订单金额全局唯一，兜底 createOrder 并发撞金额（check-then-create 竞态）
+saverUsdtOrderSchema.index(
+  { usdtAmount: 1 },
+  { unique: true, partialFilterExpression: { status: 'pending' } },
+);
 
 module.exports = mongoose.model('SaverUsdtOrder', saverUsdtOrderSchema);

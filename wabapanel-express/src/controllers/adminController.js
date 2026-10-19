@@ -388,7 +388,12 @@ const updateSettings = async (req, res) => {
           if (data.baseUrl !== undefined) settings.saverApi.baseUrl = String(data.baseUrl || '').trim().replace(/\/+$/, '');
           if (data.apiKey !== undefined) settings.saverApi.apiKey = String(data.apiKey || '').trim();
           if (data.billingEnabled !== undefined) settings.saverApi.billingEnabled = !!data.billingEnabled;
-          if (data.priceDefault !== undefined) settings.saverApi.priceDefault = Math.max(0, Number(data.priceDefault) || 0);
+          if (data.priceDefault !== undefined) {
+            const v = Number(data.priceDefault);
+            // SEC-PAY3：单价必须 >0——配成 0 等于全平台免费
+            if (!(v > 0)) throw new Error('默认单价必须大于 0（元/条）');
+            settings.saverApi.priceDefault = v;
+          }
           if (data.priceOverrides !== undefined && typeof data.priceOverrides === 'object') {
             const clean = {};
             for (const [k, v] of Object.entries(data.priceOverrides || {})) {

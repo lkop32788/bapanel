@@ -41,7 +41,8 @@ router.get('/settings', admin.getSettings);
 router.put('/settings', superAdminOnly, admin.updateSettings);
 router.post('/settings/test-email', superAdminOnly, admin.sendTestEmail);
 // 省钱专家：商家计费 —— 钱包列表 / 充值扣减 / 流水
-router.get('/saver-billing/wallets', async (req, res) => {
+// SEC-PAY3：资金查询端点与写侧对齐收口 super_admin（原先普通 admin 可翻全平台余额/订单）
+router.get('/saver-billing/wallets', superAdminOnly, async (req, res) => {
   try {
     const Workspace = require('../models/Workspace');
     const SaverWallet = require('../models/SaverWallet');
@@ -87,7 +88,7 @@ router.post('/saver-billing/topup', superAdminOnly, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-router.get('/saver-billing/ledger', async (req, res) => {
+router.get('/saver-billing/ledger', superAdminOnly, async (req, res) => {
   try {
     const SaverLedger = require('../models/SaverLedger');
     const q = {};
@@ -106,7 +107,7 @@ router.get('/saver-billing/ledger', async (req, res) => {
 });
 
 // 充值中心：USDT 充值订单管理
-router.get('/saver-billing/usdt-orders', async (req, res) => {
+router.get('/saver-billing/usdt-orders', superAdminOnly, async (req, res) => {
   try {
     const SaverUsdtOrder = require('../models/SaverUsdtOrder');
     const q = {};
@@ -123,7 +124,7 @@ router.get('/saver-billing/usdt-orders', async (req, res) => {
 // 晚到的转账由 saverUsdtService 在 48 小时窗口内自动补入原订单。
 
 // 省钱专家：充值申请列表与审批
-router.get('/saver-billing/topup-requests', async (req, res) => {
+router.get('/saver-billing/topup-requests', superAdminOnly, async (req, res) => {
   try {
     const SaverTopupRequest = require('../models/SaverTopupRequest');
     const q = {};
@@ -150,7 +151,9 @@ router.post('/saver-billing/topup-requests/:id', superAdminOnly, async (req, res
       { new: true });
     if (!doc) return res.status(404).json({ success: false, message: '申请不存在或已处理' });
     if (action === 'approve') {
-      await require('../services/saverBillingService').adjust(doc.workspace, doc.amount, req.user._id, `充值申请批准${doc.note ? '：' + doc.note : ''}`);
+      // SEC-PAY3：带幂等键，崩溃重放也只入一次账
+      await require('../services/saverBillingService').adjust(doc.workspace, doc.amount, req.user._id,
+        `充值申请批准${doc.note ? '：' + doc.note : ''}`, `topup:${doc._id}`);
     }
     res.json({ success: true, message: action === 'approve' ? '已通过并入账' : '已拒绝' });
   } catch (error) {

@@ -179,12 +179,15 @@ async function processTask(taskId) {
       task.error = err.message || '检测失败';
       task.finishedAt = new Date();
       await task.save().catch(() => {});
-      // 计量收费：任务失败全额退款（refunded 标记保证幂等）
+      // 计量收费：任务失败全额退款。SEC-PAY3：refunded 标记用原子抢占落库
+      // （原先读内存标志+吞错 save，多实例/重试场景会双退款）
       try {
-        if (task.cost > 0 && !task.refunded) {
-          await require('./saverBillingService').refund(task.workspace, task.cost, task._id);
-          task.refunded = true;
-          await task.save().catch(() => {});
+        if (task.cost > 0) {
+          const claimed = await require('../models/SaverCheckTask').findOneAndUpdate(
+            { _id: task._id, refunded: { $ne: true } }, { $set: { refunded: true } });
+          if (claimed) {
+            await require('./saverBillingService').refund(task.workspace, task.cost, task._id);
+          }
         }
       } catch (e) {
         console.error('[saver] refund:', e.message);

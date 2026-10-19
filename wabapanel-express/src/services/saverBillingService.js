@@ -56,16 +56,56 @@ async function refund(workspaceId, cost, taskId, note) {
   });
 }
 
-// 管理员充值/扣减
-async function adjust(workspaceId, amount, byUserId, note) {
+// 管理员充值/扣减 + 系统入账。
+// SEC-PAY3：带 ref（幂等键）时先记 settled:false 流水（ref 唯一索引挡重复），
+// 再加钱包、置 settled:true——崩溃留下的未结算流水由 reconcile 补齐；
+// ref 冲突（已入账过）返回 null，调用方据此跳过。
+async function adjust(workspaceId, amount, byUserId, note, ref) {
+  let ledger = null;
+  if (ref) {
+    try {
+      ledger = await SaverLedger.create({
+        workspace: workspaceId, type: amount >= 0 ? 'topup' : 'adjust', amount,
+        balanceAfter: 0, by: byUserId, note: note || '', ref, settled: false,
+      });
+    } catch (e) {
+      if (e && e.code === 11000) return null; // 同一笔已入账
+      throw e;
+    }
+  }
   const w = await SaverWallet.findOneAndUpdate(
     { workspace: workspaceId }, { $inc: { balance: amount } },
     { new: true, upsert: true });
-  await SaverLedger.create({
-    workspace: workspaceId, type: amount >= 0 ? 'topup' : 'adjust', amount,
-    balanceAfter: round3(w.balance), by: byUserId, note: note || '',
-  });
+  if (ledger) {
+    await SaverLedger.updateOne({ _id: ledger._id },
+      { $set: { balanceAfter: round3(w.balance), settled: true } });
+  } else {
+    await SaverLedger.create({
+      workspace: workspaceId, type: amount >= 0 ? 'topup' : 'adjust', amount,
+      balanceAfter: round3(w.balance), by: byUserId, note: note || '',
+    });
+  }
   return round3(w.balance);
 }
 
-module.exports = { getBillingConfig, priceFor, getWallet, charge, refund, adjust, round3 };
+// SEC-PAY3 对账：补齐"流水已记、钱包未加"的崩溃残留（启动 20 秒后 + 每小时）
+async function reconcileUnsettled() {
+  const rows = await SaverLedger.find({
+    settled: false, ref: { $exists: true },
+    createdAt: { $lt: new Date(Date.now() - 60 * 1000) },
+  }).limit(100);
+  for (const l of rows) {
+    const w = await SaverWallet.findOneAndUpdate(
+      { workspace: l.workspace }, { $inc: { balance: l.amount } },
+      { new: true, upsert: true });
+    await SaverLedger.updateOne({ _id: l._id },
+      { $set: { balanceAfter: round3(w.balance), settled: true, note: (l.note || '') + '（对账补入）' } });
+    console.log(`[saver] reconcile: ledger ${l._id} (${l.ref}) 补入 ${l.amount}`);
+  }
+}
+setTimeout(() => {
+  reconcileUnsettled().catch((e) => console.error('[saver] reconcile:', e.message));
+  setInterval(() => reconcileUnsettled().catch((e) => console.error('[saver] reconcile:', e.message)), 60 * 60 * 1000);
+}, 20 * 1000);
+
+module.exports = { getBillingConfig, priceFor, getWallet, charge, refund, adjust, reconcileUnsettled, round3 };
