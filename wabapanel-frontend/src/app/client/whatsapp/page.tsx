@@ -1,7 +1,7 @@
 'use client';
 import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect, useRef } from 'react';
-import { Wifi, Settings, CheckCircle, Copy, RefreshCw, Activity, ShieldCheck, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Wifi, Settings, CheckCircle, Copy, RefreshCw, Activity, ShieldCheck, AlertTriangle, ExternalLink, ToggleLeft, ToggleRight } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Card from '@/components/ui/Card';
@@ -81,6 +81,10 @@ export default function WhatsAppPage() {
   const [newNum, setNewNum] = useState({ phoneNumberId: '', phoneNumber: '', displayName: '', accessToken: '', wabaId: '' });
   const [diffWaba, setDiffWaba] = useState(false);
   const [numSaving, setNumSaving] = useState(false);
+  // 号池模式开关（多号轮询分配）
+  const [poolEnabled, setPoolEnabled] = useState<boolean>(!!(wa as { poolEnabled?: boolean } | undefined)?.poolEnabled);
+  const [poolSaving, setPoolSaving] = useState(false);
+  useEffect(() => { setPoolEnabled(!!(wa as { poolEnabled?: boolean } | undefined)?.poolEnabled); }, [wa]);
   const [payCfg, setPayCfg] = useState((wa as unknown as { paymentConfiguration?: string })?.paymentConfiguration || '');
   const [payCfgSaving, setPayCfgSaving] = useState(false);
   const savePayCfg = async () => {
@@ -690,6 +694,26 @@ export default function WhatsAppPage() {
         <Card>
           <h3 className="text-base font-semibold text-gray-900 mb-1">附加号码</h3>
           <p className="text-sm text-gray-500 mb-4">添加无限的 WhatsApp 号码 - 来自同一个 WABA，或来自不同的 WABA（勾选该框并提供该号码自己的访问令牌 + WABA ID）。任何号码上的传入聊天都会进入同一个收件箱，并自动从客户发消息的号码进行回复。</p>
+          {/* 号池模式：多号轮询分配（群发分摊 + 客服新开会话自动取号并粘住） */}
+          <button type="button" disabled={poolSaving}
+            onClick={async () => {
+              if (!currentWorkspace?._id) return;
+              setPoolSaving(true);
+              try {
+                await workspaceApi.updateWhatsApp(currentWorkspace._id, { poolEnabled: !poolEnabled });
+                setPoolEnabled(!poolEnabled);
+                toast.success(!poolEnabled ? '号池模式已开启' : '号池模式已关闭');
+                useAuthStore.getState().loadUser?.();
+              } catch { toast.error('保存失败'); }
+              setPoolSaving(false);
+            }}
+            className="flex items-center justify-between w-full p-3 border border-gray-200 rounded-lg text-left mb-4">
+            <span>
+              <span className="block text-sm font-medium text-gray-900">号池模式（多号轮询分配）</span>
+              <span className="block text-xs text-gray-500">开启后：①群发可选「号池轮询」把发送量平均分摊到同一 WABA 的所有号码；②客服新开会话/首次回复自动从池里轮询取号，并绑定到该会话——同一客户后续始终用同一个号沟通。独立 WABA 的号码不进池（模板不通用）。</span>
+            </span>
+            {poolEnabled ? <ToggleRight className="w-8 h-8 text-emerald-500 shrink-0" /> : <ToggleLeft className="w-8 h-8 text-gray-400 shrink-0" />}
+          </button>
           <div className="space-y-2 mb-4">
             {extraNumbers.length === 0 && <p className="text-sm text-gray-400">还没有其他号码</p>}
             {extraNumbers.map((n, i) => (

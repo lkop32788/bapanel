@@ -354,11 +354,25 @@ const runCampaignCore = async (campaign, workspace, io) => {
       workspace.whatsapp.phoneNumberId,
       ...(workspace.whatsapp.extraNumbers || []).map((n) => n.phoneNumberId),
     ].filter(Boolean);
-    const senderId = campaign.senderNumberId && validSenderIds.includes(campaign.senderNumberId)
+    // 号池轮询：senderNumberId='pool' 时按受众在同 WABA 号码间平均分摊（防单号
+    // 集中发送）；已绑定发送号的会话仍走绑定号（粘住，客户视角不换号）
+    const { poolNumbers } = require('../services/waNumberPool');
+    const poolIds = campaign.senderNumberId === 'pool' ? poolNumbers(workspace.whatsapp) : [];
+    const poolMode = poolIds.length > 1;
+    const senderId = campaign.senderNumberId && campaign.senderNumberId !== 'pool' && validSenderIds.includes(campaign.senderNumberId)
       ? campaign.senderNumberId
       : workspace.whatsapp.phoneNumberId;
-    const _cCreds = require('../utils/waSender').resolveWaCreds(workspace.whatsapp, senderId);
-    const waService = new WhatsAppService(_cCreds.accessToken, _cCreds.phoneNumberId);
+    const { resolveWaCreds } = require('../utils/waSender');
+    const _svcCache = {};
+    const svcFor = (sid) => {
+      const key = sid || workspace.whatsapp.phoneNumberId;
+      if (!_svcCache[key]) {
+        const creds = resolveWaCreds(workspace.whatsapp, key);
+        _svcCache[key] = new WhatsAppService(creds.accessToken, creds.phoneNumberId);
+      }
+      return _svcCache[key];
+    };
+    const waService = svcFor(senderId);
 
     const workspaceId = workspace._id;
 
@@ -384,7 +398,9 @@ const runCampaignCore = async (campaign, workspace, io) => {
               continue;
             }
             const { sendPreset } = require('../services/presetSend');
-            const { result, msgType, renderedText } = await sendPreset(waService, contact.phone, preset, contact);
+            // 号池/粘住：优先用会话已绑定的发送号；池模式下未绑定的按序分摊
+            const _presetSid = conversation.waNumberId || (poolMode ? poolIds[(campaign.stats.sent + campaign.stats.failed) % poolIds.length] : senderId);
+            const { result, msgType, renderedText } = await sendPreset(svcFor(_presetSid), contact.phone, preset, contact);
             if (result.success) {
               campaign.stats.sent++;
               const cMsg = await Message.create({
@@ -532,7 +548,9 @@ const runCampaignCore = async (campaign, workspace, io) => {
           contactComponents.filter(c => String(c.sub_type || '') === 'url' && Array.isArray(c.parameters)).forEach(bc => {
             bc.parameters = bc.parameters.map(p => (p.type === 'text' ? { ...p, text: (applyContactVars(p.text, contact) || '-').replace(/[\n\t]+/g, ' ').slice(0, 2000) } : p));
           });
-          const result = await waService.sendTemplateMessage(
+          // 号池轮询：按受众序号在池内平均分摊发送号
+          const sendSid = poolMode ? poolIds[contactIndex % poolIds.length] : senderId;
+          const result = await svcFor(sendSid).sendTemplateMessage(
             toPhone,
             useTemplate.name,
             useTemplate.language,
@@ -554,10 +572,12 @@ const runCampaignCore = async (campaign, workspace, io) => {
             const conversation = await Conversation.findOneAndUpdate(
               { workspace: workspaceId, contact: contact._id },
               {
-                workspace: workspaceId,
-                contact: contact._id,
-                status: 'active',
-                lastMessage: { text: `Template: ${tmplName}`, timestamp: new Date(), direction: 'outbound', type: 'template' },
+                $set: {
+                  status: 'active',
+                  lastMessage: { text: `Template: ${tmplName}`, timestamp: new Date(), direction: 'outbound', type: 'template' },
+                },
+                // 号池：新会话绑定本次发送号（粘住，后续接待同号回复）；已有绑定不覆盖
+                $setOnInsert: { workspace: workspaceId, contact: contact._id, waNumberId: sendSid || '' },
               },
               { upsert: true, new: true }
             );

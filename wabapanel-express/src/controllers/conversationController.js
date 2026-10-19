@@ -333,11 +333,16 @@ const sendMessage = async (req, res) => {
       // Optional per-message sender number override (must belong to this workspace)
       const waCfg = req.workspace.whatsapp;
       const validSenderIds = [waCfg.phoneNumberId, ...(waCfg.extraNumbers || []).map((n) => n.phoneNumberId)].filter(Boolean);
-      const senderId = fromNumberId && validSenderIds.includes(fromNumberId)
+      let senderId = fromNumberId && validSenderIds.includes(fromNumberId)
         ? fromNumberId
         : (conversation.waNumberId || waCfg.phoneNumberId);
-      if (fromNumberId && validSenderIds.includes(fromNumberId) && conversation.waNumberId !== fromNumberId) {
-        conversation.waNumberId = fromNumberId;
+      // 号池：未绑定发送号的会话（客服新开聊/首次回复）从池里轮询取号并绑定粘住
+      if (waCfg.poolEnabled && !conversation.waNumberId && !(fromNumberId && validSenderIds.includes(fromNumberId))) {
+        const picked = await require('../services/waNumberPool').pickNumber(req.workspace._id, waCfg);
+        if (picked) senderId = picked;
+      }
+      if (senderId && conversation.waNumberId !== senderId) {
+        conversation.waNumberId = senderId;
       }
       const { resolveWaCreds } = require('../utils/waSender');
       const senderCreds = resolveWaCreds(waCfg, senderId);

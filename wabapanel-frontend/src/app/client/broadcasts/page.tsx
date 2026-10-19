@@ -395,7 +395,10 @@ export default function BroadcastsPage() {
               setForm({ ...form, senderNumberId: e.target.value, template: keep ? form.template : '' });
               if (!keep) setVariables({});
             }}
-              options={waNumbers.map(n => ({ value: n.id, label: n.label }))} />
+              options={[
+                ...(currentWorkspace?.whatsapp?.poolEnabled ? [{ value: 'pool', label: '号池轮询（同一WABA号码平均分摊，会话粘住绑定号）' }] : []),
+                ...waNumbers.map(n => ({ value: n.id, label: n.label })),
+              ]} />
           )}
           {(() => {
             const selTpl = templates.find(t => t._id === form.template) as (Template & { header?: { type?: string; mediaUrl?: string } }) | undefined;

@@ -10,6 +10,9 @@ const workspaceSchema = new mongoose.Schema({
   }],
   whatsapp: {
     isConnected: { type: Boolean, default: false },
+    // 号池模式：多号在群发/新会话接待时轮询分配（见 services/waNumberPool.js）
+    poolEnabled: { type: Boolean, default: false },
+    poolCursor: { type: Number, default: 0 },
     connectionMethod: { type: String, enum: ['embedded', 'qr', 'manual', 'coexistence', ''], default: '' },
     wabaId: { type: String, default: '' },
     phoneNumberId: { type: String, default: '' },
