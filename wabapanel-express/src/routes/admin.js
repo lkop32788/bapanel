@@ -8,12 +8,12 @@ router.use(protect, adminOnly);
 const { getAdminDashboard } = require('../controllers/dashboardController');
 router.get('/dashboard', getAdminDashboard);
 
-// Users
+// Users（SEC-H1：写操作收口 super_admin——此前普通 admin 可经 mass assignment 自提权）
 router.get('/users', admin.getUsers);
 router.get('/users/:id', admin.getUser);
-router.post('/users', admin.createUser);
-router.put('/users/:id', admin.updateUser);
-router.delete('/users/:id', admin.deleteUser);
+router.post('/users', superAdminOnly, admin.createUser);
+router.put('/users/:id', superAdminOnly, admin.updateUser);
+router.delete('/users/:id', superAdminOnly, admin.deleteUser);
 
 // Vendors
 router.get('/feature-controls', admin.getFeatureControls);

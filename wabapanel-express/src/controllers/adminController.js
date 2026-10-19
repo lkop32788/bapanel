@@ -56,10 +56,23 @@ const getUser = async (req, res) => {
   }
 };
 
+// SEC-H1：用户管理字段白名单。role 不允许经 API 设为 super_admin（只能用
+// reset-admin-password.js 等服务器侧手段），杜绝 mass assignment 提权。
+const USER_WRITE_FIELDS = ['name', 'email', 'password', 'phone', 'role', 'status'];
+const ASSIGNABLE_ROLES = ['admin', 'vendor', 'user', 'agent'];
+const pickUserFields = (body) => {
+  const out = {};
+  for (const k of USER_WRITE_FIELDS) {
+    if (body[k] !== undefined) out[k] = body[k];
+  }
+  if (out.role !== undefined && !ASSIGNABLE_ROLES.includes(out.role)) delete out.role;
+  return out;
+};
+
 const createUser = async (req, res) => {
   try {
     const Workspace = require('../models/Workspace');
-    const user = await User.create(req.body);
+    const user = await User.create(pickUserFields(req.body));
     // Auto-create workspace for vendor/user roles
     if (user.role === 'vendor' || user.role === 'user') {
       const existing = await Workspace.countDocuments({ owner: user._id });
@@ -78,7 +91,15 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const Workspace = require('../models/Workspace');
-    const { password, ...updateData } = req.body;
+    const target = await User.findById(req.params.id).select('role');
+    if (!target) return res.status(404).json({ success: false, message: 'User not found' });
+    // SEC-H1：super_admin 账号不允许经此 API 修改（防降权/改邮箱接管），白名单过滤其余字段
+    if (target.role === 'super_admin' && String(target._id) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: '不能修改其他超级管理员账号' });
+    }
+    const updateData = pickUserFields(req.body);
+    delete updateData.password; // 密码走专门的重置流程，不在此处更新
+    if (target.role === 'super_admin') delete updateData.role; // 不允许把超管降级
     const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true }).select('-password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     kickIfInactive(user);
@@ -98,6 +119,12 @@ const updateUser = async (req, res) => {
 
 const deleteUser = async (req, res) => {
   try {
+    // SEC-H1：super_admin 账号不允许经 API 删除
+    const target = await User.findById(req.params.id).select('role');
+    if (!target) return res.status(404).json({ success: false, message: 'User not found' });
+    if (target.role === 'super_admin') {
+      return res.status(403).json({ success: false, message: '不能删除超级管理员账号' });
+    }
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     try { global.io?.in('user:' + user._id).disconnectSockets(true); } catch {}

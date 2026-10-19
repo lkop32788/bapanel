@@ -270,5 +270,14 @@
     "AI提示词": "外呼口音印度→中文普通话、Hindi/Hinglish 指令→中文/英文镜像、TTS 印地语发音→中文、种子语言 Hindi→Chinese",
     "示例号码": "前端约30处 919876…→马来西亚 6012…格式，Contact.countryCode 默认 +91→+60，导入样例 Mumbai→Kuala Lumpur；后端\"10位补91\"兼容逻辑保留未动",
     "en-IN": "前端19文件+后端5文件 en-IN→zh-CN（含CSV导出与消息搜索）"
+  },
+  "securityAudit_20261019": {
+    "date": "2026-10-19",
+    "note": "四路并行漏洞审计（认证越权/公开攻击面/资金逻辑/云仓与部署面），本条登记已修项；完整发现清单见审计报告（高危：认证H1自提权/H2补丁RCE已修；公开面H1 folder穿越/H2 .xht存储XSS/H3 install重置、资金H1蹭账/H2补单双入账待修）",
+    "fixed": {
+      "SEC-H1 admin自提权": "routes/admin.js 用户写操作(POST/PUT/DELETE /users)加 superAdminOnly；adminController createUser/updateUser 改字段白名单(name/email/password/phone/role/status)，role 不允许设为 super_admin；不能修改其他超管、不能把超管降级、不能删除超管账号",
+      "SEC-H2 补丁接口RCE": "routes/kkhsLicense.js 的 activate/deactivate/install-update/upload-patch/apply-frontend-patch/frontend-rebuild/rollback 由 adminOnly 收口为 superAdminOnly（这些端点可覆写源码并以 root 执行）"
+    },
+    "patchRisk": "供应商补丁若覆盖 routes/admin.js、routes/kkhsLicense.js、controllers/adminController.js 需重新应用本修复"
   }
 }

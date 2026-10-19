@@ -9,7 +9,7 @@ const kkhsService = require('../services/kkhsLicenseService');
 const KKHS_ADDONS_URL = 'https://kkhsmedia.com/api/waba-panel-nodejs.php?action=get_addons';
 
 // Middleware: require admin auth
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect, adminOnly, superAdminOnly } = require('../middleware/auth');
 
 /**
  * GET /api/admin/kkhs-license/status
@@ -37,7 +37,8 @@ router.get('/status', protect, adminOnly, async (req, res) => {
  * POST /api/admin/kkhs-license/activate
  * Activate a license key
  */
-router.post('/activate', protect, adminOnly, async (req, res) => {
+// SEC-H2：补丁安装/回滚/license 控制可改写服务器代码（root 进程），全部收口 super_admin
+router.post('/activate', protect, superAdminOnly, async (req, res) => {
   try {
     const { licenseKey, adminEmail } = req.body;
     if (!licenseKey) return res.status(400).json({ success: false, message: 'License key required' });
@@ -57,7 +58,7 @@ router.post('/activate', protect, adminOnly, async (req, res) => {
  * POST /api/admin/kkhs-license/deactivate
  * Deactivate license (for domain transfer)
  */
-router.post('/deactivate', protect, adminOnly, async (req, res) => {
+router.post('/deactivate', protect, superAdminOnly, async (req, res) => {
   try {
     const result = await kkhsService.deactivate();
     if (result.success) {
@@ -182,7 +183,7 @@ router.get('/check-updates', protect, adminOnly, async (req, res) => {
  * POST /api/admin/kkhs-license/install-update
  * Install a specific patch
  */
-router.post('/install-update', protect, adminOnly, async (req, res) => {
+router.post('/install-update', protect, superAdminOnly, async (req, res) => {
   try {
     const { patchId } = req.body;
     if (!patchId) return res.status(400).json({ success: false, message: 'Patch ID required' });
@@ -204,7 +205,7 @@ const { execSync } = require('child_process');
 
 const patchUpload = multer({ dest: '/tmp/patches/', limits: { fileSize: 100 * 1024 * 1024 } });
 
-router.post('/upload-patch', protect, adminOnly, patchUpload.single('patch'), async (req, res) => {
+router.post('/upload-patch', protect, superAdminOnly, patchUpload.single('patch'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
     const version = req.body.version || ('manual-' + Date.now());
@@ -493,7 +494,7 @@ const frontendPatchApplied = (version) => {
   return fs.existsSync(path.join(frontendDir, 'patch_backups', version, '_patch_meta.json'));
 };
 
-router.post('/apply-frontend-patch', protect, adminOnly, patchUpload.single('patch'), async (req, res) => {
+router.post('/apply-frontend-patch', protect, superAdminOnly, patchUpload.single('patch'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
     const version = req.body.version || ('frontend-' + Date.now());
@@ -527,7 +528,7 @@ router.get('/frontend-status', protect, adminOnly, async (req, res) => {
   }
 });
 
-router.post('/frontend-rebuild', protect, adminOnly, async (req, res) => {
+router.post('/frontend-rebuild', protect, superAdminOnly, async (req, res) => {
   try {
     const frontendDir = findFrontendDir();
     if (!frontendDir) return res.status(404).json({ success: false, message: 'Frontend directory not found' });
@@ -767,7 +768,7 @@ router.get('/installed-patches', protect, adminOnly, (req, res) => {
  * POST /api/admin/kkhs-license/rollback
  * Rollback a specific patch version
  */
-router.post('/rollback', protect, adminOnly, async (req, res) => {
+router.post('/rollback', protect, superAdminOnly, async (req, res) => {
   try {
     const { version } = req.body;
     if (!version) return res.status(400).json({ success: false, message: 'Version required' });
