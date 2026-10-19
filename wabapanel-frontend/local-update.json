@@ -225,5 +225,17 @@
     "server.js": "删除 GET /api/auth/kkhs-auto-login（持 kkhsLicenseKey 可签发 super_admin token 的商店免密登录后门，DB 中 key 已设置、后门原本是活的）",
     "routes/kkhsLicense.js": "删除 syncAddonLocks 函数及其 20s/每小时定时器（无开关向 kkhsmedia.com 外发域名，kkhsAddonLocks 无人读）。pollPushedUpdates 保留（受 KKHS_AUTO_UPDATES_ENABLED 控制，当前未开启）",
     "src/app/contact/page.tsx": "联系页去除供应商回退 WhatsApp 号 917062010000，未配置号码时不再跳转"
+  },
+  "vendorCleanup_20261019": {
+    "note": "供应商残留清理第二批（红色三项修复 + 补两个死接口 + 分销整块下线）",
+    "红色修复": {
+      "server.js": "新增 GET /api/public/captcha（无状态HMAC数学验证码）；/api/inquiries 开启 contactCaptcha 时强制校验并只取 name/email/phone/message 字段",
+      "routes/forms.js": "新增公开 POST /forms/:id/upload（表单含 file 字段才允许，8MB，图片/PDF/Word/文本，经 s3Service 落盘）——终端客户填表上传附件修复"
+    },
+    "补死接口": {
+      "routes/contacts.js": "POST /contacts/bulk-assign：批量加/移除标签分组（$addToSet/$pull，上限2000）",
+      "shortLinkController+routes": "GET /short-links/:id/stats（聚合 clickDetails：clicks/unique/byDevice/byBrowser/byReferrer/byDay/recent）；GET /:id/qr 公开 PNG（qrcode 依赖，--legacy-peer-deps 安装）"
+    },
+    "分销下线": "后端卸载 /api/partners 与 /api/admin/partners，删除 routes/partners.js、adminPartners.js 和 6 个 Partner* 模型；前端删除 app/partner/*、admin/affiliate-partners/*、admin/partners、auth/partner-register、components/partner、PartnerSidebar/PartnerHeader、partnerNav、affiliateLabels、partnerAuthStore/partnerAnnouncementStore，api.ts 移除三个分销 api 对象，AdminSidebar 移除 affiliateNav。红色第三项（合伙人注册死接口）随模块下线一并解决"
   }
 }

@@ -145,4 +145,52 @@ const redirectShortLink = async (req, res) => {
   }
 };
 
-module.exports = { getShortLinks, createShortLink, updateShortLink, deleteShortLink, redirectShortLink, getPublicShortLink, pickRotationNumber };
+// 短链统计：直接聚合 clickDetails（跳转时一直在记录 ip/UA/referrer/时间）
+const parseDevice = (ua = '') => (/mobile|android|iphone/i.test(ua) ? 'Mobile' : /ipad|tablet/i.test(ua) ? 'Tablet' : 'Desktop');
+const parseBrowser = (ua = '') => (/edg/i.test(ua) ? 'Edge' : /chrome|crios/i.test(ua) ? 'Chrome' : /firefox|fxios/i.test(ua) ? 'Firefox' : /safari/i.test(ua) ? 'Safari' : 'Other');
+const parseReferrer = (r = '') => { if (!r) return 'Direct'; try { return new URL(r).hostname; } catch { return 'Other'; } };
+
+const getShortLinkStats = async (req, res) => {
+  try {
+    const link = await ShortLink.findOne({ _id: req.params.id, workspace: req.workspace._id }).lean();
+    if (!link) return res.status(404).json({ success: false, message: 'Link not found' });
+    const details = link.clickDetails || [];
+    const inc = (o, k) => { o[k] = (o[k] || 0) + 1; };
+    const byDevice = {}, byBrowser = {}, byReferrer = {}, byDay = {};
+    const ips = new Set();
+    for (const c of details) {
+      if (c.ip) ips.add(c.ip);
+      inc(byDevice, parseDevice(c.userAgent));
+      inc(byBrowser, parseBrowser(c.userAgent));
+      inc(byReferrer, parseReferrer(c.referrer));
+      if (c.clickedAt) inc(byDay, new Date(c.clickedAt).toISOString().slice(0, 10));
+    }
+    const recent = details.slice(-10).reverse().map(c => ({
+      clickedAt: c.clickedAt, device: parseDevice(c.userAgent),
+      browser: parseBrowser(c.userAgent), referrer: parseReferrer(c.referrer),
+    }));
+    res.json({ success: true, data: {
+      clicks: link.clicks || details.length, unique: ips.size,
+      byDevice, byBrowser, byReferrer, byDay, recent,
+    } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 短链二维码 PNG（公开，按不可猜的 Mongo id；前端 <img src> 带不了认证头）
+const getShortLinkQr = async (req, res) => {
+  try {
+    const link = await ShortLink.findById(req.params.id).lean().catch(() => null);
+    if (!link) return res.status(404).send('Not found');
+    const base = ((process.env.FRONTEND_URL || '').split(',')[0] || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+    const png = await require('qrcode').toBuffer(`${base}/s/${link.shortCode}`, { width: 480, margin: 2 });
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=300');
+    res.send(png);
+  } catch (e) {
+    res.status(500).send('QR failed');
+  }
+};
+
+module.exports = { getShortLinks, createShortLink, updateShortLink, deleteShortLink, redirectShortLink, getPublicShortLink, pickRotationNumber, getShortLinkStats, getShortLinkQr };

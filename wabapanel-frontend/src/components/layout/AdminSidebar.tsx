@@ -8,7 +8,6 @@ import { LayoutDashboard, Users, User, Shield, Globe, Settings, Brain, Languages
 import { useI18n } from '@/lib/i18n';
 import { OmniNavIcon, OmniSidebarBrand } from '@/components/layout/OmniSidebar';
 import { useAuthStore } from '@/stores/authStore';
-import { adminPartnersApi } from '@/lib/api';
 import useKkhsTheme from '@/lib/useKkhsTheme';
 import { usePins, PinStar, KkhsBrandbar, KkhsPinned } from '@/components/kkhs/KkhsNav';
 
@@ -48,40 +47,13 @@ export const navItems: NavItem[] = [
   
 ];
 
-// Premium add-on: only rendered when the affiliate module is licensed for this panel.
-const affiliateNav: NavItem = {
-  label: 'Affiliate Partners',
-  icon: <Handshake className="w-5 h-5" />,
-  children: [
-    { label: 'Dashboard', href: '/admin/affiliate-partners/dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-    { label: 'Partners', href: '/admin/affiliate-partners/partners', icon: <Users className="w-4 h-4" /> },
-    { label: 'Referrals', href: '/admin/affiliate-partners/referrals', icon: <UserCheck className="w-4 h-4" /> },
-    { label: 'Commissions', href: '/admin/affiliate-partners/commissions', icon: <IndianRupee className="w-4 h-4" /> },
-    { label: 'Withdraw Requests', href: '/admin/affiliate-partners/withdraw-requests', icon: <Banknote className="w-4 h-4" /> },
-    { label: 'KYC', href: '/admin/affiliate-partners/kyc', icon: <ShieldCheck className="w-4 h-4" /> },
-    { label: 'Announcements', href: '/admin/affiliate-partners/announcements', icon: <Megaphone className="w-4 h-4" /> },
-    { label: 'Reports', href: '/admin/affiliate-partners/reports', icon: <BarChart3 className="w-4 h-4" /> },
-    { label: 'Settings', href: '/admin/affiliate-partners/settings', icon: <Settings className="w-4 h-4" /> },
-  ],
-};
-
 export default function AdminSidebar() {
   const { t } = useI18n();
   const pathname = usePathname();
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { logout, user } = useAuthStore();
-  const [affiliateLicensed, setAffiliateLicensed] = useState(false);
-
-  useEffect(() => {
-    adminPartnersApi.module()
-      .then((r) => setAffiliateLicensed(!!r.data.data?.licensed))
-      .catch(() => setAffiliateLicensed(false));
-  }, []);
-
-  const items = affiliateLicensed
-    ? navItems.flatMap((item) => (item.label === 'Vendors' ? [item, affiliateNav] : [item]))
-    : navItems;
+  const items = navItems;
 
   const toggleSection = (label: string) => {
     setExpandedSections((prev) =>

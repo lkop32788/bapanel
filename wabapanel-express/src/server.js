@@ -150,9 +150,8 @@ app.use('/api/followups', require('./routes/followups'));
 
 app.use('/api/webhook', require('./routes/webhooks'));
 app.use('/api/admin', require('./routes/admin'));
-app.use('/api/admin/partners', require('./routes/adminPartners'));
+// 分销/联盟模块已整块下线（空壳功能：佣金链路从未实现）
 app.use('/api/admin/kkhs-license', require('./routes/kkhsLicense'));
-app.use('/api/partners', require('./routes/partners'));
 app.use("/api/embedded-signup", require("./routes/embeddedSignup"));
 app.use("/api/data-fields", require("./routes/dataFields"));
 app.use("/api/badges", require("./routes/badges"));
@@ -320,10 +319,32 @@ app.get('/api/public/landing-page', async (req, res) => {
 });
 
 // Inquiry submission (public)
+// 公开数学验证码（无状态：答案+过期时间的 HMAC 签名，不占内存不占库）
+app.get('/api/public/captcha', (req, res) => {
+  const a = 1 + Math.floor(Math.random() * 9);
+  const b = 1 + Math.floor(Math.random() * 9);
+  const exp = Date.now() + 10 * 60 * 1000;
+  const sig = require('crypto').createHmac('sha256', process.env.JWT_SECRET || 'captcha-secret')
+    .update(`${a + b}.${exp}`).digest('hex');
+  res.json({ success: true, data: { question: `${a} + ${b} = ?`, token: `${exp}.${sig}` } });
+});
+
 app.post('/api/inquiries', async (req, res) => {
   try {
+    // 管理后台开启"联系表格验证码"后强制校验
+    const SystemSettings = require('./models/SystemSettings');
+    const sys = await SystemSettings.findOne().select('contactCaptcha').lean();
+    if (sys?.contactCaptcha) {
+      const [exp, sig] = String(req.body?.captchaToken || '').split('.');
+      const expect = exp && require('crypto').createHmac('sha256', process.env.JWT_SECRET || 'captcha-secret')
+        .update(`${String(req.body?.captchaAnswer || '').trim()}.${exp}`).digest('hex');
+      if (!exp || Number(exp) < Date.now() || sig !== expect) {
+        return res.status(400).json({ success: false, message: '验证码错误，请重试' });
+      }
+    }
     const Inquiry = require('./models/Inquiry');
-    const inquiry = await Inquiry.create(req.body);
+    const { name, email, phone, message } = req.body || {};
+    const inquiry = await Inquiry.create({ name, email, phone, message });
     require('./services/adminNotify').notifyAdmin('New inquiry received', ['Name: ' + (req.body.name || ''), 'Email: ' + (req.body.email || ''), 'Message: ' + String(req.body.message || '').slice(0, 200)], '/admin/dashboard').catch(() => {});
     res.status(201).json({ success: true, data: inquiry });
   } catch (error) {
