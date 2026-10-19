@@ -18,7 +18,7 @@ const integrationDefs: IntegrationDef[] = [
       { key: 'subjectEmail', label: "充当的工作区用户（域范围委派）", type: 'text', placeholder: "you@yourdomain.com — Google Meet 链接需要" },
       { key: 'calendarId', label: "会议的日历 ID（可选）", type: 'text', placeholder: "初级" },
       { key: 'driveFolderId', label: "生成的文档的驱动器文件夹 ID（可选）", type: 'text', placeholder: "云端硬盘 URL 中的文件夹 ID" },
-      { key: 'timezone', label: "默认会议时区（可选）", type: 'text', placeholder: "亚洲/加尔各答" }] },
+      { key: 'timezone', label: "默认会议时区（可选）", type: 'text', placeholder: "Asia/Shanghai" }] },
   { id: 'google-sheets', name: 'Google Sheets', description: "将联系人和数据与 Google 表格同步", icon: 'GS', category: 'productivity', color: '#0F9D58',
     fields: [{ key: 'apiKey', label: "服务账户 JSON 密钥", type: 'textarea', placeholder: "粘贴服务账户 JSON..." }, { key: 'sheetId', label: "工作表ID", type: 'text', placeholder: "来自 URL 的 Google 表格 ID" },
       { key: 'sheetTab', label: "选项卡/工作表名称", type: 'text', placeholder: "表 1" },] },
@@ -470,7 +470,7 @@ export default function IntegrationsPage() {
               {isConnected && conn?.stats && (
                 <div className="text-xs text-gray-400 mb-3">
                   {conn.stats.totalSynced > 0 && <span>已同步： {conn.stats.totalSynced} </span>}
-                  {conn.stats.lastSyncAt && <span>最后： {new Date(conn.stats.lastSyncAt).toLocaleDateString('en-IN')}</span>}
+                  {conn.stats.lastSyncAt && <span>最后： {new Date(conn.stats.lastSyncAt).toLocaleDateString('zh-CN')}</span>}
                 </div>
               )}
               {isConnected && conn?.stats?.lastError && (

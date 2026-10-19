@@ -933,13 +933,13 @@ const handleWhatsAppWebhook = async (req, res) => {
                   }
                   // After-hours message
                   if (_st?.ownerAlerts?.onAfterHours) {
-                    const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+                    const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
                     const h = nowIST.getHours();
                     if (h < 9 || h >= 18) ownerNotify.afterHoursMsg(workspace._id, contact).catch(() => {});
                   }
                   // First message of the day
                   if (_st?.ownerAlerts?.onFirstMsg) {
-                    const todayStr = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().slice(0, 10);
+                    const todayStr = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Shanghai' })).toISOString().slice(0, 10);
                     if (_st.ownerAlerts.firstMsgSentDate !== todayStr) {
                       await AutomationSettings.updateOne({ workspace: workspace._id }, { $set: { 'ownerAlerts.firstMsgSentDate': todayStr } });
                       ownerNotify.firstMsgOfDay(workspace._id, contact).catch(() => {});
@@ -1161,7 +1161,7 @@ const handleWhatsAppWebhook = async (req, res) => {
                     // Out of office: outside working hours (IST)
                     const ooo = autoSettings.outOfOffice;
                     if (ooo && ooo.enabled && (ooo.message || ooo.stickerUrl)) {
-                      const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+                      const nowIST = new Date(Date.now() + 8 * 60 * 60 * 1000);
                       const day = nowIST.getUTCDay();
                       const hm = String(nowIST.getUTCHours()).padStart(2, '0') + ':' + String(nowIST.getUTCMinutes()).padStart(2, '0');
                       const workingDay = (ooo.days || []).includes(day);
@@ -1422,8 +1422,8 @@ const handleWhatsAppWebhook = async (req, res) => {
                       
                       const knowledgeBlock = await aiResolver.buildKnowledgeBlock(workspace._id, aiSettings);
                       const systemMsg = (aiSettings.systemPrompt || '') + knowledgeBlock
-                        + '\n\nTOOLS: You can schedule an AI callback call (schedule_callback), notify the human team (transfer_to_human), cancel a scheduled callback (cancel_callback). For relative times like "abhi", "2 minute baad", "aadhe ghante baad" use schedule_callback with minutes_from_now instead of date/time. Always confirm to the customer after a tool succeeds. To CHANGE a callback time, call schedule_callback again with the new time (it updates the same reminder, never create a duplicate). To CANCEL a callback, call cancel_callback. Current date/time: ' + new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' (IST).'
-                        + '\n\nLANGUAGE: Start and greet in English by default. Mirror the language of the customer\'s most recent message — Hindi → reply in Hindi, Hinglish (Roman Hindi) → reply in Hinglish, any other language → that language. If the language is unclear, use English.'
+                        + '\n\nTOOLS: You can schedule an AI callback call (schedule_callback), notify the human team (transfer_to_human), cancel a scheduled callback (cancel_callback). For relative times like "abhi", "2 minute baad", "aadhe ghante baad" use schedule_callback with minutes_from_now instead of date/time. Always confirm to the customer after a tool succeeds. To CHANGE a callback time, call schedule_callback again with the new time (it updates the same reminder, never create a duplicate). To CANCEL a callback, call cancel_callback. Current date/time: ' + new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) + ' (IST).'
+                        + '\n\nLANGUAGE: Start and greet in English by default. Mirror the language of the customer\'s most recent message — Chinese → reply in Chinese, English → reply in English, any other language → that language. If the language is unclear, use English.'
                         + '\n\nCALLBACK REMINDER: If the customer asks you to call them back (later / on phone) and has not given an exact time, politely ask what time you should call (accept relative times like \"kal 4 baje\", \"shaam 6 baje\", \"2 ghante baad\"). Once the customer states a time, confirm it warmly in your reply, then append on a NEW LINE at the very end this hidden marker (the customer will NOT see it): [[REMIND: YYYY-MM-DD HH:MM]] using 24-hour IST computed from the current date/time above. Only emit the marker after the customer has actually given a time.';
                       const messages = [{ role: 'system', content: systemMsg }, ...chatHistory];
 

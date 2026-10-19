@@ -89,8 +89,8 @@ const workspaceSchema = new mongoose.Schema({
     igEnabled: { type: Boolean, default: false },
   },
   settings: {
-    timezone: { type: String, default: 'Asia/Kolkata' },
-    currency: { type: String, default: 'INR' },
+    timezone: { type: String, default: 'Asia/Shanghai' },
+    currency: { type: String, default: 'CNY' },
     language: { type: String, default: 'en' },
     autoReply: { type: Boolean, default: false },
     autoReplyMessage: { type: String, default: '' },

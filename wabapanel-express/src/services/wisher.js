@@ -60,7 +60,7 @@ async function runWinbackSequence(st, wb, workspace, wa) {
 
   // Official-time gate: outside the chosen window we send nothing this run.
   if (wb.sendWindowMode === 'window') {
-    const hhmm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }).format(new Date());
+    const hhmm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Shanghai' }).format(new Date());
     const start = wb.sendStart || '09:00';
     const end = wb.sendEnd || '18:00';
     if (hhmm < start || hhmm > end) return;
@@ -147,7 +147,7 @@ async function runWishes() {
   const Workspace = require('../models/Workspace');
   const WhatsAppService = require('./whatsappService');
 
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
   if (now.getHours() < 9 || now.getHours() >= 21) return;
   const year = now.getFullYear();
   const month = now.getMonth();
@@ -200,7 +200,7 @@ async function runWinback() {
   const Workspace = require('../models/Workspace');
   const WhatsAppService = require('./whatsappService');
 
-  const nowHour = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hour12: false, timeZone: 'Asia/Kolkata' }).format(new Date()));
+  const nowHour = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hour12: false, timeZone: 'Asia/Shanghai' }).format(new Date()));
   const allSettings = await AutomationSettings.find({ 'winback.enabled': true }).lean();
   for (const st of allSettings) {
     try {
@@ -255,8 +255,8 @@ async function runWinback() {
 }
 
 function start() {
-  cron.schedule('*/5 * * * *', () => runWinback().catch((e) => console.error('[Winback]', e.message)), { timezone: 'Asia/Kolkata' });
-  cron.schedule('10 * * * *', () => runWishes().catch((e) => console.error('[Wisher] error:', e.message)), { timezone: 'Asia/Kolkata' });
+  cron.schedule('*/5 * * * *', () => runWinback().catch((e) => console.error('[Winback]', e.message)), { timezone: 'Asia/Shanghai' });
+  cron.schedule('10 * * * *', () => runWishes().catch((e) => console.error('[Wisher] error:', e.message)), { timezone: 'Asia/Shanghai' });
   setTimeout(() => runWishes().catch(() => {}), 30000);
 }
 

@@ -70,7 +70,7 @@ const L = ({ href, children }: { href: string; children: React.ReactNode }) => (
   <Link href={href} className="block cursor-pointer transition hover:-translate-y-0.5 hover:opacity-95">{children}</Link>
 );
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+const fmtDate = (d: string) => new Date(d).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 const fmtHour = (h: number) => `${((h % 12) || 12)}${h < 12 ? 'am' : 'pm'}`;
 const fmtMins = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${Math.round(m % 60)}m` : `${m} min`);
 
@@ -162,7 +162,7 @@ export default function AnalyticsPage() {
     if (!data) return;
     const lines: string[] = [];
     const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    lines.push(`${brand.name} 分析导出，${rangeLabel}，生成 ${new Date().toLocaleString('en-IN')}`);
+    lines.push(`${brand.name} 分析导出，${rangeLabel}，生成 ${new Date().toLocaleString('zh-CN')}`);
     lines.push('');
     lines.push('SUMMARY');
     lines.push(`消息总数，${totalMessages}`);
@@ -185,11 +185,11 @@ export default function AnalyticsPage() {
     lines.push('');
     lines.push('TOP CUSTOMERS');
     lines.push("姓名、电话、消息总数、已接收、已发送、上次活动");
-    (data.topCustomers || []).forEach(t => lines.push(`${esc(t.name)},${esc(t.phone)},${t.total},${t.inbound},${t.outbound},${new Date(t.lastAt).toLocaleString('en-IN')}`));
+    (data.topCustomers || []).forEach(t => lines.push(`${esc(t.name)},${esc(t.phone)},${t.total},${t.inbound},${t.outbound},${new Date(t.lastAt).toLocaleString('zh-CN')}`));
     lines.push('');
     lines.push('CAMPAIGNS');
     lines.push("名称、类型、状态、已发送、已送达、已读、失败、已跳过、已创建");
-    (data.campaignTable || []).forEach(cp => lines.push(`${esc(cp.name)},${cp.type},${cp.status},${cp.stats?.sent || 0},${cp.stats?.delivered || 0},${cp.stats?.read || 0},${cp.stats?.failed || 0},${cp.stats?.skipped || 0},${new Date(cp.createdAt).toLocaleDateString('en-IN')}`));
+    (data.campaignTable || []).forEach(cp => lines.push(`${esc(cp.name)},${cp.type},${cp.status},${cp.stats?.sent || 0},${cp.stats?.delivered || 0},${cp.stats?.read || 0},${cp.stats?.failed || 0},${cp.stats?.skipped || 0},${new Date(cp.createdAt).toLocaleDateString('zh-CN')}`));
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

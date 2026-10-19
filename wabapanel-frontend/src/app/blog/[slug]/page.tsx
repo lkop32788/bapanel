@@ -60,7 +60,7 @@ export default function BlogPostPage() {
           <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4 leading-tight">{post.title}</h1>
 
           <div className="flex items-center gap-4 text-sm text-gray-400 mb-8 pb-8 border-b border-gray-100">
-            <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {new Date(post.publishedAt || post.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {new Date(post.publishedAt || post.createdAt).toLocaleDateString('zh-CN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
           </div>
 
           <div className="prose prose-lg prose-emerald max-w-none" dangerouslySetInnerHTML={{ __html: post.content }} />

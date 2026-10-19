@@ -204,7 +204,7 @@ export default function BulkCallsPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">电话号码（每行一个，可选）</label>
             <textarea value={form.phonesText} onChange={e => setForm({ ...form, phonesText: e.target.value })}
-              rows={4} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder={'919876543210\n919812345678'} />
+              rows={4} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" placeholder={'60123456789\n60198765432'} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>

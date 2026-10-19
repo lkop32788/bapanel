@@ -20,7 +20,7 @@ export default function DataDeletionPage() {
 
   const biz = settings?.business || { name: '', email: '', url: '' };
   const logo = settings?.branding?.logo;
-  const email = biz.email || 'info@kkhsmedia.com';
+  const email = biz.email || '';
   const brand = biz.name || '';
 
   const sections: { title: string; body: React.ReactNode }[] = [
@@ -98,7 +98,7 @@ export default function DataDeletionPage() {
         <div className="max-w-4xl mx-auto">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full mb-4"><Trash2 className="w-3.5 h-3.5" /> 数据删除</span>
           <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">数据删除 <span className="bg-linear-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">说明</span></h1>
-          <p className="text-sm text-gray-400 mb-10">最后更新： {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="text-sm text-gray-400 mb-10">最后更新： {new Date().toLocaleDateString('zh-CN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
 
           <div className="space-y-8">
             {sections.map((s, i) => (

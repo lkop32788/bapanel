@@ -276,7 +276,7 @@ export default function ContactsPage() {
   const handleDownloadTemplate = () => {
     const customCols = dataFields.map(f => f.name);
     const header = ['name', 'phone', 'email', 'tags',  'segments', 'birthday', 'anniversary', ...customCols].join(',');
-    const row1 = ['Sample Name One', '910000000001', 'sample1@example.com', 'VIP;Lead', 'Negotiation', 'Wholesale;Mumbai', '21-04-1995', '02-11-2018', ...customCols.map(() => '')].join(',');
+    const row1 = ['Sample Name One', '60123456001', 'sample1@example.com', 'VIP;Lead', 'Negotiation', 'Wholesale;Kuala Lumpur', '21-04-1995', '02-11-2018', ...customCols.map(() => '')].join(',');
     const row2 = ['Sample Name Two', '910000000002', 'sample2@example.com', 'Customer', 'New', 'Retail', '', '', ...customCols.map(() => '')].join(',');
     const csv = [header, row1, row2].join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
@@ -442,7 +442,7 @@ export default function ContactsPage() {
       case 'url':
         return <Input key={field._id} label={label} type="url" value={value} onChange={(e) => updateCustomField(field.name, e.target.value)} placeholder="https://" required={isRequired} />;
       case 'phone':
-        return <Input key={field._id} label={label} type="tel" value={value} onChange={(e) => updateCustomField(field.name, e.target.value)} placeholder="+91XXXXXXXXXX" required={isRequired} />;
+        return <Input key={field._id} label={label} type="tel" value={value} onChange={(e) => updateCustomField(field.name, e.target.value)} placeholder="+60XXXXXXXXX" required={isRequired} />;
       default:
         return <Input key={field._id} label={label} value={value} onChange={(e) => updateCustomField(field.name, e.target.value)} required={isRequired} />;
     }
@@ -588,7 +588,7 @@ export default function ContactsPage() {
                     {contactActivity.map(a => (
                       <div key={a._id} className="flex gap-3">
                         <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0 mt-0.5"><MessageSquare className="w-3 h-3 text-gray-400" /></div>
-                        <div className="min-w-0"><p className="text-sm text-gray-700">{a.action}</p>{a.details && <p className="text-xs text-gray-400 truncate">{a.details}</p>}<p className="text-xs text-gray-300">{a.createdAt ? new Date(a.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}</p></div>
+                        <div className="min-w-0"><p className="text-sm text-gray-700">{a.action}</p>{a.details && <p className="text-xs text-gray-400 truncate">{a.details}</p>}<p className="text-xs text-gray-300">{a.createdAt ? new Date(a.createdAt).toLocaleString('zh-CN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}</p></div>
                       </div>
                     ))}
                   </div>
@@ -696,7 +696,7 @@ export default function ContactsPage() {
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editContact ? "编辑联系人" : "添加联系人"}>
         <div className="space-y-4">
           <Input label={"名称"} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <Input label={"电话"} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91XXXXXXXXXX" required />
+          <Input label={"电话"} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+60XXXXXXXXX" required />
           <Input label={"邮箱"} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <div className="grid grid-cols-2 gap-3">
             <div>

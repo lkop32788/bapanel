@@ -598,7 +598,7 @@ module.exports = {
       },
       {
         "title": "6. Third-Party Services",
-        "content": "We may share data with trusted third-party services for payment processing (Razorpay, Stripe), analytics (Google Analytics), communication delivery (WhatsApp/Meta), and cloud hosting. All third parties are bound by confidentiality agreements and data processing agreements."
+        "content": "We may share data with trusted third-party services for payment processing, analytics (Google Analytics), communication delivery (WhatsApp/Meta), and cloud hosting. All third parties are bound by confidentiality agreements and data processing agreements."
       },
       {
         "title": "7. Cookies & Tracking",
@@ -673,7 +673,7 @@ module.exports = {
       },
       {
         "title": "12. Governing Law",
-        "content": "These terms are governed by the laws of India. Any disputes shall be resolved through arbitration in accordance with the Arbitration and Conciliation Act, 1996, with the seat of arbitration in India."
+        "content": "These terms are governed by the laws of the People's Republic of China. Any disputes shall be resolved through arbitration in accordance with the Arbitration and Conciliation Act, 1996, with the seat of arbitration in India."
       },
       {
         "title": "13. Changes to Terms",
@@ -686,7 +686,7 @@ module.exports = {
     ]
   },
   "seo": {
-    "metaTitle": "WabaPanel - WhatsApp Business Platform",
+    "metaTitle": "红浪漫 - WhatsApp 智能营销面板",
     "metaDescription": "Complete WhatsApp Business API Platform for messaging, automation, and analytics",
     "keywords": "whatsapp business api, whatsapp automation, whatsapp marketing, ai chatbot",
     "organizationName": "",

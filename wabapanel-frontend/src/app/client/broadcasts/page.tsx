@@ -28,7 +28,7 @@ export default function BroadcastsPage() {
   const [form, setForm] = useState({
     name: '', template: '', audienceType: 'all', channel: '', segments: [] as string[], tags: [] as string[],
       
-    scheduledAt: '', timezone: 'Asia/Kolkata',
+    scheduledAt: '', timezone: 'Asia/Shanghai',
     senderNumberId: '',
   });
   const { currentWorkspace } = useAuthStore();
@@ -62,7 +62,7 @@ export default function BroadcastsPage() {
   // A new broadcast always starts from an empty form (never the previous campaign's data).
   const resetForm = () => {
     setEditId(null);
-    setForm({ name: '', template: '', audienceType: 'all', channel: '', segments: [], tags: [],    scheduledAt: '', timezone: 'Asia/Kolkata', senderNumberId: '' });
+    setForm({ name: '', template: '', audienceType: 'all', channel: '', segments: [], tags: [],    scheduledAt: '', timezone: 'Asia/Shanghai', senderNumberId: '' });
     setNumbersText('');
     setVariables({});
     setAbTest({ enabled: false, templateB: '', splitPercent: 50 });
@@ -213,7 +213,7 @@ export default function BroadcastsPage() {
       audienceType: c.targetType || 'all', channel: c.targetChannel || '',
       segments: (c.targetSegments || []).map(String), tags: (c.targetTags || []).map(String),
 
-      scheduledAt: '', timezone: 'Asia/Kolkata',
+      scheduledAt: '', timezone: 'Asia/Shanghai',
       senderNumberId: c.senderNumberId || '',
     });
     setNumbersText((c.targetNumbers || []).join(String.fromCharCode(10)));
@@ -512,7 +512,7 @@ export default function BroadcastsPage() {
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">电话号码</label>
               <textarea rows={5} value={numbersText} onChange={(e) => setNumbersText(e.target.value)}
-                placeholder={"9198765XXXXX 9198123XXXXX（每行一个数字，或用逗号分隔）"}
+                placeholder={"6012345XXXX 6019876XXXX（每行一个数字，或用逗号分隔）"}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
               <div className="flex items-center justify-between">
                 <label className="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-medium cursor-pointer hover:text-emerald-700">

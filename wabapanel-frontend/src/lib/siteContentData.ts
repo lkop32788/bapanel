@@ -617,7 +617,7 @@ export const DEFAULT_CONTENT: any = {
       },
       {
         "title": "6. 第三方服务",
-        "content": "我们可能与受信任的第三方服务共享数据，用于支付处理（Razorpay、Stripe）、分析（Google Analytics）、通信交付（WhatsApp/Meta）和云托管。所有第三方均受保密协议和数据处理协议的约束。"
+        "content": "我们可能与受信任的第三方服务共享数据，用于支付处理（在线支付服务商、Stripe）、分析（Google Analytics）、通信交付（WhatsApp/Meta）和云托管。所有第三方均受保密协议和数据处理协议的约束。"
       },
       {
         "title": "7. Cookie 和跟踪",
@@ -692,7 +692,7 @@ export const DEFAULT_CONTENT: any = {
       },
       {
         "title": "12. 适用法律",
-        "content": "这些条款受印度法律管辖。任何争议均应根据 1996 年《仲裁与调解法》通过仲裁解决，仲裁地为印度。"
+        "content": "这些条款受中华人民共和国法律管辖。任何争议均应根据 《中华人民共和国仲裁法》通过仲裁解决，仲裁地为中国。"
       },
       {
         "title": "13. 条款变更",
@@ -705,7 +705,7 @@ export const DEFAULT_CONTENT: any = {
     ]
   },
   "seo": {
-    "metaTitle": "WabaPanel - WhatsApp 业务平台",
+    "metaTitle": "红浪漫 - WhatsApp 智能营销面板",
     "metaDescription": "用于消息传递、自动化和分析的完整 WhatsApp Business API 平台",
     "keywords": "Whatsapp 商业 API、Whatsapp 自动化、Whatsapp 营销、人工智能聊天机器人",
     "ogImage": "",

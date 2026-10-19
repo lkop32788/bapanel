@@ -47,7 +47,7 @@ const EVENT_OPTIONS = [
   { value: 'google_sheet', label: "Google 表格 — 添加了新行（费用/销售线索表）" },
 ];
 
-const appsScript = (url: string) => `// WabaPanel: nayi row aane par flow start karo (Extensions → Apps Script → paste → Save → Run setup once)
+const appsScript = (url: string) => `// 红浪漫：新行到达时启动流程 (Extensions → Apps Script → paste → Save → Run setup once)
 const WEBHOOK_URL = '${url}';
 function setup() {
   ScriptApp.getProjectTriggers().forEach(t => ScriptApp.deleteTrigger(t));
@@ -392,7 +392,7 @@ export default function BotFlowsPage() {
                     <button type="button" onClick={() => { navigator.clipboard.writeText(triggerUrlFor(editId)); toast.success(translateApiMessage("已复制！")); }}
                       className="px-3 py-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200"><Copy className="w-4 h-4" /></button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2 font-mono break-all">帖子正文： {'{ "phone": "919876543210", "data": { "name": "Ramesh" } }'}</p>
+                  <p className="text-xs text-gray-500 mt-2 font-mono break-all">帖子正文： {'{ "phone": "60123456789", "data": { "name": "Ramesh" } }'}</p>
                   {keyNote(editId)}
                 </>
               ) : (

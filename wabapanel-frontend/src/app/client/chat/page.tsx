@@ -393,8 +393,8 @@ function ChatPageInner() {
     const y = new Date(now); y.setDate(now.getDate() - 1);
     if (d.toDateString() === y.toDateString()) return 'Yesterday';
     if ((now.getTime() - d.getTime()) / 86400000 < 7) return d.toLocaleDateString([], { weekday: 'short' });
-    if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-    return d.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString('zh-CN', { day: 'numeric', month: 'short' });
+    return d.toLocaleDateString('zh-CN', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
   const sourceChip = (conv: Conversation) => {
     const c = conv.contact as { source?: string; sourceDetail?: string } | undefined;
@@ -1839,7 +1839,7 @@ function ChatPageInner() {
               <p>消息 ({msgResults.length})</p>
               {msgResults.map(m => (
                 <button key={m._id} type="button" onClick={() => { const conv = conversations.find(c => c._id === m.conversation); if (conv) { setSearchQuery(''); setMsgResults([]); loadMessages(conv); } }}>
-                  <b>{m.contact?.name || m.contact?.phone || "未知"} <span>· {new Date(m.createdAt).toLocaleDateString('en-IN')}</span></b>
+                  <b>{m.contact?.name || m.contact?.phone || "未知"} <span>· {new Date(m.createdAt).toLocaleDateString('zh-CN')}</span></b>
                   <small>{m.direction === 'outbound' ? "你：" : ''}{m.text}</small>
                 </button>
               ))}
@@ -1914,7 +1914,7 @@ function ChatPageInner() {
                     if (conv) { setSearchQuery(''); setMsgResults([]); loadMessages(conv); }
                   }}
                   className="w-full text-left px-3 py-2 hover:bg-gray-50">
-                  <p className="text-xs font-medium text-gray-800">{m.contact?.name || m.contact?.phone || "未知"} <span className="text-gray-400 font-normal">· {new Date(m.createdAt).toLocaleDateString('en-IN')}</span></p>
+                  <p className="text-xs font-medium text-gray-800">{m.contact?.name || m.contact?.phone || "未知"} <span className="text-gray-400 font-normal">· {new Date(m.createdAt).toLocaleDateString('zh-CN')}</span></p>
                   <p className="text-xs text-gray-500 truncate">{m.direction === 'outbound' ? "你：" : ''}{m.text}</p>
                 </button>
               ))}
@@ -1995,7 +1995,7 @@ function ChatPageInner() {
                   <ContactAvatar conv={conv} size={32} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className={`text-sm font-medium truncate ${hasReminder(conv) ? 'text-red-600' : 'text-gray-900'}`}>{hasReminder(conv) && <Bell className="w-3 h-3 inline mr-1 text-red-500" />}{getContactName(conv)}{(conv as { pinnedAt?: string }).pinnedAt && <Pin className="w-3 h-3 inline ml-1 text-emerald-600 align-middle" fill="currentColor" />}{sentimentBadge(conv)}{sourceChip(conv)}{conv.status === 'closed' && <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-emerald-600 text-white align-middle font-medium">已解决</span>}{hasReminder(conv) && <span className="ml-1 text-[10px] text-red-500 font-normal">{new Date(reminderContacts[getContactId(conv)]).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}{(conv as { channel?: string }).channel === 'facebook' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-blue-100 text-blue-700 align-middle">FB</span> : null}{(conv as { channel?: string }).channel === 'instagram' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-pink-100 text-pink-700 align-middle">IG</span> : null}{(conv as { channel?: string }).channel === 'whatsapp_qr' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-green-100 text-green-700 align-middle">QR</span> : null}{(conv as { channel?: string }).channel === 'telegram' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-sky-100 text-sky-700 align-middle">TG</span> : null}{(conv as { channel?: string }).channel === 'telegram_personal' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-sky-100 text-sky-700 align-middle">TG-P</span> : null}{(conv as { channel?: string }).channel === 'email' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-orange-100 text-orange-700 align-middle">邮箱</span> : null}</p>
+                      <p className={`text-sm font-medium truncate ${hasReminder(conv) ? 'text-red-600' : 'text-gray-900'}`}>{hasReminder(conv) && <Bell className="w-3 h-3 inline mr-1 text-red-500" />}{getContactName(conv)}{(conv as { pinnedAt?: string }).pinnedAt && <Pin className="w-3 h-3 inline ml-1 text-emerald-600 align-middle" fill="currentColor" />}{sentimentBadge(conv)}{sourceChip(conv)}{conv.status === 'closed' && <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-emerald-600 text-white align-middle font-medium">已解决</span>}{hasReminder(conv) && <span className="ml-1 text-[10px] text-red-500 font-normal">{new Date(reminderContacts[getContactId(conv)]).toLocaleString('zh-CN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}{(conv as { channel?: string }).channel === 'facebook' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-blue-100 text-blue-700 align-middle">FB</span> : null}{(conv as { channel?: string }).channel === 'instagram' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-pink-100 text-pink-700 align-middle">IG</span> : null}{(conv as { channel?: string }).channel === 'whatsapp_qr' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-green-100 text-green-700 align-middle">QR</span> : null}{(conv as { channel?: string }).channel === 'telegram' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-sky-100 text-sky-700 align-middle">TG</span> : null}{(conv as { channel?: string }).channel === 'telegram_personal' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-sky-100 text-sky-700 align-middle">TG-P</span> : null}{(conv as { channel?: string }).channel === 'email' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-orange-100 text-orange-700 align-middle">邮箱</span> : null}</p>
                       <span className="text-xs text-gray-400 shrink-0 ml-1">{fmtListTime(conv.updatedAt)}</span>
                     </div>
                     <div className="flex items-center justify-between mt-0.5">
@@ -2067,7 +2067,7 @@ function ChatPageInner() {
                       presence.online
                         ? <span className="text-xs text-emerald-600 font-medium">●在线</span>
                         : presence.lastSeen
-                          ? <span className="text-xs text-gray-400">最后一次见到 {new Date(presence.lastSeen * 1000).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                          ? <span className="text-xs text-gray-400">最后一次见到 {new Date(presence.lastSeen * 1000).toLocaleString('zh-CN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                           : null
                     )}
                   </div>
@@ -2928,7 +2928,7 @@ function ChatPageInner() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-gray-900">新的 WhatsApp 二维码消息</h3>
             <p className="text-xs text-gray-500">向任何号码发送自由格式的消息 — 无需模板，也无需按消息付费。计入每日安全限额。</p>
-            <input type="tel" placeholder={"带有国家/地区代码的电话，例如919876543210"} value={qrNewPhone} onChange={(e) => setQrNewPhone(e.target.value)}
+            <input type="tel" placeholder={"带有国家/地区代码的电话，例如60123456789"} value={qrNewPhone} onChange={(e) => setQrNewPhone(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             <textarea rows={4} placeholder={"输入您的消息..."} value={qrNewText} onChange={(e) => setQrNewText(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -2957,7 +2957,7 @@ function ChatPageInner() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-gray-900">新电报消息</h3>
             <p className="text-xs text-gray-500">向任何拥有 Telegram 账户的电话号码发送消息。</p>
-            <input type="tel" placeholder={"带有国家/地区代码的电话，例如919876543210"} value={tgNewPhone} onChange={(e) => setTgNewPhone(e.target.value)}
+            <input type="tel" placeholder={"带有国家/地区代码的电话，例如60123456789"} value={tgNewPhone} onChange={(e) => setTgNewPhone(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             <textarea rows={4} placeholder={"输入您的消息..."} value={tgNewText} onChange={(e) => setTgNewText(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -3069,7 +3069,7 @@ function ChatPageInner() {
                 <div className="flex-1 space-y-4 min-w-0">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">电话号码 <span className="text-red-500">*</span></label>
-                    <input value={newMsgPhone} onChange={(e) => setNewMsgPhone(e.target.value)} placeholder="9198765XXXXX"
+                    <input value={newMsgPhone} onChange={(e) => setNewMsgPhone(e.target.value)} placeholder="6012345XXXX"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                     <p className="text-xs text-gray-400 mt-1">带有国家/地区代码（对于 10 位印度号码，自动添加 91）。无需保存联系人。</p>
                   </div>
@@ -3183,10 +3183,10 @@ function ChatPageInner() {
                     <button onClick={() => handleDeleteNote(n._id)} className="p-1 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                   <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-500">
-                    <span>{new Date(n.createdAt).toLocaleString('en-IN')}</span>
+                    <span>{new Date(n.createdAt).toLocaleString('zh-CN')}</span>
                     {n.remindAt && (
                       <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${n.contacted ? 'bg-gray-100 text-gray-400' : new Date(n.remindAt) < new Date() ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>
-                        <Bell className="w-3 h-3" /> {new Date(n.remindAt).toLocaleString('en-IN')}{n.contacted ? "（已联系）" : ''}
+                        <Bell className="w-3 h-3" /> {new Date(n.remindAt).toLocaleString('zh-CN')}{n.contacted ? "（已联系）" : ''}
                       </span>
                     )}
                     {n.remindAt && !n.contacted && contactedFor !== n._id && editingNote !== n._id && (

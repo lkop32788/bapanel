@@ -203,7 +203,7 @@ async function processIncoming({ workspace, conversation, contact, phone, text, 
       }
       const ooo = autoSettings.outOfOffice;
       if (ooo?.enabled && ooo.message) {
-        const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+        const nowIST = new Date(Date.now() + 8 * 60 * 60 * 1000);
         const day = nowIST.getUTCDay();
         const hm = String(nowIST.getUTCHours()).padStart(2, '0') + ':' + String(nowIST.getUTCMinutes()).padStart(2, '0');
         const workingDay = (ooo.days || []).includes(day);
@@ -261,9 +261,9 @@ async function processIncoming({ workspace, conversation, contact, phone, text, 
           }));
           const knowledgeBlock = await aiResolver.buildKnowledgeBlock(workspace._id, aiSettings);
           const systemMsg = (aiSettings.systemPrompt || '') + knowledgeBlock
-            + '\n\nCurrent date/time: ' + new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' (IST).'
-            + '\n\nLANGUAGE: Start and greet in English by default. Mirror the language of the customer\'s most recent message — Hindi → reply in Hindi, Hinglish (Roman Hindi) → reply in Hinglish, any other language → that language. If the language is unclear, use English.'
-            + '\n\nCALLBACK REMINDER: If the customer asks you to call them back (later / on phone) and has not given an exact time, politely ask what time you should call (accept relative times like \"kal 4 baje\", \"shaam 6 baje\", \"2 ghante baad\"). Once the customer states a time, confirm it warmly in your reply, then append on a NEW LINE at the very end this hidden marker (the customer will NOT see it): [[REMIND: YYYY-MM-DD HH:MM]] using 24-hour IST computed from the current date/time above. Only emit the marker after the customer has actually given a time. If the customer later changes the time, emit the marker again with the new time (the system updates the same reminder, not a new one).';
+            + '\n\nCurrent date/time: ' + new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) + ' (GMT+8).'
+            + '\n\nLANGUAGE: Start and greet in Chinese by default. Mirror the language of the customer\'s most recent message — Chinese → reply in Chinese, English → reply in English, any other language → that language. If the language is unclear, use Chinese.'
+            + '\n\nCALLBACK REMINDER: If the customer asks you to call them back (later / on phone) and has not given an exact time, politely ask what time you should call (accept relative times like \"明天下午4点\", \"晚上6点\", \"2小时后\"). Once the customer states a time, confirm it warmly in your reply, then append on a NEW LINE at the very end this hidden marker (the customer will NOT see it): [[REMIND: YYYY-MM-DD HH:MM]] using 24-hour GMT+8 computed from the current date/time above. Only emit the marker after the customer has actually given a time. If the customer later changes the time, emit the marker again with the new time (the system updates the same reminder, not a new one).';
           const messages = [{ role: 'system', content: systemMsg }, ...chatHistory];
           const result = await aiService.chat(aiCreds.provider, aiCreds.apiKey, messages, {
             model: aiCreds.model,

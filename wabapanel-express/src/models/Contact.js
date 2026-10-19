@@ -5,7 +5,7 @@ const contactSchema = new mongoose.Schema({
   name: { type: String, default: '' },
   phone: { type: String, required: true },
   email: { type: String, default: '' },
-  countryCode: { type: String, default: '+91' },
+  countryCode: { type: String, default: '+60' },
   avatar: { type: String, default: '' },
   tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' }],
   badges: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }],

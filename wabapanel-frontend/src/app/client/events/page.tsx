@@ -348,7 +348,7 @@ export default function EventsPage() {
           <Input
             label={paForm.actionType === 'send_message' ? "消息文本" : paForm.actionType === 'send_template' ? "模板名称（必须获得批准）" : paForm.actionType === 'assign_agent' ? "代理电子邮件或姓名" : "标签名称"}
             value={paForm.actionValue} onChange={(e) => setPaForm({ ...paForm, actionValue: e.target.value })}
-            placeholder={paForm.actionType === 'send_message' ? "例如感谢您的订单！" : paForm.actionType === 'send_template' ? "例如kkhs_lead_followup" : paForm.actionType === 'assign_agent' ? "例如代理@company.com" : "例如热销"} required />
+            placeholder={paForm.actionType === 'send_message' ? "例如感谢您的订单！" : paForm.actionType === 'send_template' ? "例如lead_followup" : paForm.actionType === 'assign_agent' ? "例如代理@company.com" : "例如热销"} required />
           <div className="flex gap-2 pt-2">
             <Button onClick={handlePaSave}>{paEdit ? "更新" : "创建"}</Button>
             <Button variant="secondary" onClick={() => { setPaModal(false); setPaEdit(null); }}>取消</Button>
@@ -403,7 +403,7 @@ export default function EventsPage() {
             label={form.actionType === 'send_message' ? "消息文本" : form.actionType === 'send_template' ? "模板名称（必须获得批准）" : "标签名称"}
             value={form.actionValue}
             onChange={(e) => setForm({ ...form, actionValue: e.target.value })}
-            placeholder={form.actionType === 'send_message' ? "例如感谢您的订单！" : form.actionType === 'send_template' ? "例如kkhs_lead_followup" : "例如热销"}
+            placeholder={form.actionType === 'send_message' ? "例如感谢您的订单！" : form.actionType === 'send_template' ? "例如lead_followup" : "例如热销"}
             required
           />
           {form.eventName === 'webhook' && (

@@ -429,7 +429,7 @@ export default function TemplatesPage() {
       <span className="inline-flex items-center gap-1.5 text-gray-700"><span className="w-2 h-2 rounded-full bg-emerald-500" />WhatsApp</span>
     )},
     { key: 'createdAt', title: "创建日期", render: (t: Template) => (
-      <span className="text-gray-500 text-sm">{(t as unknown as { createdAt?: string }).createdAt ? new Date((t as unknown as { createdAt: string }).createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
+      <span className="text-gray-500 text-sm">{(t as unknown as { createdAt?: string }).createdAt ? new Date((t as unknown as { createdAt: string }).createdAt).toLocaleDateString('zh-CN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
     )},
     { key: 'category', title: "类别", render: (t: Template) => <Badge variant="info">{t.category || ((t as unknown as Record<string, string>).waCategory) || ''}</Badge> },
     { key: 'name', title: "模板名称", render: (t: Template) => (
@@ -620,7 +620,7 @@ export default function TemplatesPage() {
                           </select>
                           <input value={b.text} onChange={e => updateCardButton(ci, bi, { text: e.target.value })} placeholder={"按钮文本"} maxLength={25} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs" />
                           {b.type === 'URL' && <input value={b.url || ''} onChange={e => updateCardButton(ci, bi, { url: e.target.value })} placeholder="https://..." className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs" />}
-                          {b.type === 'PHONE_NUMBER' && <input value={b.phoneNumber || ''} onChange={e => updateCardButton(ci, bi, { phoneNumber: e.target.value })} placeholder="+91 98765 43210" className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs" />}
+                          {b.type === 'PHONE_NUMBER' && <input value={b.phoneNumber || ''} onChange={e => updateCardButton(ci, bi, { phoneNumber: e.target.value })} placeholder="+60 12-345 6789" className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs" />}
                           {card.buttons.length > 1 && <button onClick={() => updateCard(ci, { buttons: card.buttons.filter((_, j) => j !== bi) })}><X className="w-3.5 h-3.5 text-red-400" /></button>}
                         </div>
                       ))}
@@ -689,7 +689,7 @@ export default function TemplatesPage() {
                       </div>
                     )}
                     {btn.type === 'PHONE_NUMBER' && (
-                      <input value={btn.phoneNumber || ''} onChange={(e) => updateButton(i, 'phoneNumber', e.target.value)} placeholder="+919876543210"
+                      <input value={btn.phoneNumber || ''} onChange={(e) => updateButton(i, 'phoneNumber', e.target.value)} placeholder="+60123456789"
                         className="w-full text-sm px-3 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                     )}
                     {btn.type === 'CATALOG' && (

@@ -17,7 +17,7 @@ export default function SettingsPage() {
   const { user, currentWorkspace, updateUser } = useAuthStore();
   const [profile, setProfile] = useState({ name: user?.name || '', email: user?.email || '', phone: user?.phone || '' });
   const [wsSettings, setWsSettings] = useState({
-    name: currentWorkspace?.name || '', timezone: currentWorkspace?.timezone || 'Asia/Kolkata',
+    name: currentWorkspace?.name || '', timezone: currentWorkspace?.timezone || 'Asia/Shanghai',
      
   });
 
@@ -100,7 +100,9 @@ export default function SettingsPage() {
               <Input label={"企业名称"} value={wsSettings.name} onChange={(e) => setWsSettings({ ...wsSettings, name: e.target.value })} />
               <Select label={"时区"} value={wsSettings.timezone} onChange={(e) => setWsSettings({ ...wsSettings, timezone: e.target.value })}
                 options={[
-                  { value: 'Asia/Kolkata', label: "亚洲/加尔各答 (IST)" },
+                  { value: 'Asia/Shanghai', label: "北京时间 (GMT+8)" },
+                  { value: 'Asia/Kuala_Lumpur', label: "吉隆坡 (GMT+8)" },
+                  { value: 'Asia/Kolkata', label: "印度 (IST)" },
                   { value: 'UTC', label: 'UTC' },
                   { value: 'America/New_York', label: "美洲/纽约（东部时间）" },
                   { value: 'Europe/London', label: "欧洲/伦敦 (GMT)" },

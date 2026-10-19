@@ -201,12 +201,12 @@ const getClientDashboard = async (req, res) => {
     const [hourlyAgg, weekdayAgg, topCustomersAgg, campaignTable, typeAgg, respMsgs] = await Promise.all([
       Message.aggregate([
         { $match: { workspace: workspaceId, direction: 'inbound', createdAt: rangeQ } },
-        { $group: { _id: { $dateToString: { format: '%H', date: '$createdAt', timezone: 'Asia/Kolkata' } }, count: { $sum: 1 } } },
+        { $group: { _id: { $dateToString: { format: '%H', date: '$createdAt', timezone: 'Asia/Shanghai' } }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ]),
       Message.aggregate([
         { $match: { workspace: workspaceId, direction: 'inbound', createdAt: rangeQ } },
-        { $group: { _id: { $dateToString: { format: '%u', date: '$createdAt', timezone: 'Asia/Kolkata' } }, count: { $sum: 1 } } },
+        { $group: { _id: { $dateToString: { format: '%u', date: '$createdAt', timezone: 'Asia/Shanghai' } }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } },
       ]),
       Message.aggregate([

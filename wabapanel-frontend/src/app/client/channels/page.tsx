@@ -748,7 +748,7 @@ export default function ChannelsPage() {
                   </>
                 ) : (
                   <>
-                    <Input label={"电话号码（带国家/地区代码）"} value={tgpPhone} onChange={(e) => setTgpPhone(e.target.value)} placeholder="+919876543210" />
+                    <Input label={"电话号码（带国家/地区代码）"} value={tgpPhone} onChange={(e) => setTgpPhone(e.target.value)} placeholder="+60123456789" />
                     <div className="flex items-center gap-3">
                       <Button size="sm" onClick={connectTgp} loading={tgpBusy || tgp.status === 'connecting'}>发送登录代码</Button>
                       {tgp.status === 'error' && <span className="text-xs text-red-500">{tgp.error || "登录失败"}</span>}

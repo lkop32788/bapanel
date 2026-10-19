@@ -149,7 +149,7 @@ export default function PresetTemplatesPage() {
   const columns = [
     { key: 'sr', title: "先生", render: (p: Preset) => <span className="text-gray-500">{filtered.indexOf(p) + 1}</span> },
     { key: 'createdAt', title: "创建日期", render: (p: Preset) => (
-      <span className="text-gray-500 text-sm">{p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
+      <span className="text-gray-500 text-sm">{p.createdAt ? new Date(p.createdAt).toLocaleDateString('zh-CN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
     )},
     { key: 'name', title: "模板名称", render: (p: Preset) => <span className="font-medium text-gray-900">{p.name}</span> },
     { key: 'preview', title: "预览", render: (p: Preset) => (
@@ -346,7 +346,7 @@ export default function PresetTemplatesPage() {
                   )}
                   {btn.type === 'PHONE_NUMBER' && (
                     <input value={btn.phone || ''} onChange={(e) => setForm({ ...form, buttons: form.buttons.map((b, idx) => idx === i ? { ...b, phone: e.target.value } : b) })}
-                      placeholder="+919876543210"
+                      placeholder="+60123456789"
                       className="mt-2 w-full text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/60" />
                   )}
                 </div>

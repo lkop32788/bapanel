@@ -16,8 +16,8 @@ import '@/styles/omniclick.css';
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || 'https://wabapanel.com').replace(/\/$/, '');
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://api.wabapanel.com/api').replace(/\/$/, '');
 
-const DEFAULT_TITLE = "WabaPanel — WhatsApp Business API CRM 和 AI 自动化平台";
-const DEFAULT_DESC = "WabaPanel 是一个完整的 WhatsApp Business API 平台：团队收件箱、AI 聊天机器人、机器人流程构建器、广播、点滴活动、CRM 管道、AI 语音通话和白标转售。提供免费计划。";
+const DEFAULT_TITLE = "红浪漫 — WhatsApp Business API CRM 和 AI 自动化平台";
+const DEFAULT_DESC = "红浪漫 是一个完整的 WhatsApp Business API 平台：团队收件箱、AI 聊天机器人、机器人流程构建器、广播、点滴活动、CRM 管道、AI 语音通话和白标转售。提供免费计划。";
 
 // Re-evaluate branding at request time so each self-hosted install shows its own name/logo
 export const dynamic = 'force-dynamic';
@@ -44,13 +44,13 @@ export async function generateMetadata(): Promise<Metadata> {
   ]);
   const brand = brandRes?.data || {};
   const seo = contentRes?.data?.seo || {};
-  const brandName: string = brand.name && brand.name !== 'WabaPanel' ? brand.name : 'WabaPanel';
-  // Ignore the shipped default SEO copy (which names WabaPanel) so a white-label
+  const brandName: string = brand.name && brand.name !== '红浪漫' ? brand.name : '红浪漫';
+  // Ignore the shipped default SEO copy (which names 红浪漫) so a white-label
   // install never leaks it; build title/description from the panel's own brand.
   const seoTitle: string = seo.metaTitle && !/wabapanel/i.test(seo.metaTitle) ? seo.metaTitle : '';
   const seoDesc: string = seo.metaDescription && !/wabapanel/i.test(seo.metaDescription) ? seo.metaDescription : '';
-  const title: string = seoTitle || (brandName !== 'WabaPanel' ? `${brandName} — WhatsApp Business Platform` : DEFAULT_TITLE);
-  const description: string = seoDesc || (brandName !== 'WabaPanel' ? `${brandName} — a complete WhatsApp Business API platform: team inbox, AI chatbot, bot flows, broadcasts, drip campaigns, CRM pipeline and AI voice calling.` : DEFAULT_DESC);
+  const title: string = seoTitle || (brandName !== '红浪漫' ? `${brandName} — WhatsApp Business Platform` : DEFAULT_TITLE);
+  const description: string = seoDesc || (brandName !== '红浪漫' ? `${brandName} — a complete WhatsApp Business API platform: team inbox, AI chatbot, bot flows, broadcasts, drip campaigns, CRM pipeline and AI voice calling.` : DEFAULT_DESC);
   // Prefer the panel's own share image, then its logo, so a white-label install
   // never leaks the default (KKHS-branded) screenshot in WhatsApp/social previews.
   const ogImage: string = seo.ogImage || brand.logo || '/assets/panel-dashboard.png';
@@ -63,7 +63,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const site = await siteUrlFor();
   return {
     metadataBase: new URL(site),
-    title: { default: title, template: brandName !== 'WabaPanel' ? `%s | ${brandName}` : '%s | WabaPanel' },
+    title: { default: title, template: brandName !== '红浪漫' ? `%s | ${brandName}` : '%s | 红浪漫' },
     description,
     keywords: ['WhatsApp Business API', 'WhatsApp CRM', 'WhatsApp automation', 'AI chatbot', 'WhatsApp broadcast', 'bot flow builder', 'WhatsApp panel'],
     alternates: { canonical: '/' },
@@ -89,7 +89,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // Build schema.org JSON-LD from the panel's own branding so white-label installs
-// never leak the default (WabaPanel / KKHS Media) name. orgName defaults to the
+// never leak the default (红浪漫 / KKHS Media) name. orgName defaults to the
 // brand name but can be overridden from Admin → Site Settings → SEO.
 function buildJsonLd(site: string, orgName: string, brandName: string, desc: string) {
   return {
@@ -128,7 +128,7 @@ function buildJsonLd(site: string, orgName: string, brandName: string, desc: str
           {
             '@type': 'Question',
             name: `Does ${brandName} have a free plan?`,
-            acceptedAnswer: { '@type': 'Answer', text: `是的。 ${brandName} 提供免费计划（0 卢比）和每月 999 卢比起的付费计划，并提供更多联系人、代理、机器人流程和 AI 功能。` },
+            acceptedAnswer: { '@type': 'Answer', text: `是的。 ${brandName} 提供免费版和多档付费套餐的付费计划，并提供更多联系人、代理、机器人流程和 AI 功能。` },
           },
           {
             '@type': 'Question',
@@ -167,7 +167,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const bizName: string = settingsRes?.data?.business?.name || '';
   const customCode: string = settingsRes?.data?.customCode || '';
   const siteTheme = themeRes?.data ? { ...DEFAULT_THEME, ...themeRes.data } : null;
-  const brandName: string = brand.name || 'WabaPanel';
+  const brandName: string = brand.name || '红浪漫';
   const orgName: string = seo.organizationName || brandName;
   const desc: string = (seo.metaDescription && !/wabapanel/i.test(seo.metaDescription)) ? seo.metaDescription : `${brandName} — WhatsApp Business API CRM & AI automation platform with team inbox, AI chatbot, bot flow builder, broadcasts, drip campaigns, sales pipeline and AI voice calling.`;
   const jsonLd = buildJsonLd(await siteUrlFor(), orgName, brandName, desc);

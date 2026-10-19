@@ -13,7 +13,7 @@ const notifyAdmin = async (subject, lines = [], actionUrl = '') => {
     const to = admins.map(a => a.email).filter(Boolean);
     if (!to.length) return false;
 
-    const appName = settings?.appName || 'WabaPanel';
+    const appName = settings?.appName || '红浪漫';
     const appUrl = settings?.appUrl || 'https://app.wabapanel.com';
     const link = actionUrl ? (actionUrl.startsWith('http') ? actionUrl : appUrl + actionUrl) : '';
 

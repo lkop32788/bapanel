@@ -715,7 +715,7 @@ export default function WhatsAppPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
             <Input label={"电话号码 ID"} value={newNum.phoneNumberId} onChange={(e) => setNewNum({ ...newNum, phoneNumberId: e.target.value })} placeholder={"来自元仪表板"} />
-            <Input label={"电话号码"} value={newNum.phoneNumber} onChange={(e) => setNewNum({ ...newNum, phoneNumber: e.target.value })} placeholder="+91..." />
+            <Input label={"电话号码"} value={newNum.phoneNumber} onChange={(e) => setNewNum({ ...newNum, phoneNumber: e.target.value })} placeholder="+60..." />
             <Input label={"标签（可选）"} value={newNum.displayName} onChange={(e) => setNewNum({ ...newNum, displayName: e.target.value })} placeholder={"销售/支持"} />
             <div className="flex items-end"><Button onClick={addExtraNumber} disabled={numSaving}>{numSaving ? "保存中…" : "添加号码"}</Button></div>
           </div>

@@ -137,7 +137,7 @@ async function buildTodayReport(workspaceId) {
   const Conversation = require('../models/Conversation');
   const Contact = require('../models/Contact');
   const Message = require('../models/Message');
-  const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
   const startIST = new Date(nowIST); startIST.setHours(0, 0, 0, 0);
   const start = new Date(startIST.getTime() - 5.5 * 3600 * 1000);
   const range = { $gte: start };

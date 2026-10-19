@@ -157,9 +157,9 @@ export default function LandingPageAdmin() {
         { key: 'footer', label: "页脚", content: (
           <Card>
             <div className="space-y-4 max-w-lg">
-              <Input label={"公司名称"} value={data.footer.companyName} onChange={e => setData({ ...data, footer: { ...data.footer, companyName: e.target.value } })} placeholder="WabaPanel" />
+              <Input label={"公司名称"} value={data.footer.companyName} onChange={e => setData({ ...data, footer: { ...data.footer, companyName: e.target.value } })} placeholder="红浪漫" />
               <Textarea label={"公司描述"} value={data.footer.description} onChange={e => setData({ ...data, footer: { ...data.footer, description: e.target.value } })} placeholder={"适用于现代企业的 WhatsApp 商业平台。"} />
-              <Input label={"版权文本"} value={data.footer.copyrightText} onChange={e => setData({ ...data, footer: { ...data.footer, copyrightText: e.target.value } })} placeholder={"© 2026 WabaPanel。版权所有。"} />
+              <Input label={"版权文本"} value={data.footer.copyrightText} onChange={e => setData({ ...data, footer: { ...data.footer, copyrightText: e.target.value } })} placeholder={"© 2026 红浪漫。版权所有。"} />
             </div>
           </Card>
         )},

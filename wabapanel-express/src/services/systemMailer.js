@@ -64,7 +64,7 @@ const sendTemplateEmail = async (templateKey, to, vars = {}) => {
   }
 
   const allVars = {
-    appName: settings?.appName || 'WabaPanel',
+    appName: settings?.appName || '红浪漫',
     appUrl: settings?.appUrl || '',
     ...vars,
   };

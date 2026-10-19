@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const systemSettingsSchema = new mongoose.Schema({
   // General
-  appName: { type: String, default: 'Wapto' },
+  appName: { type: String, default: '红浪漫' },
   appEmail: { type: String, default: '' },
   appDescription: { type: String, default: '' },
   appUrl: { type: String, default: '' },
@@ -18,7 +18,7 @@ const systemSettingsSchema = new mongoose.Schema({
   logoDark: { type: String, default: '' },
   favicon: { type: String, default: '' },
   loginBg: { type: String, default: '' },
-  tagline: { type: String, default: 'by KKHS Media' },
+  tagline: { type: String, default: '' },
 
   // WhatsApp
   whatsapp: {

@@ -576,7 +576,7 @@ export default function SmartBroadcastPage() {
                 </select>
                 <input className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" placeholder={"按钮文本"} value={b.text} onChange={(e) => setButton(i, { text: e.target.value })} />
                 {b.type !== 'quick_reply' && (
-                  <input className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" placeholder={b.type === 'url' ? 'https://…' : '+91…'} value={b.value} onChange={(e) => setButton(i, { value: e.target.value })} />
+                  <input className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" placeholder={b.type === 'url' ? 'https://…' : '+60…'} value={b.value} onChange={(e) => setButton(i, { value: e.target.value })} />
                 )}
                 <button className="text-red-500" onClick={() => setForm({ ...form, buttons: form.buttons.filter((_, j) => j !== i) })}><Trash2 className="w-4 h-4" /></button>
               </div>

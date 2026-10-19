@@ -97,8 +97,8 @@ async function runNoReplyFollowUps() {
 }
 
 function start() {
-  cron.schedule('*/5 * * * *', () => runNoteReminders().catch((e) => console.error('[FollowUp]', e.message)), { timezone: 'Asia/Kolkata' });
-  cron.schedule('15 * * * *', () => runNoReplyFollowUps().catch((e) => console.error('[FollowUp]', e.message)), { timezone: 'Asia/Kolkata' });
+  cron.schedule('*/5 * * * *', () => runNoteReminders().catch((e) => console.error('[FollowUp]', e.message)), { timezone: 'Asia/Shanghai' });
+  cron.schedule('15 * * * *', () => runNoReplyFollowUps().catch((e) => console.error('[FollowUp]', e.message)), { timezone: 'Asia/Shanghai' });
 }
 
 module.exports = { start };

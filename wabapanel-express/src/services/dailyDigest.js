@@ -12,7 +12,7 @@ async function runDailySummary() {
   const User = require('../models/User');
   const WhatsAppService = require('./whatsappService');
 
-  const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
   const todayStr = nowIST.toISOString().slice(0, 10);
 
   const allSettings = await AutomationSettings.find({ 'dailySummary.enabled': true });
@@ -34,7 +34,7 @@ async function runDailySummary() {
       // Yesterday 00:00 IST to today 00:00 IST, converted to UTC
       const startIST = new Date(nowIST); startIST.setHours(0, 0, 0, 0); startIST.setDate(startIST.getDate() - 1);
       const endIST = new Date(nowIST); endIST.setHours(0, 0, 0, 0);
-      const istOffset = 5.5 * 60 * 60 * 1000;
+      const istOffset = 8 * 60 * 60 * 1000;
       const start = new Date(startIST.getTime() - istOffset);
       const end = new Date(endIST.getTime() - istOffset);
       const range = { $gte: start, $lt: end };
@@ -47,14 +47,14 @@ async function runDailySummary() {
         Conversation.countDocuments({ workspace: st.workspace, status: 'active' }),
       ]);
 
-      const dateLabel = startIST.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      const dateLabel = startIST.toLocaleDateString('zh-CN', { day: 'numeric', month: 'short', year: 'numeric' });
       const msg = `📊 *Daily Summary — ${dateLabel}*\n\n` +
         `💬 New chats: ${newConvs}\n` +
         `👤 New contacts: ${newContacts}\n` +
         `📥 Messages received: ${msgIn}\n` +
         `📤 Messages sent: ${msgOut}\n` +
         `🔓 Open chats now: ${openConvs}\n\n` +
-        `— ${workspace.name || 'WabaPanel'}`;
+        `— ${workspace.name || '红浪漫'}`;
 
       const wa = new WhatsAppService(workspace.whatsapp.accessToken, workspace.whatsapp.phoneNumberId);
       await wa.sendTextMessage(phone, msg);
@@ -72,7 +72,7 @@ async function runWeeklyReport() {
   const Message = require('../models/Message');
   const ownerNotify = require('./ownerNotify');
 
-  const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
   if (nowIST.getDay() !== 0 || nowIST.getHours() < 9) return; // Sunday, 9am+ IST
   const todayStr = nowIST.toISOString().slice(0, 10);
 
@@ -81,7 +81,7 @@ async function runWeeklyReport() {
     try {
       if (st.ownerAlerts.weeklyLastSent === todayStr) continue;
       const endIST = new Date(nowIST); endIST.setHours(0, 0, 0, 0);
-      const istOffset = 5.5 * 3600 * 1000;
+      const istOffset = 8 * 3600 * 1000;
       const end = new Date(endIST.getTime() - istOffset);
       const start7 = new Date(end.getTime() - 7 * 24 * 3600 * 1000);
       const range = { $gte: start7, $lt: end };
@@ -197,7 +197,7 @@ async function runMonthlyReport() {
   const Contact = require('../models/Contact');
   const Message = require('../models/Message');
   const ownerNotify = require('./ownerNotify');
-  const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
   if (nowIST.getDate() !== 1 || nowIST.getHours() < 9) return;
   const todayStr = nowIST.toISOString().slice(0, 10);
   const allSettings = await AutomationSettings.find({ 'ownerAlerts.enabled': true, 'ownerAlerts.monthlyReport': true });
@@ -206,7 +206,7 @@ async function runMonthlyReport() {
       if (st.ownerAlerts.monthlyLastSent === todayStr) continue;
       const endIST = new Date(nowIST); endIST.setHours(0, 0, 0, 0);
       const startIST = new Date(endIST); startIST.setDate(startIST.getDate() - 30);
-      const istOffset = 5.5 * 3600 * 1000;
+      const istOffset = 8 * 3600 * 1000;
       const start = new Date(startIST.getTime() - istOffset);
       const end = new Date(endIST.getTime() - istOffset);
       const range = { $gte: start, $lt: end };
@@ -286,7 +286,7 @@ async function runAgentActivityAlerts() {
     'ownerAlerts.enabled': true,
     $or: [{ 'ownerAlerts.onAgentIdle': true }, { 'ownerAlerts.onAgentOffline': true }],
   }).lean();
-  const hourIST = Number(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }));
+  const hourIST = Number(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Shanghai', hour: '2-digit', hour12: false }));
   for (const st of all) {
     try {
       const ws = await Workspace.findById(st.workspace).select('members').lean();
@@ -319,15 +319,15 @@ async function runAgentActivityAlerts() {
 }
 
 function start() {
-  cron.schedule('*/15 * * * *', () => runAgentActivityAlerts().catch((e) => console.error('[AgentActivityAlert]', e.message)), { timezone: 'Asia/Kolkata' });
-  cron.schedule('5 * * * *', () => runDailySummary().catch((e) => console.error('[DailySummary]', e.message)), { timezone: 'Asia/Kolkata' });
-  cron.schedule('10 9-12 * * 0', () => runWeeklyReport().catch((e) => console.error('[WeeklyReport]', e.message)), { timezone: 'Asia/Kolkata' });
-  cron.schedule('*/5 * * * *', () => runUnansweredCheck().catch((e) => console.error('[UnansweredAlert]', e.message)), { timezone: 'Asia/Kolkata' });
-  cron.schedule('0 18 * * *', () => runDailyUnread().catch((e) => console.error('[DailyUnread]', e.message)), { timezone: 'Asia/Kolkata' });
-  cron.schedule('0 * * * *', () => runHourlyPulse().catch((e) => console.error('[HourlyPulse]', e.message)), { timezone: 'Asia/Kolkata' });
-  cron.schedule('30 * * * *', () => runSlaCheck().catch((e) => console.error('[SLA]', e.message)), { timezone: 'Asia/Kolkata' });
-  cron.schedule('15 9-10 1 * *', () => runMonthlyReport().catch((e) => console.error('[MonthlyReport]', e.message)), { timezone: 'Asia/Kolkata' });
-  cron.schedule('0 21 * * *', () => runSentimentScore().catch((e) => console.error('[SentimentScore]', e.message)), { timezone: 'Asia/Kolkata' });
+  cron.schedule('*/15 * * * *', () => runAgentActivityAlerts().catch((e) => console.error('[AgentActivityAlert]', e.message)), { timezone: 'Asia/Shanghai' });
+  cron.schedule('5 * * * *', () => runDailySummary().catch((e) => console.error('[DailySummary]', e.message)), { timezone: 'Asia/Shanghai' });
+  cron.schedule('10 9-12 * * 0', () => runWeeklyReport().catch((e) => console.error('[WeeklyReport]', e.message)), { timezone: 'Asia/Shanghai' });
+  cron.schedule('*/5 * * * *', () => runUnansweredCheck().catch((e) => console.error('[UnansweredAlert]', e.message)), { timezone: 'Asia/Shanghai' });
+  cron.schedule('0 18 * * *', () => runDailyUnread().catch((e) => console.error('[DailyUnread]', e.message)), { timezone: 'Asia/Shanghai' });
+  cron.schedule('0 * * * *', () => runHourlyPulse().catch((e) => console.error('[HourlyPulse]', e.message)), { timezone: 'Asia/Shanghai' });
+  cron.schedule('30 * * * *', () => runSlaCheck().catch((e) => console.error('[SLA]', e.message)), { timezone: 'Asia/Shanghai' });
+  cron.schedule('15 9-10 1 * *', () => runMonthlyReport().catch((e) => console.error('[MonthlyReport]', e.message)), { timezone: 'Asia/Shanghai' });
+  cron.schedule('0 21 * * *', () => runSentimentScore().catch((e) => console.error('[SentimentScore]', e.message)), { timezone: 'Asia/Shanghai' });
   cron.schedule("*/1 * * * *", runScheduledMessages); // every minute
 }
 

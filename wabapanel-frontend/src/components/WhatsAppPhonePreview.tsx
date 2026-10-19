@@ -31,7 +31,7 @@ const mediaUrl = (u?: string) => (u ? (u.startsWith('http') ? u : `${API_ORIGIN}
 export default function WhatsAppPhonePreview({ data, title }: { data: PreviewData; title?: string }) {
   const btns = (data.buttons || []).filter((b) => b.text && b.text.trim());
   const url = mediaUrl(data.headerMediaUrl);
-  const now = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  const now = new Date().toLocaleTimeString('zh-CN', { hour: 'numeric', minute: '2-digit' });
   return (
     <div className="w-[300px] rounded-[2rem] border-[6px] border-gray-900 bg-gray-900 shadow-xl overflow-hidden shrink-0">
       {/* header */}

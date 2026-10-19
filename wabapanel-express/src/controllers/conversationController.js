@@ -757,7 +757,7 @@ const chatHtml = (title, msgs) => {
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const rows = msgs.map((m) => {
     const d = new Date(m.createdAt);
-    const when = d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    const when = d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     const who = m.contactLabel ? `<div class="who">${esc(m.contactLabel)}</div>` : '';
     return `<div class="msg ${m.direction === 'outbound' ? 'out' : 'in'}">${who}<div class="text">${esc(m.text || '[' + (m.type || 'media') + ']')}</div><div class="meta">${when} · ${esc(m.direction)}${m.status ? ' · ' + esc(m.status) : ''}</div></div>`;
   }).join('\n');
@@ -782,7 +782,7 @@ const chatPdf = (res, filename, title, msgs) => {
   doc.moveDown(0.5);
   for (const m of msgs) {
     const d = new Date(m.createdAt);
-    const when = d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    const when = d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     const label = (m.contactLabel ? m.contactLabel + ' · ' : '') + (m.direction === 'outbound' ? 'Sent' : 'Received') + ' · ' + when + (m.status ? ' · ' + m.status : '');
     doc.fontSize(8).fillColor('#888888').text(label);
     doc.fontSize(11).fillColor('#111111').text(m.text || '[' + (m.type || 'media') + ']');
@@ -805,8 +805,8 @@ const exportConversation = async (req, res) => {
     for (const m of msgs) {
       const d = new Date(m.createdAt);
       lines.push([
-        d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
-        d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        d.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }),
+        d.toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai' }),
         m.direction, m.type || 'text', m.status || '', csvEsc(m.text || ''),
       ].join(','));
     }
@@ -841,8 +841,8 @@ const exportAllChats = async (req, res) => {
       const d = new Date(m.createdAt);
       lines.push([
         csvEsc(m.contact?.name || ''), csvEsc(m.contact?.phone || ''),
-        d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
-        d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        d.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }),
+        d.toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai' }),
         m.direction, m.type || 'text', m.status || '', csvEsc(m.text || ''),
       ].join(','));
     }

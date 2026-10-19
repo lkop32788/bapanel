@@ -6,7 +6,7 @@ function stripMarker(text) {
 }
 
 function parseIst(dateStr, timeStr) {
-  const d = new Date(`${dateStr}T${timeStr}:00+05:30`);
+  const d = new Date(`${dateStr}T${timeStr}:00+08:00`);
   return isNaN(d.getTime()) ? null : d;
 }
 

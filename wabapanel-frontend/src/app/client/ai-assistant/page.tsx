@@ -213,7 +213,7 @@ export default function AIAssistantPage() {
           <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-amber-600" /><h3 className="font-semibold text-gray-900 text-sm">访问级别：所有者/员工号码</h3></div>
           <p className="text-xs text-gray-600">客户只能看到与其自己的 WhatsApp 号码相关联的数据。此处列出的数字被视为 <b>业主/员工</b>：机器人可以向他们展示所有内容（所有订单、所有付款、列表、总计）并解锁 <Badge variant="warning">所有者</Badge> 下面的工具。以逗号分隔，带有国家/地区代码。</p>
           <div className="flex gap-2">
-            <Input value={ownerPhones} onChange={e => setOwnerPhones(e.target.value)} placeholder="+919876543210, +919812345678" className="flex-1" />
+            <Input value={ownerPhones} onChange={e => setOwnerPhones(e.target.value)} placeholder="+60123456789, +60198765432" className="flex-1" />
             <Button size="sm" onClick={saveOwners} disabled={savingOwners}>{savingOwners ? "正在保存..." : "保存"}</Button>
           </div>
         </div>

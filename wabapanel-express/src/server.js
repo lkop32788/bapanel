@@ -198,7 +198,7 @@ app.get('/api/public/kkhs-features', (req, res) => {
 const _isMasterInstall = () => process.env.KKHS_MASTER === 'true';
 function brandNameFor(s, req) {
   if (s && typeof s.appName === 'string' && s.appName.trim()) return s.appName.trim();
-  if (_isMasterInstall()) return 'WabaPanel';
+  if (_isMasterInstall()) return '红浪漫';
   const host = String((req && req.headers && req.headers.host) || '').replace(/:\d+$/, '').replace(/^www\./, '');
   if (!host || require('net').isIP(host.replace(/^\[|\]$/g, ''))) return 'Panel';
   return host.split('.')[0].replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -416,7 +416,7 @@ app.get("/api/public/site-settings", async (req, res) => {
     const s = await SystemSettings.findOne().lean();
     const lp = await LandingPage.findOne({ isPublished: true }).lean();
     res.json({ success: true, data: {
-      business: { name: (s && s.appName) || "KKHS Media", tagline: (s && s.tagline) || "", email: (s && s.appEmail) || "", url: (s && s.appUrl) || "", description: (s && s.appDescription) || "" },
+      business: { name: (s && s.appName) || "红浪漫", tagline: (s && s.tagline) || "", email: (s && s.appEmail) || "", url: (s && s.appUrl) || "", description: (s && s.appDescription) || "" },
       branding: (() => { const fix = (u) => (u && u.includes('/uploads/') && !u.includes('/api/uploads/')) ? u.replace('/uploads/', '/api/uploads/') : (u || ""); return { logo: fix(s && s.logo), logoDark: fix(s && s.logoDark), favicon: fix(s && s.favicon) }; })(),
       theme: { primaryColor: (s && s.primaryColor) || "#059669", primaryFont: (s && s.primaryFont) || "Inter" },
       landing: lp || null,

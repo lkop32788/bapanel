@@ -210,7 +210,7 @@ export default function ChatAppCampaignsPage() {
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">电话号码</label>
               <textarea rows={5} value={numbersText} onChange={(e) => setNumbersText(e.target.value)}
-                placeholder={"9198765XXXXX 9198123XXXXX（每行一个数字，或用逗号分隔）"}
+                placeholder={"6012345XXXX 6019876XXXX（每行一个数字，或用逗号分隔）"}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
               <div className="flex items-center justify-between">
                 <label className="inline-flex items-center gap-1.5 text-sm text-orange-600 font-medium cursor-pointer hover:text-orange-700">

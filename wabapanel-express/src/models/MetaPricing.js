@@ -7,7 +7,7 @@ const metaPricingSchema = new mongoose.Schema({
   baseRate: { type: Number, required: true },
   markup: { type: Number, default: 15 }, // percentage
   finalRate: { type: Number, required: true },
-  currency: { type: String, default: 'INR' },
+  currency: { type: String, default: 'CNY' },
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 

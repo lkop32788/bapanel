@@ -119,12 +119,12 @@ export default function ContactPage() {
               <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
                 <div className="w-10 h-10 bg-linear-to-br from-violet-100 to-purple-50 rounded-xl flex items-center justify-center text-violet-600 mb-3"><Phone className="w-5 h-5" /></div>
                 <h3 className="font-bold text-gray-900 mb-1">{ct.phoneLabel}</h3>
-                <p className="text-sm text-gray-500">{contact.phone || '+91 00000 00000'}</p>
+                <p className="text-sm text-gray-500">{contact.phone || '+60 00-0000 0000'}</p>
               </div>
               <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
                 <div className="w-10 h-10 bg-linear-to-br from-violet-100 to-purple-50 rounded-xl flex items-center justify-center text-violet-600 mb-3"><MapPin className="w-5 h-5" /></div>
                 <h3 className="font-bold text-gray-900 mb-1">{ct.addressLabel}</h3>
-                <p className="text-sm text-gray-500">{contact.address || "印度"}</p>
+                <p className="text-sm text-gray-500">{contact.address || ""}</p>
               </div>
             </div>
 

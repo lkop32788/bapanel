@@ -60,7 +60,7 @@ const aiSettingsSchema = new mongoose.Schema({
   workingHours: {
     enabled: { type: Boolean, default: false },
     onlyOffHours: { type: Boolean, default: false },
-    timezone: { type: String, default: 'Asia/Kolkata' },
+    timezone: { type: String, default: 'Asia/Shanghai' },
   },
   stats: {
     totalReplies: { type: Number, default: 0 },

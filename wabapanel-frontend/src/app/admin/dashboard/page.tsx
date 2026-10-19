@@ -24,7 +24,7 @@ const L = ({ href, children }: { href: string; children: React.ReactNode }) => (
   <Link href={href} className="block cursor-pointer transition hover:-translate-y-0.5 hover:opacity-95">{children}</Link>
 );
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+const fmtDate = (d: string) => new Date(d).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 
 interface RecentUser {
   _id: string;

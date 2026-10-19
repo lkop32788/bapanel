@@ -117,7 +117,7 @@ export default function BlogPage() {
                     <p className="text-sm text-gray-500 line-clamp-2 mb-3">{post.excerpt}</p>
                     <div className="flex items-center gap-2 text-xs text-gray-400">
                       <Calendar className="w-3 h-3" />
-                      {new Date(post.publishedAt || post.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(post.publishedAt || post.createdAt).toLocaleDateString('zh-CN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                   </div>
                 </Link>

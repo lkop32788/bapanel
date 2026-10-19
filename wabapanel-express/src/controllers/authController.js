@@ -39,7 +39,7 @@ const issueEmailOTP = async (user) => {
   await user.save();
   const SystemSettings = require('../models/SystemSettings');
   const settings = await SystemSettings.findOne().lean();
-  const appName = settings?.appName || 'WabaPanel';
+  const appName = settings?.appName || '红浪漫';
   await sendRawEmail(
     user.email,
     `${appName} verification code: ${code}`,
@@ -522,7 +522,7 @@ const setup2FA = async (req, res) => {
 
     const speakeasy = require('speakeasy');
     const QRCode = require('qrcode');
-    const secret = speakeasy.generateSecret({ name: 'WabaPanel (' + user.email + ')', length: 20 });
+    const secret = speakeasy.generateSecret({ name: '红浪漫 (' + user.email + ')', length: 20 });
     user.twoFactorSecret = secret.base32;
     await user.save();
     const qr = await QRCode.toDataURL(secret.otpauth_url);

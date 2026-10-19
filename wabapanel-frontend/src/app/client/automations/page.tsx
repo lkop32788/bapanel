@@ -453,7 +453,7 @@ export default function AutomationsHub() {
                 {fbReport.recent.slice(0, 5).map((f, i) => (
                   <div key={i} className="flex items-center justify-between py-1 text-[11px]">
                     <span className="text-gray-700">{'⭐'.repeat(f.rating)} <span className="font-medium">{f.name}</span>{f.phone ? <span className="text-gray-400"> · {f.phone}</span> : null}</span>
-                    <span className="text-gray-400">{new Date(f.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                    <span className="text-gray-400">{new Date(f.date).toLocaleString('zh-CN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                   </div>
                 ))}
               </div>
@@ -483,7 +483,7 @@ export default function AutomationsHub() {
           {(fbReport?.recent || []).map((f, i) => (
             <div key={i} className="flex items-center justify-between py-2 text-sm">
               <span className="text-gray-700">{'⭐'.repeat(f.rating)} <span className="font-medium">{f.name}</span>{f.phone ? <span className="text-gray-400"> · {f.phone}</span> : null}</span>
-              <span className="text-xs text-gray-400">{new Date(f.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+              <span className="text-xs text-gray-400">{new Date(f.date).toLocaleString('zh-CN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
             </div>
           ))}
           {!fbReport?.recent?.length && <p className="text-sm text-gray-400 py-4 text-center">尚未反馈</p>}
@@ -580,7 +580,7 @@ export default function AutomationsHub() {
           </div>
           <Input label={"所有者 WhatsApp 号码（带国家/地区代码）"} value={settings.ownerAlerts.phone as string}
             onChange={e => setSettings(s => ({ ...s, ownerAlerts: { ...s.ownerAlerts, phone: e.target.value } }))}
-            placeholder="919876543210" />
+            placeholder="60123456789" />
           <p className="text-xs text-gray-400">选定的提醒将发送至此 WhatsApp 号码。留空以使用企业主号码。</p>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setModal(null)}>取消</Button>

@@ -50,7 +50,7 @@ const L = ({ href, children }: { href: string; children: React.ReactNode }) => (
   <Link href={href} className="block cursor-pointer transition hover:-translate-y-0.5 hover:opacity-95">{children}</Link>
 );
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+const fmtDate = (d: string) => new Date(d).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 
 const SectionTitle = ({ icon, title, accent }: { icon: React.ReactNode; title: string; accent: string }) => (
   <div className="flex items-center gap-2.5 mt-2">
@@ -190,7 +190,7 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium text-red-600 truncate">{r.contact?.name || r.contact?.phone || "联系方式"}</p>
                   <p className="text-xs text-gray-400 truncate">{r.contact?.phone ? `${r.contact.phone} — ` : ''}{r.text}</p>
                 </div>
-                <span className="text-xs text-red-500 shrink-0">{new Date(r.remindAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="text-xs text-red-500 shrink-0">{new Date(r.remindAt).toLocaleString('zh-CN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
               </div>
             )) : <p className="text-sm text-gray-400">没有待处理的提醒 🎉</p>}
           </div>
@@ -335,7 +335,7 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium text-gray-900 truncate">{c.contact?.name || c.contact?.phone}</p>
                   <p className="text-xs text-gray-400 truncate max-w-[180px]">{c.lastMessage?.text || ''}</p>
                 </div>
-                <span className="text-xs text-gray-400 flex items-center gap-1 shrink-0"><Clock className="w-3 h-3" />{new Date(c.updatedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</span>
+                <span className="text-xs text-gray-400 flex items-center gap-1 shrink-0"><Clock className="w-3 h-3" />{new Date(c.updatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}</span>
               </div>
             )) : <p className="text-sm text-gray-400">还没有对话</p>}
           </div>

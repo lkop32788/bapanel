@@ -84,7 +84,7 @@ export default function CustomPage() {
           ) : (
             <>
               <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">{page.title}</h1>
-              <p className="text-sm text-gray-400 mb-10">最后更新： {new Date(page.updatedAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <p className="text-sm text-gray-400 mb-10">最后更新： {new Date(page.updatedAt || Date.now()).toLocaleDateString('zh-CN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
               <div className="p-6 md:p-8 bg-white rounded-2xl border border-gray-100 prose prose-sm max-w-none prose-headings:text-gray-900 prose-a:text-violet-600"
                 dangerouslySetInnerHTML={{ __html: page.content || '' }} />
             </>

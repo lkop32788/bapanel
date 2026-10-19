@@ -107,7 +107,7 @@ async function doStartSession(id, state) {
     auth: authState,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    browser: ['WabaPanel', 'Chrome', '120.0'],
+    browser: ['红浪漫', 'Chrome', '120.0'],
     syncFullHistory: true,
     // Keep this linked device "offline" so the phone stays the primary receiver.
     // If the desktop advertises itself online, the phone routes messages to it;

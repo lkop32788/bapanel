@@ -101,7 +101,7 @@ const seed = async () => {
     const existingSettings = await SystemSettings.countDocuments();
     if (existingSettings === 0) {
       await SystemSettings.create({
-        appName: 'WabaPanel',
+        appName: '红浪漫',
         appEmail: 'support@wabapanel.com',
         appDescription: 'WhatsApp Business API Platform',
         ai: {
@@ -115,10 +115,10 @@ const seed = async () => {
         },
         languages: [
           { code: 'en', name: 'English', isDefault: true, isActive: true },
-          { code: 'hi', name: 'Hindi', isDefault: false, isActive: true },
+          { code: 'zh', name: 'Chinese', isDefault: false, isActive: true },
         ],
         currencies: [
-          { code: 'INR', name: 'Indian Rupee', symbol: '₹', isDefault: true, isActive: true },
+          { code: 'CNY', name: 'Chinese Yuan', symbol: '￥', isDefault: true, isActive: true },
           { code: 'USD', name: 'US Dollar', symbol: '$', isDefault: false, isActive: true },
         ],
       });

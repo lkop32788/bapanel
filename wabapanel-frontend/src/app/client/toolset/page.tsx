@@ -95,7 +95,7 @@ export default function ToolsetPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">电话号码 *</label>
               <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                placeholder={"919876543210（有国家代码，无+）"} />
+                placeholder={"60123456789（有国家代码，无+）"} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">预先填写的消息（可选）</label>

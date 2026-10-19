@@ -10,7 +10,7 @@ const TOOL_DEFINITIONS = [{
     parameters: {
       type: 'object',
       properties: {
-        message: { type: 'string', description: 'Follow-up message to send (in Hindi/Hinglish)' },
+        message: { type: 'string', description: 'Follow-up message to send (in Chinese)' },
         delay_minutes: { type: 'number', description: 'Minutes after call to send (default 5)' },
       },
       required: ['message'],

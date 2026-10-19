@@ -260,5 +260,15 @@
       },
       "前端清删": "KkhsDashboard 3处 /client/team 死链改 /client/teams(/agents)；api.ts 删4个死方法+sending-limits/coexistenceSync；whatsapp 页删交货保护卡片与导入App聊天按钮；channels 页 IG 一键连接改指 /instagram-auto-dm/connect/*（FB.login 强制 code 模式）；admin/system 删 Google Drive 备份配置块（本地备份保留）；Header 删 /admin/cache/flush 调用；删 Google 登录按钮与管理后台谷歌登录tab；bot-flows 页删 trackedLinks 残留"
     }
+  },
+  "localization_20261019": {
+    "note": "时区/币种/品牌/印度残留批量本地化（补丁覆盖后需重放）",
+    "时区": "后端 11 文件 Asia/Kolkata→Asia/Shanghai（13个cron任务/图表聚合/工作时间判定/Workspace与AISettings默认值），+5.5h 硬编码→+8h，+05:30→+08:00，IST标签→GMT+8；前端 设置页默认与选项（北京/吉隆坡/印度）、广播默认时区、admin/updates 显示",
+    "币种": "seed 默认币种 INR→CNY￥、Workspace.currency 与 MetaPricing 默认 CNY、SEO priceCurrency CNY、4处卢比文案、GST标签→税号（选填）",
+    "品牌": "后端/前端 Wapto/WabaPanel/KKHS Media 默认值与回退→红浪漫（SystemSettings/adminController/authController 2FA名/systemMailer/adminNotify/dailyDigest签名/waQrService设备名/seed/siteContentDefaults/layout SEO/manifest.json/llms.txt重写/landing占位），server.js 保留 by KKHS Media 哨兵比较与 KKHS_MASTER env",
+    "法律与支付文案": "条款\"受印度法律管辖/仲裁\"→中国法律（siteContentDefaults+siteContentData），隐私Razorpay提及→在线支付服务商",
+    "AI提示词": "外呼口音印度→中文普通话、Hindi/Hinglish 指令→中文/英文镜像、TTS 印地语发音→中文、种子语言 Hindi→Chinese",
+    "示例号码": "前端约30处 919876…→马来西亚 6012…格式，Contact.countryCode 默认 +91→+60，导入样例 Mumbai→Kuala Lumpur；后端\"10位补91\"兼容逻辑保留未动",
+    "en-IN": "前端19文件+后端5文件 en-IN→zh-CN（含CSV导出与消息搜索）"
   }
 }

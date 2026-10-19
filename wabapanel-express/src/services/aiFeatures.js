@@ -125,7 +125,7 @@ async function summarizeConversation({ workspaceId, conversationId }) {
 
   const aiService = require('./aiService');
   const r = await aiService.chat(st.provider, st.apiKey, [
-    { role: 'system', content: 'Summarize this WhatsApp business conversation in 3-5 short bullet points (Hinglish ok): what the customer wants, key details discussed, current status, and suggested next action. Be concise.' },
+    { role: 'system', content: 'Summarize this WhatsApp business conversation in 3-5 short bullet points (中文): what the customer wants, key details discussed, current status, and suggested next action. Be concise.' },
     { role: 'user', content: convoText.slice(-8000) },
   ], { model: st.model, temperature: 0.3, maxTokens: 400, ...aiService.azureOpts(st) });
 
@@ -173,7 +173,7 @@ async function textToSpeech(workspaceId, text) {
   }
   if (st.provider !== 'openai' || !st.apiKey) return null;
   const r = await axios.post('https://api.openai.com/v1/audio/speech',
-    { model: 'gpt-4o-mini-tts', voice: 'coral', input: String(text).slice(0, 4000), response_format: 'mp3', instructions: 'Speak in exactly the same language as the input text, do not translate. If the text is Hindi or Hinglish, speak natural conversational Hindi with a clear Indian accent, pronouncing Hindi words correctly. Warm, friendly, unhurried customer-support tone.' },
+    { model: 'gpt-4o-mini-tts', voice: 'coral', input: String(text).slice(0, 4000), response_format: 'mp3', instructions: 'Speak in exactly the same language as the input text, do not translate. If the text is Chinese, speak natural conversational Mandarin, pronouncing words correctly. Warm, friendly, unhurried customer-support tone.' },
     { headers: { Authorization: `Bearer ${st.apiKey}` }, responseType: 'arraybuffer', timeout: 60000 });
   const dir = path.join(__dirname, '..', '..', 'uploads', 'voice');
   fs.mkdirSync(dir, { recursive: true });

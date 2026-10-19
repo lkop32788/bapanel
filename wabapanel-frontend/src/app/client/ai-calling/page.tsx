@@ -293,7 +293,7 @@ export default function AICallingPage() {
         <h3 className="text-sm font-medium text-gray-700 mb-2">快速拨出电话</h3>
         <div className="flex gap-2">
           <input type="text" value={callPhone} onChange={e => setCallPhone(e.target.value)}
-            className="flex-1 px-3 py-2 border rounded-lg text-sm" placeholder={"电话号码（例如 +919876543210）"} />
+            className="flex-1 px-3 py-2 border rounded-lg text-sm" placeholder={"电话号码（例如 +60123456789）"} />
           <button onClick={() => handleCall()} disabled={calling}
             className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 flex items-center gap-1 disabled:opacity-50">
             <Phone className="w-4 h-4" /> {calling ? "呼叫..." : "立即致电"}
@@ -396,7 +396,7 @@ export default function AICallingPage() {
                 <tbody>
                   {(showAllHistory ? history : history.slice(0, 10)).map(h => (
                     <tr key={h._id} className="border-b last:border-0">
-                      <td className="py-2 pr-3 text-gray-600 whitespace-nowrap">{new Date(h.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                      <td className="py-2 pr-3 text-gray-600 whitespace-nowrap">{new Date(h.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                       <td className="py-2 pr-3 text-gray-900">{h.direction === 'USER_INITIATED' ? (h.from || '-') : (h.to || '-')}</td>
                       <td className="py-2 pr-3 text-gray-600">{h.direction === 'USER_INITIATED' ? "传入" : "传出"}</td>
                       <td className="py-2 pr-3 text-gray-600">{h.agentName || '-'}</td>
@@ -444,7 +444,7 @@ export default function AICallingPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">语音提供商</label>
                   <select value={editAgent?.voiceProvider || form.voiceProvider} onChange={e => { const v = e.target.value; if (editAgent) { setEditAgent({ ...editAgent, voiceProvider: v, voiceId: defaultVoiceForProvider(v), ...(v === 'openai' ? { voiceApiKey: '', voiceConfig: { ...editAgent.voiceConfig, apiKey: '' } } : {}) }); } else { setForm({ ...form, voiceProvider: v, voiceId: defaultVoiceForProvider(v), ...(v === 'openai' ? { voiceApiKey: '' } : {}) }); } }}
                     className="w-full px-3 py-2 border rounded-lg text-sm">
-                    <option value="openai">OpenAI实时</option><option value="groq_sarvam">Groq + Sarvam（预算 1 卢比/分钟）</option><option value="elevenlabs">十一实验室</option><option value="sarvam">萨尔瓦姆人工智能</option><option value="cartesia">笛卡尔</option><option value="google">谷歌</option><option value="azure">天蓝色</option>
+                    <option value="openai">OpenAI实时</option><option value="groq_sarvam">Groq + Sarvam（低成本/分钟）</option><option value="elevenlabs">十一实验室</option><option value="sarvam">萨尔瓦姆人工智能</option><option value="cartesia">笛卡尔</option><option value="google">谷歌</option><option value="azure">天蓝色</option>
                   </select>
                 </div>
                 <div>

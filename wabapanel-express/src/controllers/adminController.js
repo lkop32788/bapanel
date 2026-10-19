@@ -174,7 +174,7 @@ const getSettings = async (req, res) => {
     // Map to frontend expected format
     const mapped = {
       general: {
-        appName: settings.appName || 'Wapto',
+        appName: settings.appName || '红浪漫',
         appEmail: settings.appEmail || '',
         appDescription: settings.appDescription || '',
         appUrl: settings.appUrl || '',
@@ -188,7 +188,7 @@ const getSettings = async (req, res) => {
         logo: settings.logo || '',
         favicon: settings.favicon || '',
         loginBg: settings.loginBg || '',
-        tagline: settings.tagline !== undefined ? settings.tagline : 'by KKHS Media',
+        tagline: settings.tagline !== undefined ? settings.tagline : '',
         logoDark: settings.logoDark || '',
       },
       whatsappWidget: {
@@ -1044,12 +1044,12 @@ const sendTestEmail = async (req, res) => {
       family: 4,
       auth: { user: settings.smtp.user, pass: settings.smtp.pass },
     });
-    const fromName = settings.smtp.fromName || settings.appName || 'WabaPanel';
+    const fromName = settings.smtp.fromName || settings.appName || '红浪漫';
     await transporter.sendMail({
       from: `"${fromName}" <${settings.smtp.from || settings.smtp.user}>`,
       to,
       subject: 'Test Email - SMTP Configuration',
-      html: '<h2>SMTP Test Successful!</h2><p>If you received this email, your SMTP configuration is working correctly.</p><p>Sent from <strong>' + (settings.appName || 'WabaPanel') + '</strong></p>',
+      html: '<h2>SMTP Test Successful!</h2><p>If you received this email, your SMTP configuration is working correctly.</p><p>Sent from <strong>' + (settings.appName || '红浪漫') + '</strong></p>',
     });
     res.json({ success: true, message: 'Test email sent successfully' });
   } catch (error) {

@@ -27,8 +27,8 @@ interface SystemSettings {
 }
 
 const defaultSettings: SystemSettings = {
-  general: { appName: 'WabaPanel by KKHS Media', appEmail: '', appDescription: '', appUrl: '', theme: 'emerald', sessionTimeout: '24', contactCaptcha: false },
-  branding: { logo: '', logoDark: '', favicon: '', loginBg: '', tagline: "KKHS 媒体" },
+  general: { appName: '红浪漫', appEmail: '', appDescription: '', appUrl: '', theme: 'emerald', sessionTimeout: '24', contactCaptcha: false },
+  branding: { logo: '', logoDark: '', favicon: '', loginBg: '', tagline: '' },
   whatsapp: { enableEmbeddedSignup: false, enableManualSignup: true, apiVersion: 'v21.0', webhookVerifyToken: '', appId: '', appSecret: '', configId: '', businessId: '' },
   facebook: { appId: '', appSecret: '', webhookUrl: '' },
   email: { host: '', port: '587', user: '', password: '', from: '', fromName: '', encryption: 'tls', templates: {} },
@@ -181,7 +181,7 @@ export default function AdminSettingsPage() {
             <Input label={"用户名"} value={settings.email.user} onChange={e => updateField('email', 'user', e.target.value)} placeholder="your@email.com" />
             <Input label={"密码"} type="password" value={settings.email.password} onChange={e => updateField('email', 'password', e.target.value)} placeholder={"应用程序密码或 SMTP 密码"} />
             <Input label={"来自电子邮件"} value={settings.email.from} onChange={e => updateField('email', 'from', e.target.value)} placeholder="noreply@yourdomain.com" />
-            <Input label={"来自姓名"} value={settings.email.fromName} onChange={e => updateField('email', 'fromName', e.target.value)} placeholder="WabaPanel" />
+            <Input label={"来自姓名"} value={settings.email.fromName} onChange={e => updateField('email', 'fromName', e.target.value)} placeholder="红浪漫" />
             <div className="flex gap-2">
               <Button onClick={() => handleSave('email')} loading={saving} icon={<Save className="w-4 h-4" />}>保存 SMTP</Button>
             </div>

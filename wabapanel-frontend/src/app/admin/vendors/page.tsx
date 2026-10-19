@@ -507,7 +507,7 @@ export default function VendorsPage() {
           <hr className="border-gray-200" />
           <Input label={"公司名称"} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />
           <Input label={"网站"} value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://" />
-          <Input label={"商品及服务税号"} value={form.gstNumber} onChange={(e) => setForm({ ...form, gstNumber: e.target.value })} />
+          <Input label={"税号（选填）"} value={form.gstNumber} onChange={(e) => setForm({ ...form, gstNumber: e.target.value })} />
           <Input label={"地址"} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           <Textarea label={"注释"} value={form.vendorNotes} onChange={(e) => setForm({ ...form, vendorNotes: e.target.value })} />
           {editVendor && (

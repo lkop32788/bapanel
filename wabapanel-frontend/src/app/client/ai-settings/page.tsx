@@ -394,7 +394,7 @@ export default function AISettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">知识库</label>
               <p className="text-xs text-gray-400 mb-2">添加您的常见问题解答、产品信息、定价、政策 — 人工智能将用它来回答问题</p>
               <textarea value={settings.knowledgeBase} onChange={e => setSettings({ ...settings, knowledgeBase: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm h-48 resize-y" placeholder={"产品： - 产品 A：999 卢比，功能... - 产品 B：1999 卢比，功能... 常见问题解答：问：您的工作时间是几点？答：周一至周六，上午 10 点至下午 7 点（美国标准时间）"} />
+                className="w-full px-3 py-2 border rounded-lg text-sm h-48 resize-y" placeholder={"产品： - 产品 A：999 元，功能... - 产品 B：1999 元，功能... 常见问题解答：问：您的工作时间是几点？答：周一至周六，上午 10 点至下午 7 点（美国标准时间）"} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">知识文件</label>

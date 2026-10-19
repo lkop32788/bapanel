@@ -116,7 +116,7 @@ export default function VendorDetailPage() {
         <h3 className="font-semibold mb-3 flex items-center gap-2"><Calendar className="w-4 h-4 text-gray-600" /> 商户详细信息</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div><p className="text-gray-500">网站</p><p className="font-medium">{vendor.website || '-'}</p></div>
-          <div><p className="text-gray-500">商品及服务税号</p><p className="font-medium">{vendor.gstNumber || '-'}</p></div>
+          <div><p className="text-gray-500">税号（选填）</p><p className="font-medium">{vendor.gstNumber || '-'}</p></div>
           <div><p className="text-gray-500">地址</p><p className="font-medium">{vendor.address || '-'}</p></div>
           <div><p className="text-gray-500">已加入</p><p className="font-medium">{new Date(vendor.createdAt).toLocaleDateString()}</p></div>
           <div><p className="text-gray-500">上次登录</p><p className="font-medium">{vendor.lastLogin ? new Date(vendor.lastLogin).toLocaleString() : "从来没有"}</p></div>

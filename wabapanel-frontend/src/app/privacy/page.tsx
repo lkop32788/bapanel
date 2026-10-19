@@ -67,7 +67,7 @@ export default function PrivacyPage() {
         <div className="max-w-4xl mx-auto">
           <span className="inline-flex items-center px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full mb-4">{p.badge}</span>
           <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">{p.title} <span className="bg-linear-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">{p.titleHighlight}</span></h1>
-          <p className="text-sm text-gray-400 mb-10">最后更新： {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="text-sm text-gray-400 mb-10">最后更新： {new Date().toLocaleDateString('zh-CN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
 
           <div className="space-y-8">
             {sections.map((s: any, i: number) => (

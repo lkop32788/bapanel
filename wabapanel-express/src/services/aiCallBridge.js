@@ -224,7 +224,7 @@ STYLE: Talk exactly like a REAL human on a phone call - NOT like an AI. Sound na
 
 ${nameLine}
 
-LANGUAGE: Speak in ENGLISH by default, but with a natural INDIAN accent and a warm, friendly Indian tone - like a real Indian customer-care agent, not an American voice. The moment the customer speaks in another language (Hindi, Hinglish, or any regional language), switch to that same language and continue in it for the rest of the call. Always mirror the customer's language.
+LANGUAGE: Speak in MANDARIN CHINESE by default, with a warm, natural, friendly customer-care tone. The moment the customer speaks in another language (English, Malay, Cantonese, or any other), switch to that same language and continue in it for the rest of the call. Always mirror the customer's language.
 
 SALES: Listen carefully to what the customer actually wants - if they ask for a plan, an appointment, a demo, pricing, or anything else, follow their request and use the right tool to help them right away. Suggest the plan that fits their need. Do NOT pitch the premium agency plan (₹19,999) to everyone - it makes people feel we are expensive. Only bring up the agency plan if the customer specifically asks you to set everything up for them (done-for-you) or asks about that plan directly; otherwise keep it simple and recommend the plan that matches what they need.
 
@@ -234,7 +234,7 @@ TOOLS you can use during the call:
 - send_whatsapp_message: if the caller asks you to send them a link, website, app link, address, price, or any details on WhatsApp, use this to send them a WhatsApp text message right away (you can include links in the message text). Always actually call this tool when they ask you to send something - do not just say you will.
 - schedule_followup: schedule a follow-up WhatsApp message to send after the call.
 - collect_feedback: save customer feedback/rating/survey response.
-Always confirm to the caller after a tool succeeds. Current date/time: ` + new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' (IST).',
+Always confirm to the caller after a tool succeeds. Current date/time: ` + new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) + ' (GMT+8).',
     ...(context?.externalSpeaker
       ? {
           output_modalities: ['text'],
@@ -254,7 +254,7 @@ Always confirm to the caller after a tool succeeds. Current date/time: ` + new D
           type: 'object',
           properties: {
             date: { type: 'string', description: 'Callback date in YYYY-MM-DD' },
-            time: { type: 'string', description: 'Callback time in 24h HH:MM (IST)' },
+            time: { type: 'string', description: 'Callback time in 24h HH:MM (GMT+8)' },
             minutes_from_now: { type: 'number', description: 'Minutes from now (use for relative/immediate requests)' },
             reason: { type: 'string', description: 'What the callback is about' },
           },
@@ -473,7 +473,7 @@ async function handleTool(name, args, ctx) {
       const mins = Math.max(0, Number(args.minutes_from_now) || 0);
       at = new Date(Date.now() + mins * 60000);
     } else {
-      at = new Date((args.date || '') + 'T' + (args.time || '10:00') + ':00+05:30');
+      at = new Date((args.date || '') + 'T' + (args.time || '10:00') + ':00+08:00');
     }
     if (isNaN(at.getTime()) || at.getTime() < Date.now() - 60000) return { ok: false, error: 'invalid or past date/time' };
     // Reschedule if an AI callback is already pending for this number (avoid duplicates).
@@ -491,7 +491,7 @@ async function handleTool(name, args, ctx) {
       }
     } catch (e) { /* noop: reminder is best-effort */ }
     console.log('[AI Call] callback scheduled for', at.toISOString());
-    return { ok: true, scheduled_at: at.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST' };
+    return { ok: true, scheduled_at: at.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) + ' GMT+8' };
   }
 
   if (name === 'cancel_callback') {
@@ -852,7 +852,7 @@ async function sendCallSummary(b) {
   if (!chatAi?.apiKey) return;
   const convoText = t.map(x => (x.role === 'user' ? 'Customer: ' : 'Agent: ') + x.text).join('\n');
   const r = await aiService.chat(chatAi.provider || 'openai', chatAi.apiKey, [
-    { role: 'system', content: 'You summarize phone calls. Write a short, friendly WhatsApp message for the customer summarizing what was discussed on the call just now. Write it in the SAME language and script the customer actually spoke on the call: if they spoke English, write in English; if Hindi, write in Hindi; match their language. Begin with a short heading in that same language (e.g. in English: "Summary of our call:"). Include any appointment/decision details. Keep it under 120 words. No preamble.' },
+    { role: 'system', content: 'You summarize phone calls. Write a short, friendly WhatsApp message for the customer summarizing what was discussed on the call just now. Write it in the SAME language and script the customer actually spoke on the call: if they spoke Chinese, write in Chinese; if English, write in English; match their language. Begin with a short heading in that same language (e.g. in English: "Summary of our call:"). Include any appointment/decision details. Keep it under 120 words. No preamble.' },
     { role: 'user', content: convoText },
   ], { model: chatAi.model || 'gpt-4o-mini', maxTokens: 300, ...aiService.azureOpts(chatAi) });
   const summary = r?.content?.trim();

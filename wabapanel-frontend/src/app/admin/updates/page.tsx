@@ -8,10 +8,10 @@ import toast from 'react-hot-toast';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://api.wabapanel.com/api').replace(/\/api$/, '');
 
-const IST_TZ = 'Asia/Kolkata';
-// Render update timestamps in IST. The store sends `deployed_at` as a naive
+const IST_TZ = 'Asia/Shanghai';
+// Render update timestamps in GMT+8. The store sends `deployed_at` as a naive
 // UTC string ("YYYY-MM-DD HH:MM:SS") which `new Date()` would otherwise parse
-// in the browser's local zone; normalize it to UTC before converting to IST.
+// in the browser's local zone; normalize it to UTC before converting to GMT+8.
 function toIST(value?: string | null, dateOnly = false): string {
   if (!value) return '';
   let s = value;
@@ -21,7 +21,7 @@ function toIST(value?: string | null, dateOnly = false): string {
   const opts: Intl.DateTimeFormatOptions = dateOnly
     ? { timeZone: IST_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }
     : { timeZone: IST_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-  return new Intl.DateTimeFormat('en-IN', opts).format(d) + (dateOnly ? '' : ' IST');
+  return new Intl.DateTimeFormat('zh-CN', opts).format(d) + (dateOnly ? '' : ' GMT+8');
 }
 
 function getToken() {
