@@ -7,7 +7,9 @@ const {
   listKnowledgeDocs, uploadKnowledgeDoc, deleteKnowledgeDoc,
 } = require('../controllers/aiSettingsController');
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+// SEC-LOCK：全平台上传锁定，仅允许 txt
+const { txtOnlyFilter } = require('../middleware/txtOnlyUpload');
+const upload = multer({ storage: multer.memoryStorage(), fileFilter: txtOnlyFilter, limits: { fileSize: 50 * 1024 * 1024 } });
 
 router.use(protect, workspaceAccess);
 router.use(requireFeature('aiChatbot'));

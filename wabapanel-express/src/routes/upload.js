@@ -5,35 +5,10 @@ const { uploadFile, uploadMultiple, deleteFile } = require('../controllers/uploa
 
 const storage = multer.memoryStorage();
 
-const fileFilter = (req, file, cb) => {
-  const allowed = [
-    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon',
-    'video/mp4', 'video/webm',
-    'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm', 'audio/mp4', 'audio/aac', 'audio/amr',
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'text/csv',
-  ];
-  // Accept any image format (jpg/png/gif/webp/svg/ico/bmp/avif/tiff/...) for logos,
-  // favicons and other branding — dimensions/size don't matter. Some browsers send
-  // .ico/.svg with a generic mimetype, so fall back to the file extension too.
-  const ext = (file.originalname.split('.').pop() || '').toLowerCase();
-  const imageExts = ['ico', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif', 'tif', 'tiff', 'heic', 'heif'];
-  const isImage = file.mimetype.startsWith('image/') || imageExts.includes(ext);
-  // Accept any video format (mov/webm/mkv/avi/...) — the upload controller
-  // transcodes non-mp4 videos to WhatsApp-compatible mp4.
-  const videoExts = ['mp4', 'mov', 'webm', 'mkv', 'avi', '3gp', 'm4v'];
-  const isVideo = file.mimetype.startsWith('video/') || videoExts.includes(ext);
-  if (file.mimetype === 'text/html' || file.mimetype === 'image/svg+xml' || ['svg', 'html', 'htm', 'xhtml', 'shtml', 'xml'].includes(ext)) {
-    return cb(new Error(`File type ${file.mimetype} not allowed`), false);
-  }
-  if (isImage || isVideo || allowed.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error(`File type ${file.mimetype} not allowed`), false);
-  }
-};
+// SEC-LOCK：全平台上传锁定，仅允许 txt（原图片/视频/音频/文档白名单见 git 历史，
+// 放开时从 85b8471 之前的版本恢复）
+const { txtOnlyFilter } = require('../middleware/txtOnlyUpload');
+const fileFilter = txtOnlyFilter;
 
 const upload = multer({
   storage,

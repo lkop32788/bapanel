@@ -8,14 +8,9 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, "../../uploads")),
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname.replace(/\s+/g, "_")),
 });
-const blockedExts = [".html", ".htm", ".svg", ".xhtml", ".shtml"];
-const fileFilter = (req, file, cb) => {
-  const ext = path.extname(file.originalname || "").toLowerCase();
-  if (file.mimetype === "text/html" || file.mimetype === "image/svg+xml" || blockedExts.includes(ext)) {
-    return cb(new Error(`File type ${file.mimetype} not allowed`), false);
-  }
-  cb(null, true);
-};
+// SEC-LOCK：全平台上传锁定，仅允许 txt
+const { txtOnlyFilter } = require('../middleware/txtOnlyUpload');
+const fileFilter = txtOnlyFilter;
 const upload = multer({ storage, fileFilter, limits: { fileSize: 200 * 1024 * 1024 } }); // large source ok; videos are transcoded down to WhatsApp's 16MB limit
 
 // Map multer errors (fileFilter / limits) to 400 instead of the generic 500 handler.

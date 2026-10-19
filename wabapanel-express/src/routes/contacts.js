@@ -1,7 +1,9 @@
 const router = require('express').Router();
 const { requireFeature } = require('../middleware/featureGate');
 const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+// SEC-LOCK：全平台上传锁定，仅允许 txt（导入请把 CSV 内容存为 .txt 上传）
+const { txtOnlyFilter } = require('../middleware/txtOnlyUpload');
+const upload = multer({ storage: multer.memoryStorage(), fileFilter: txtOnlyFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 const { protect, workspaceAccess } = require('../middleware/auth');
 const {
   getContacts, createContact, getContact, updateContact,
