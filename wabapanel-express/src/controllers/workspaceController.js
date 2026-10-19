@@ -372,6 +372,127 @@ const refreshWhatsAppDetails = async (req, res) => {
 };
 
 // @GET /api/workspaces/:id/whatsapp/health — live status from Meta Graph API
+// WhatsApp 深诊断（前端 WhatsApp 设置页「诊断连接」）。?fix=1 时自动纠正 WABA ID 并重订阅。
+const diagnoseWhatsApp = async (req, res) => {
+  try {
+    const workspace = await Workspace.findById(req.params.id);
+    if (!workspace) return res.status(404).json({ success: false, message: 'Workspace not found' });
+    const wa = workspace.whatsapp || {};
+    const out = {
+      ok: true, issues: [], savedWabaId: wa.wabaId || '', grantedWabaIds: [],
+      tokenValid: null, tokenAppId: '', scopes: [], appSubscribed: null, fixedWabaId: '',
+      templateAccess: '', messagingAccess: '', wabaReviewStatus: '',
+      businessVerificationStatus: '', wabaOwnerBusiness: '', wabaSharedWithBusiness: '', wabaTasks: [],
+    };
+    if (!wa.accessToken || !wa.phoneNumberId) {
+      out.ok = false;
+      out.issues.push('缺少 accessToken 或 phoneNumberId：请先连接 WhatsApp');
+      return res.json({ success: true, data: out });
+    }
+    const headers = { Authorization: `Bearer ${wa.accessToken}` };
+
+    // 1) 令牌有效性 + 号码状态
+    try {
+      const r = await axios.get(`https://graph.facebook.com/v21.0/${wa.phoneNumberId}`, {
+        headers, timeout: 15000, params: { fields: 'display_phone_number,status,quality_rating' },
+      });
+      out.tokenValid = true;
+      out.messagingAccess = r.data?.status || '';
+    } catch (e) {
+      const err = e.response?.data?.error;
+      if (err && (err.code === 190 || err.type === 'OAuthException')) {
+        out.tokenValid = false;
+        out.issues.push(`访问令牌无效：${err.message}`);
+      } else {
+        out.issues.push(`号码查询失败：${err?.message || e.message}`);
+      }
+    }
+
+    // 2) debug_token：应用归属、权限范围、被授予的 WABA（需要管理员配置的 App ID/Secret）
+    try {
+      const SystemSettings = require('../models/SystemSettings');
+      const s = await SystemSettings.findOne().select('whatsapp').lean();
+      const appId = s?.whatsapp?.appId, appSecret = s?.whatsapp?.appSecret;
+      if (appId && appSecret) {
+        const r = await axios.get('https://graph.facebook.com/v21.0/debug_token', {
+          timeout: 15000,
+          params: { input_token: wa.accessToken, access_token: `${appId}|${appSecret}` },
+        });
+        const d = r.data?.data || {};
+        out.tokenAppId = String(d.app_id || '');
+        out.scopes = d.scopes || [];
+        for (const g of d.granular_scopes || []) {
+          if (['whatsapp_business_management', 'whatsapp_business_messaging'].includes(g.scope)) {
+            for (const id of g.target_ids || []) if (!out.grantedWabaIds.includes(id)) out.grantedWabaIds.push(id);
+          }
+        }
+        if (out.savedWabaId && out.grantedWabaIds.length && !out.grantedWabaIds.includes(out.savedWabaId)) {
+          out.issues.push(`保存的 WABA ID（${out.savedWabaId}）不在令牌被授予的范围内（${out.grantedWabaIds.join(', ')}）`);
+        }
+      }
+    } catch (e) {
+      // 没配 App Secret 或 debug 失败不致命
+    }
+
+    // ?fix=1：令牌只授予了一个 WABA 而保存的不对 → 自动纠正
+    if (String(req.query.fix) === '1' && out.grantedWabaIds.length === 1 &&
+        out.savedWabaId !== out.grantedWabaIds[0]) {
+      workspace.whatsapp.wabaId = out.grantedWabaIds[0];
+      await workspace.save();
+      out.fixedWabaId = out.grantedWabaIds[0];
+      out.savedWabaId = out.grantedWabaIds[0];
+    }
+
+    // 3) Webhook 订阅 + WABA 元信息 + 模板权限
+    const wabaId = out.savedWabaId;
+    if (wabaId) {
+      try {
+        const r = await axios.get(`https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`, { headers, timeout: 15000 });
+        out.appSubscribed = (r.data?.data || []).length > 0;
+        if (!out.appSubscribed) {
+          if (String(req.query.fix) === '1') {
+            try {
+              await axios.post(`https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`, {}, { headers, timeout: 15000 });
+              out.appSubscribed = true;
+            } catch (e2) {
+              out.issues.push(`Webhook 自动订阅失败：${e2.response?.data?.error?.message || e2.message}`);
+            }
+          } else {
+            out.issues.push('没有应用订阅此 WABA（收不到入站消息）——带修复重跑可自动订阅');
+          }
+        }
+      } catch (e) {
+        out.issues.push(`Webhook 订阅检查失败：${e.response?.data?.error?.message || e.message}`);
+      }
+      try {
+        const r = await axios.get(`https://graph.facebook.com/v21.0/${wabaId}`, {
+          headers, timeout: 15000,
+          params: { fields: 'account_review_status,owner_business_info{name},on_behalf_of_business_info{name},health_status' },
+        });
+        out.wabaReviewStatus = r.data?.account_review_status || '';
+        out.wabaOwnerBusiness = r.data?.owner_business_info?.name || '';
+        out.wabaSharedWithBusiness = r.data?.on_behalf_of_business_info?.name || '';
+      } catch (e) { /* 元信息失败不致命 */ }
+      try {
+        await axios.get(`https://graph.facebook.com/v21.0/${wabaId}/message_templates`, {
+          headers, timeout: 15000, params: { limit: 1 },
+        });
+        out.templateAccess = 'OK';
+      } catch (e) {
+        out.templateAccess = e.response?.data?.error?.message || e.message;
+        out.issues.push(`模板访问失败：${out.templateAccess}`);
+      }
+    } else {
+      out.issues.push('未保存 WABA ID：模板和 Webhook 相关功能不可用');
+    }
+
+    out.ok = out.issues.length === 0;
+    res.json({ success: true, data: out });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 const getWhatsAppHealth = async (req, res) => {
   try {
     const workspace = await Workspace.findById(req.params.id);
@@ -421,7 +542,7 @@ const getWhatsAppHealth = async (req, res) => {
 
 module.exports = {
   getWorkspaces, createWorkspace, getWorkspace, updateWorkspace,
-  deleteWorkspace, addMember, removeMember, updateWhatsAppConfig, refreshWhatsAppDetails, getWhatsAppHealth,
+  deleteWorkspace, addMember, removeMember, updateWhatsAppConfig, refreshWhatsAppDetails, getWhatsAppHealth, diagnoseWhatsApp,
 };
 
 

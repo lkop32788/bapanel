@@ -236,6 +236,12 @@
       "routes/contacts.js": "POST /contacts/bulk-assign：批量加/移除标签分组（$addToSet/$pull，上限2000）",
       "shortLinkController+routes": "GET /short-links/:id/stats（聚合 clickDetails：clicks/unique/byDevice/byBrowser/byReferrer/byDay/recent）；GET /:id/qr 公开 PNG（qrcode 依赖，--legacy-peer-deps 安装）"
     },
-    "分销下线": "后端卸载 /api/partners 与 /api/admin/partners，删除 routes/partners.js、adminPartners.js 和 6 个 Partner* 模型；前端删除 app/partner/*、admin/affiliate-partners/*、admin/partners、auth/partner-register、components/partner、PartnerSidebar/PartnerHeader、partnerNav、affiliateLabels、partnerAuthStore/partnerAnnouncementStore，api.ts 移除三个分销 api 对象，AdminSidebar 移除 affiliateNav。红色第三项（合伙人注册死接口）随模块下线一并解决"
+    "分销下线": "后端卸载 /api/partners 与 /api/admin/partners，删除 routes/partners.js、adminPartners.js 和 6 个 Partner* 模型；前端删除 app/partner/*、admin/affiliate-partners/*、admin/partners、auth/partner-register、components/partner、PartnerSidebar/PartnerHeader、partnerNav、affiliateLabels、partnerAuthStore/partnerAnnouncementStore，api.ts 移除三个分销 api 对象，AdminSidebar 移除 affiliateNav。红色第三项（合伙人注册死接口）随模块下线一并解决",
+    "诊断修复": {
+      "routes/channelDiagnose.js(新增)": "/api/channel-diagnose/:channel 五渠道诊断（whatsapp/telegram/email/waqr/tgpersonal，响应 {ok,summary,checks[]}）+ POST /whatsapp/fix-webhook 重订阅 WABA",
+      "routes/facebookConnect.js": "新增 GET /diagnose（Page令牌/订阅/IG绑定/收件箱计数）、POST /resubscribe、/sync-chats 返回明确的不支持提示",
+      "workspaceController+routes/workspace.js": "GET /:id/whatsapp/diagnose 深诊断（令牌/debug_token授予WABA/订阅/模板权限/审核状态），?fix=1 自动纠正 WABA ID 并重订阅",
+      "server.js": "挂载 /api/channel-diagnose"
+    }
   }
 }

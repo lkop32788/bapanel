@@ -2,7 +2,7 @@ const router = require('express').Router();
 const { protect, workspaceParamMember, workspaceParamOwner } = require('../middleware/auth');
 const {
   getWorkspaces, createWorkspace, getWorkspace, updateWorkspace,
-  deleteWorkspace, addMember, removeMember, updateWhatsAppConfig, refreshWhatsAppDetails, getWhatsAppHealth,
+  deleteWorkspace, addMember, removeMember, updateWhatsAppConfig, refreshWhatsAppDetails, getWhatsAppHealth, diagnoseWhatsApp,
 } = require('../controllers/workspaceController');
 const {
   handleEmbeddedSignup, getEmbeddedSignupConfig, disconnectWhatsApp,
@@ -19,6 +19,7 @@ router.delete('/:id/members/:userId', workspaceParamOwner, removeMember);
 router.put('/:id/whatsapp', workspaceParamOwner, updateWhatsAppConfig);
 router.post("/:id/whatsapp/refresh", workspaceParamMember, refreshWhatsAppDetails);
 router.get('/:id/whatsapp/health', workspaceParamMember, getWhatsAppHealth);
+router.get('/:id/whatsapp/diagnose', workspaceParamMember, diagnoseWhatsApp);
 router.post('/:id/whatsapp/embedded-signup', workspaceParamOwner, handleEmbeddedSignup);
 router.get('/:id/whatsapp/embedded-signup/config', workspaceParamMember, getEmbeddedSignupConfig);
 router.post('/:id/whatsapp/disconnect', workspaceParamOwner, disconnectWhatsApp);
