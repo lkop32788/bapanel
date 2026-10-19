@@ -168,9 +168,9 @@ export default function RotationLinks() {
         <Button icon={<Plus className="w-4 h-4" />} onClick={() => openModal(null)}>创建链接</Button>
       </div>
 
-      <Table columns={columns} data={links} loading={loading} emptyText={"还没有轮询链接"} />
+      <Table columns={columns} data={links} loading={loading} emptyText={"还没有聚合链接"} />
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editLink ? "编辑轮询链接" : "创建轮询链接"} size="xl">
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editLink ? "编辑聚合链接" : "创建聚合链接"} size="xl">
         <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6">
           {/* 左栏：链接设置与汇总 */}
           <div className="space-y-4">

@@ -12,12 +12,12 @@ export default function TrackedLinksPage() {
       <div className="page-hero">
         <h1 className="text-2xl font-bold text-gray-900">链接生成</h1>
         <p className="text-gray-500 text-sm mt-1">
-          短链接用于分享和点击统计；轮询链接把多个 WhatsApp 号聚合成一个入口，自动分流进线客户并标记来源。
+          短链接用于分享和点击统计；聚合链接把多个 WhatsApp 号聚合成一个入口，自动分流进线客户并标记来源。
         </p>
       </div>
 
       <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
-        {([['short', "短链接"], ['rotation', "轮询链接"]] as const).map(([k, label]) => (
+        {([['short', "短链接"], ['rotation', "聚合链接"]] as const).map(([k, label]) => (
           <button key={k} type="button" onClick={() => setTab(k)}
             className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 ${tab === k ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             {label}
