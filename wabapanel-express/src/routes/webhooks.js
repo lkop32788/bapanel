@@ -41,26 +41,36 @@ router.post('/telegram/:workspaceId', async (req, res) => {
 });
 
 // ===== 外部 API 占位渠道入站 webhook =====
-// POST /api/webhook/extapi/:workspaceId/:slotId
-// 第三方把入站消息推到这里；面板在收件箱里创建/追加 conversation
+// POST /api/webhook/extapi/:workspaceId/:slotId?secret=<webhookSecret>
+// 验签：?secret= 或 x-webhook-secret 头必须等于槽位的 webhookSecret（timing-safe），
+// 否则任何知道 wsId 的人都能往收件箱注入消息。验签通过才 ACK，处理异步。
 router.post('/extapi/:workspaceId/:slotId', async (req, res) => {
-  res.sendStatus(200); // 立即 ACK，处理异步
   try {
     const Workspace = require('../models/Workspace');
-    const ws = await Workspace.findById(req.params.workspaceId);
-    if (!ws) return;
-    const slot = (ws.externalApiSlots || []).find((s) => s.slotId === req.params.slotId);
-    if (!slot || !slot.enabled) return;
+    const ws = await Workspace.findById(req.params.workspaceId).catch(() => null);
+    const slot = ws && (ws.externalApiSlots || []).find((s) => s.slotId === req.params.slotId);
+    const given = String(req.query.secret || req.headers['x-webhook-secret'] || '');
+    const expect = String((slot && slot.webhookSecret) || '');
+    const crypto = require('crypto');
+    const ok = !!slot && !!expect && given.length === expect.length
+      && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expect));
+    if (!ok || !slot.enabled) return res.sendStatus(401); // 不区分"不存在/密钥错"，防枚举
+    res.sendStatus(200);
 
-    const { from, type = 'text', text = '', messageId, media } = req.body || {};
-    if (!from) return;
-
-    const io = req.app.get('io') || global.io;
-    await require('../services/externalApiInbound').handleInbound({
-      workspace: ws, slotId: slot.slotId, from, type, text, messageId, media, io,
+    const inbound = require('../services/externalApiInbound');
+    const body = req.body || {};
+    if (body.event === 'status') {
+      await inbound.handleStatus({ workspace: ws, messageId: body.messageId, status: body.status });
+      return;
+    }
+    if (!body.from) return;
+    await inbound.handleInbound({
+      workspace: ws, slotId: slot.slotId,
+      from: body.from, type: body.type, text: body.text, messageId: body.messageId, media: body.media,
     });
   } catch (e) {
     console.error('[ExtAPI] inbound webhook error:', e.message);
+    if (!res.headersSent) res.sendStatus(200);
   }
 });
 

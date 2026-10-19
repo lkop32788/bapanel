@@ -64,6 +64,10 @@ export interface ExternalApiSlot {
   enabled: boolean;
   status: 'configured' | 'unconfigured';
   webhookUrl?: string;    // 后端计算好的入站 webhook URL（只读）
+  webhookSecret?: string; // 入站验签密钥（拼进 webhook URL 的 ?secret=）
+  lastError?: string;     // 最近一次发送失败原因（成功后清空）
+  lastSentAt?: string;
+  lastInboundAt?: string;
 }
 
 export interface WorkspaceMember {

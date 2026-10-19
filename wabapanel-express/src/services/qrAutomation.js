@@ -44,6 +44,22 @@ async function channelSend(workspace, conversation, phone, payload) {
     const r = await axios.post(`https://graph.facebook.com/v21.0/me/messages?access_token=${mc.pageAccessToken}`, body);
     return { id: r.data?.message_id || '' };
   }
+  if (conversation.channel === 'external_api') {
+    const extSvc = require('./externalApiService');
+    // 粘住会话绑定的槽位；没绑定且开池时取号绑定
+    let slotId = (/^ext:(.+)$/.exec(conversation.waNumberId || '') || [])[1];
+    if (!slotId && workspace.externalApiPoolEnabled) {
+      slotId = await extSvc.pickPoolSlot(workspace._id);
+      if (slotId) {
+        await require('../models/Conversation').updateOne(
+          { _id: conversation._id }, { $set: { waNumberId: `ext:${slotId}` } }).catch(() => {});
+        conversation.waNumberId = `ext:${slotId}`;
+      }
+    }
+    if (!slotId) throw new Error('外部 API 渠道：会话未绑定槽位且号池未启用');
+    const r = await extSvc.sendMessage(workspace._id, phone, payload, slotId);
+    return { id: r.messageId ? `ext_${r.messageId}` : '' };
+  }
   if (conversation.channel === 'whatsapp_chatapp') {
     const chatApp = require('./chatAppService');
     const ca = workspace.chatApp || {};

@@ -656,6 +656,8 @@ export const externalApiChannelApi = {
   createSlot: (label: string) => api.post('/extchannel/slots', { label }),
   updateSlot: (slotId: string, data: object) => api.put(`/extchannel/slots/${slotId}/settings`, data),
   deleteSlot: (slotId: string) => api.delete(`/extchannel/slots/${slotId}`),
+  testSlot: (slotId: string) => api.post(`/extchannel/slots/${slotId}/test`),
+  rotateSecret: (slotId: string) => api.post(`/extchannel/slots/${slotId}/rotate-secret`),
   setPool: (enabled: boolean) => api.put('/extchannel/pool', { enabled }),
 };
 

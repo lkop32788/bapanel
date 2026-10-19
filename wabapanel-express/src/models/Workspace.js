@@ -92,10 +92,15 @@ const workspaceSchema = new mongoose.Schema({
   externalApiSlots: [{
     slotId: { type: String, required: true },
     label: { type: String, default: '' },
-    endpoint: { type: String, default: '' },    // 外发消息 POST URL
+    endpoint: { type: String, default: '' },    // 外发消息 POST URL（保存/发送时过 SSRF 校验）
     apiKey: { type: String, default: '' },      // 认证密钥（存储明文，传输时遮蔽）
     authHeader: { type: String, default: 'Authorization' },
+    // 入站 webhook 验签：第三方推送必须带 ?secret= 或 x-webhook-secret 头
+    webhookSecret: { type: String, default: '' },
     enabled: { type: Boolean, default: true },
+    lastError: { type: String, default: '' },
+    lastSentAt: { type: Date },
+    lastInboundAt: { type: Date },
   }],
   externalApiPoolEnabled: { type: Boolean, default: false },
   externalApiPoolCursor: { type: Number, default: 0 },

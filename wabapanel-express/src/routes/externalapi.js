@@ -31,6 +31,25 @@ router.put('/slots/:slotId/settings', async (req, res) => {
   }
 });
 
+// 连通性测试：POST { type:'connectivity_test' } 到槽位 endpoint，报告 HTTP 状态与耗时
+router.post('/slots/:slotId/test', async (req, res) => {
+  try {
+    const data = await extSvc.testSlot(req.workspace._id, req.params.slotId);
+    res.json({ success: true, data });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+
+// 重置入站 webhook 密钥（泄露后轮换；旧 URL 立即失效）
+router.post('/slots/:slotId/rotate-secret', async (req, res) => {
+  try {
+    const data = await extSvc.rotateSecret(req.workspace._id, req.params.slotId);
+    res.json({ success: true, data });
+  } catch (e) {
+    const code = /不存在/.test(e.message) ? 404 : 500;
+    res.status(code).json({ success: false, message: e.message });
+  }
+});
+
 // 删除槽位
 router.delete('/slots/:slotId', async (req, res) => {
   try {

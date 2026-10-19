@@ -356,10 +356,14 @@ const sendMessage = async (req, res) => {
         } else if (req.workspace.externalApiPoolEnabled) {
           const picked = await extSvc.pickPoolSlot(req.workspace._id);
           if (picked) { extSlot = picked; conversation.waNumberId = 'ext:' + picked; }
+        } else {
+          // 没开池：有可用槽就落到第一个可用槽并绑定（单槽场景免开池）
+          const usable = extSvc.usableSlots(req.workspace);
+          if (usable.length) { extSlot = usable[0].slotId; conversation.waNumberId = 'ext:' + extSlot; }
         }
         if (!extSlot) {
           message.status = 'failed';
-          message.errorMessage = '外部 API 渠道：未绑定槽位，请先在渠道页配置外部 API 并开启号池';
+          message.errorMessage = '外部 API 渠道：没有可用槽位，请先在渠道页配置外部 API（endpoint + 密钥）';
           await message.save();
         } else {
           const result = await extSvc.sendMessage(req.workspace._id, conversation.contact.phone, { type: type || 'text', text, media }, extSlot);
