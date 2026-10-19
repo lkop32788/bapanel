@@ -179,6 +179,16 @@ async function processTask(taskId) {
       task.error = err.message || '检测失败';
       task.finishedAt = new Date();
       await task.save().catch(() => {});
+      // 计量收费：任务失败全额退款（refunded 标记保证幂等）
+      try {
+        if (task.cost > 0 && !task.refunded) {
+          await require('./saverBillingService').refund(task.workspace, task.cost, task._id);
+          task.refunded = true;
+          await task.save().catch(() => {});
+        }
+      } catch (e) {
+        console.error('[saver] refund:', e.message);
+      }
     }
   } finally {
     running.delete(key);

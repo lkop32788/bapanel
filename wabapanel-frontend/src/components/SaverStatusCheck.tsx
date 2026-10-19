@@ -18,6 +18,8 @@ interface CheckTask {
   error?: string;
   total: number;
   checked?: number;
+  cost?: number;
+  refunded?: boolean;
   summary?: { active: number; banned: number; inactive: number; notFound: number; unknown: number };
   results?: { phone: string; status: ResultStatus; detail?: string }[];
   startedAt?: string;
@@ -122,13 +124,16 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileNumbers, setFileNumbers] = useState<string[]>([]);
   const [fileInfo, setFileInfo] = useState<{ name: string; count: number } | null>(null);
-  // 检测平台积分余额
-  const [balance, setBalance] = useState<number | null>(null);
-  useEffect(() => {
-    saverCheckApi.balance()
-      .then(r => { if (r.data.data?.configured) setBalance(r.data.data.balance); })
-      .catch(() => {});
+  // 商家积分钱包（计费开启时显示余额和预计扣费）
+  interface WalletInfo { enabled: boolean; balance?: number; priceDefault?: number; priceOverrides?: Record<string, number> }
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const loadWallet = useCallback(() => {
+    saverCheckApi.wallet().then(r => setWallet(r.data.data || { enabled: false })).catch(() => {});
   }, []);
+  useEffect(() => { loadWallet(); }, [loadWallet]);
+  const unitPrice = wallet?.enabled
+    ? (wallet.priceOverrides?.[typeValue] ?? wallet.priceDefault ?? 0) : 0;
+  const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
   const loadTasks = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -196,6 +201,7 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
       setModalOpen(false);
       setPage(1);
       loadTasks();
+      loadWallet();
     } catch (e) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
       alert(msg || '提交失败，请稍后重试');
@@ -301,8 +307,11 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
         <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-gray-100">
           <h2 className="flex items-center gap-2 font-semibold text-gray-900">
             <TypeIcon className={`w-5 h-5 ${group.color}`} />{def.name}管理
-            {balance !== null && (
-              <span className="ml-2 text-xs font-normal text-gray-400">积分余额 <span className="text-emerald-600 font-semibold">{balance}</span></span>
+            {wallet?.enabled && (
+              <span className="ml-2 text-xs font-normal text-gray-400">
+                我的积分 <span className="text-emerald-600 font-semibold">{round3(wallet.balance || 0)}</span>
+                <span className="ml-2">单价 {unitPrice} 积分/条</span>
+              </span>
             )}
           </h2>
           <div className="flex items-center gap-2">
@@ -331,6 +340,7 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
                 <th className={th}>进度</th>
                 <th className={`${th} text-right`}>有效</th>
                 <th className={`${th} text-right`}>无效</th>
+                {wallet?.enabled && <th className={`${th} text-right`}>扣费</th>}
                 <th className={th}>状态</th>
                 <th className={th}>开始时间</th>
                 <th className={th}>结束时间</th>
@@ -340,9 +350,9 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={13} className="px-4 py-14 text-center text-gray-400">加载中…</td></tr>
+                <tr><td colSpan={14} className="px-4 py-14 text-center text-gray-400">加载中…</td></tr>
               ) : tasks.length === 0 ? (
-                <tr><td colSpan={13} className="px-4 py-14 text-center text-gray-400">
+                <tr><td colSpan={14} className="px-4 py-14 text-center text-gray-400">
                   暂无数据，点击「新增-上传文本」创建第一个检测任务
                 </td></tr>
               ) : tasks.map(t => (
@@ -370,6 +380,12 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
                   <td className={`${td} text-right`}>
                     {t.status === 'completed' ? <span className="text-red-500 font-medium">{invalidOf(t)}</span> : '—'}
                   </td>
+                  {wallet?.enabled && (
+                    <td className={`${td} text-right text-gray-600`}>
+                      {t.cost ? round3(t.cost) : '—'}
+                      {t.refunded && <span className="text-xs text-emerald-600 ml-1">已退</span>}
+                    </td>
+                  )}
                   <td className={td}>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TASK_STATUS[t.status].cls}`}
                       title={t.status === 'failed' ? t.error : undefined}>
@@ -457,7 +473,13 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
               </button>
             )}
           </div>
-          <div className="flex items-center justify-end gap-2 pt-1">
+          <div className="flex items-center justify-end gap-3 pt-1">
+            {wallet?.enabled && fileNumbers.length > 0 && (
+              <span className="text-sm text-gray-500 mr-auto">
+                预计扣费 <span className={`font-semibold ${round3(unitPrice * fileNumbers.length) > (wallet.balance || 0) ? 'text-red-500' : 'text-emerald-600'}`}>{round3(unitPrice * fileNumbers.length)}</span> 积分
+                <span className="text-xs text-gray-400 ml-1">（余额 {round3(wallet.balance || 0)}）</span>
+              </span>
+            )}
             <Button variant="ghost" onClick={() => setModalOpen(false)}>取消</Button>
             <Button onClick={submit} disabled={!fileNumbers.length || (def.country && !countryCode)} loading={submitting}>
               开始检测{fileNumbers.length ? `（${fileNumbers.length} 条）` : ''}

@@ -168,6 +168,26 @@
       "管理页": "自带 /admin 网页「云仓中转管理」（Basic Auth，用户 admin，密码在 yuncang-proxy/admin-pass.txt，pm2 启动环境 SAVER_ADMIN_PASS）：概览/各类型缓存量/最近任务/清空缓存。绑定 0.0.0.0:5090，外部访问需放行 5090 端口",
       "云仓管理": "管理页新增云仓功能（/admin 三个tab：概览/云仓管理/设置）：云仓=按国家+检测类型的号码仓库，上传txt入仓（待入仓）→ 后台工作器每60s先对共享缓存再自动提交th333 → 沉淀有效/无效两池，可分别导出txt；检测结果同时写共享缓存。自动检测用「设置」tab保存的上游token（settings表），与面板的token互相独立。表：stores/store_numbers/store_jobs/settings",
       "计费归属": "面板提交检测时表单带 bizId/bizName（workspace标识，services/saverCheckService.js），代理按商家记每任务的提交量/缓存命中/上游扣费(consume.deduction)；云仓作业按仓记账。管理页「消耗统计」tab：总扣费/免检条数/估算节省 + 按商家表 + 按云仓表。tasks表加 owner_id/owner_name/deduction，store_jobs加 deduction（ALTER迁移，报错忽略）"
+    },
+    "billing_20261019": {
+      "note": "商家计量收费：提交检测按 单价×号码数 原子预扣积分（findOneAndUpdate balance>=cost），余额不足402拒绝；任务失败全额退款（task.refunded 幂等）。总开关关闭=免费",
+      "backend": {
+        "models/SaverWallet.js(新增)": "商家积分钱包（workspace 唯一）",
+        "models/SaverLedger.js(新增)": "积分流水 topup/charge/refund/adjust，含 balanceAfter/task/by",
+        "services/saverBillingService.js(新增)": "getBillingConfig/priceFor/charge/refund/adjust",
+        "models/SystemSettings.js": "saverApi 加 billingEnabled/priceDefault/priceOverrides(Map)",
+        "models/SaverCheckTask.js": "加 cost/unitPrice/refunded",
+        "routes/saver.js": "创建任务预扣费；GET /api/saver/wallet（商家余额+单价）；移除了泄露平台上游余额的 /api/saver/balance",
+        "routes/admin.js": "/admin/saver-billing/wallets|topup(superAdmin)|ledger",
+        "services/saverCheckService.js": "任务失败自动退款",
+        "controllers/adminController.js": "saver section 读写计费字段"
+      },
+      "frontend": {
+        "src/app/admin/saver-billing/page.tsx(新增)": "商家计费页：余额列表/充值/扣减/流水（AdminSidebar 新入口）",
+        "src/app/admin/settings/page.tsx": "省钱专家tab：计费开关+默认单价+按类型覆盖价",
+        "src/components/SaverStatusCheck.tsx": "工具栏显示商家积分和单价（替换平台余额）、弹窗预计扣费、任务表扣费列(含已退标记)",
+        "src/lib/api.ts": "saverCheckApi.wallet；adminApi.saverWallets/saverTopup/saverLedger"
+      }
     }
   },
   "backupArchive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz",

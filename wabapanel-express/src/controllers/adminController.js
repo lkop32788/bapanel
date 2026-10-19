@@ -254,6 +254,11 @@ const getSettings = async (req, res) => {
       saver: {
         baseUrl: settings.saverApi?.baseUrl || '',
         apiKey: settings.saverApi?.apiKey || '',
+        billingEnabled: !!settings.saverApi?.billingEnabled,
+        priceDefault: settings.saverApi?.priceDefault ?? 0.01,
+        priceOverrides: settings.saverApi?.priceOverrides instanceof Map
+          ? Object.fromEntries(settings.saverApi.priceOverrides)
+          : (settings.saverApi?.priceOverrides || {}),
       },
     };
 
@@ -350,6 +355,16 @@ const updateSettings = async (req, res) => {
           if (!settings.saverApi) settings.saverApi = {};
           if (data.baseUrl !== undefined) settings.saverApi.baseUrl = String(data.baseUrl || '').trim().replace(/\/+$/, '');
           if (data.apiKey !== undefined) settings.saverApi.apiKey = String(data.apiKey || '').trim();
+          if (data.billingEnabled !== undefined) settings.saverApi.billingEnabled = !!data.billingEnabled;
+          if (data.priceDefault !== undefined) settings.saverApi.priceDefault = Math.max(0, Number(data.priceDefault) || 0);
+          if (data.priceOverrides !== undefined && typeof data.priceOverrides === 'object') {
+            const clean = {};
+            for (const [k, v] of Object.entries(data.priceOverrides || {})) {
+              const n = Number(v);
+              if (k && Number.isFinite(n) && n > 0) clean[k] = n;
+            }
+            settings.saverApi.priceOverrides = clean;
+          }
         },
         whatsappWidget: () => {
           if (!settings.whatsappWidget) settings.whatsappWidget = {};

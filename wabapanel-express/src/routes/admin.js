@@ -40,6 +40,71 @@ router.put('/permissions', admin.updatePermissions);
 router.get('/settings', admin.getSettings);
 router.put('/settings', superAdminOnly, admin.updateSettings);
 router.post('/settings/test-email', superAdminOnly, admin.sendTestEmail);
+// 省钱专家：商家计费 —— 钱包列表 / 充值扣减 / 流水
+router.get('/saver-billing/wallets', async (req, res) => {
+  try {
+    const Workspace = require('../models/Workspace');
+    const SaverWallet = require('../models/SaverWallet');
+    const SaverLedger = require('../models/SaverLedger');
+    const q = {};
+    if (req.query.kw) {
+      const safe = String(req.query.kw).slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      q.name = { $regex: safe, $options: 'i' };
+    }
+    const wss = await Workspace.find(q).select('name owner').populate('owner', 'name email').sort('-createdAt').limit(200).lean();
+    const ids = wss.map(w => w._id);
+    const [wallets, charges] = await Promise.all([
+      SaverWallet.find({ workspace: { $in: ids } }).lean(),
+      SaverLedger.aggregate([
+        { $match: { workspace: { $in: ids }, type: 'charge' } },
+        { $group: { _id: '$workspace', spent: { $sum: '$amount' }, tasks: { $sum: 1 } } },
+      ]),
+    ]);
+    const wmap = Object.fromEntries(wallets.map(w => [String(w.workspace), w.balance]));
+    const smap = Object.fromEntries(charges.map(c => [String(c._id), c]));
+    res.json({ success: true, data: wss.map(w => ({
+      workspaceId: w._id,
+      name: w.name,
+      owner: w.owner ? { name: w.owner.name, email: w.owner.email } : null,
+      balance: Math.round((wmap[String(w._id)] || 0) * 1000) / 1000,
+      spent: Math.round(-(smap[String(w._id)]?.spent || 0) * 1000) / 1000,
+      chargedTasks: smap[String(w._id)]?.tasks || 0,
+    })) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+router.post('/saver-billing/topup', superAdminOnly, async (req, res) => {
+  try {
+    const { workspaceId, amount, note } = req.body || {};
+    const n = Number(amount);
+    if (!workspaceId || !Number.isFinite(n) || n === 0) {
+      return res.status(400).json({ success: false, message: '金额无效' });
+    }
+    const balance = await require('../services/saverBillingService').adjust(workspaceId, n, req.user._id, note);
+    res.json({ success: true, data: { balance } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+router.get('/saver-billing/ledger', async (req, res) => {
+  try {
+    const SaverLedger = require('../models/SaverLedger');
+    const q = {};
+    if (req.query.workspace) q.workspace = req.query.workspace;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const [rows, total] = await Promise.all([
+      SaverLedger.find(q).populate('task', 'fileName taskType total').populate('by', 'name')
+        .sort('-createdAt').skip((page - 1) * limit).limit(limit).lean(),
+      SaverLedger.countDocuments(q),
+    ]);
+    res.json({ success: true, data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // 省钱专家：测试筛号 API 连接（查余额）
 router.get('/settings/saver-balance', superAdminOnly, async (req, res) => {
   try {

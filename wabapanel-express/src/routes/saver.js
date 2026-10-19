@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const { protect, workspaceAccess } = require('../middleware/auth');
 const SaverCheckTask = require('../models/SaverCheckTask');
-const { processTask, getBalance } = require('../services/saverCheckService');
+const { processTask } = require('../services/saverCheckService');
 const { TASK_TYPES, normalizeValue } = require('../services/saverTaskTypes');
+const billing = require('../services/saverBillingService');
 
 router.use(protect, workspaceAccess);
 
@@ -39,6 +40,22 @@ router.post('/checks', async (req, res) => {
     if (results.length === 0) {
       return res.status(400).json({ success: false, message: '文件里没有识别到有效内容' });
     }
+
+    // 计量收费：按提交条数预扣，余额不足拒绝
+    const cfg = await billing.getBillingConfig();
+    let cost = 0, unitPrice = 0, chargeLedgerId = null;
+    if (cfg.enabled) {
+      unitPrice = billing.priceFor(cfg, taskType);
+      cost = billing.round3(unitPrice * results.length);
+      if (cost > 0) {
+        const charged = await billing.charge(req.workspace._id, cost, `检测 ${results.length} 条 × ${unitPrice}`);
+        if (!charged) {
+          return res.status(402).json({ success: false, message: `积分不足：本次需 ${cost} 积分，请联系管理员充值` });
+        }
+        chargeLedgerId = charged.ledgerId;
+      }
+    }
+
     const task = await SaverCheckTask.create({
       workspace: req.workspace._id,
       createdBy: req.user._id,
@@ -51,8 +68,14 @@ router.post('/checks', async (req, res) => {
         code: String(country?.code || ''),
       },
       total: results.length,
+      cost,
+      unitPrice,
       results,
     });
+    if (chargeLedgerId) {
+      require('../models/SaverLedger').updateOne(
+        { _id: chargeLedgerId }, { $set: { task: task._id } }).catch(() => {});
+    }
     setImmediate(() => processTask(task._id).catch(err => console.error('[saver] processTask:', err.message)));
     const { results: _r, ...lean } = task.toObject();
     res.status(201).json({ success: true, data: lean });
@@ -61,10 +84,18 @@ router.post('/checks', async (req, res) => {
   }
 });
 
-// GET /api/saver/balance — 检测平台积分余额
-router.get('/balance', async (req, res) => {
+// GET /api/saver/wallet — 商家自己的积分钱包和单价（计费关闭时 enabled:false）
+router.get('/wallet', async (req, res) => {
   try {
-    res.json({ success: true, data: await getBalance() });
+    const cfg = await billing.getBillingConfig();
+    if (!cfg.enabled) return res.json({ success: true, data: { enabled: false } });
+    const w = await billing.getWallet(req.workspace._id);
+    res.json({ success: true, data: {
+      enabled: true,
+      balance: billing.round3(w.balance || 0),
+      priceDefault: cfg.priceDefault,
+      priceOverrides: cfg.priceOverrides,
+    } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

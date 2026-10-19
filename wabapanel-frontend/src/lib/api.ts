@@ -323,7 +323,7 @@ export const rotationLinkApi = {
 export const saverCheckApi = {
   create: (data: { channel: string; country?: { name: string; dial: string; code: string }; numbers: string[]; fileName?: string; taskType?: string }) =>
     api.post('/saver/checks', data),
-  balance: () => api.get('/saver/balance'),
+  wallet: () => api.get('/saver/wallet'),
   list: (params: { channel?: string; type?: string; name?: string; country?: string; page?: number; limit?: number }) =>
     api.get('/saver/checks', { params }),
   get: (id: string) => api.get(`/saver/checks/${id}`),
@@ -501,6 +501,11 @@ export const adminApi = {
   // Settings
   getSettings: () => api.get('/admin/settings'),
   getSaverBalance: () => api.get('/admin/settings/saver-balance'),
+  saverWallets: (kw?: string) => api.get('/admin/saver-billing/wallets', { params: kw ? { kw } : {} }),
+  saverTopup: (data: { workspaceId: string; amount: number; note?: string }) =>
+    api.post('/admin/saver-billing/topup', data),
+  saverLedger: (params: { workspace?: string; page?: number; limit?: number }) =>
+    api.get('/admin/saver-billing/ledger', { params }),
   updateSettings: (data: object) => api.put('/admin/settings', data),
   sendTestEmail: (data: object) => api.post('/admin/settings/test-email', data),
   // Landing Page

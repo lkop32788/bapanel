@@ -23,6 +23,10 @@ const saverCheckTaskSchema = new mongoose.Schema({
   },
   status: { type: String, enum: ['pending', 'processing', 'completed', 'failed'], default: 'pending' },
   error: { type: String, default: '' },
+  // 计量收费：本任务扣费（积分）、单价、是否已退款
+  cost: { type: Number, default: 0 },
+  unitPrice: { type: Number, default: 0 },
+  refunded: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   checked: { type: Number, default: 0 },
   startedAt: { type: Date },

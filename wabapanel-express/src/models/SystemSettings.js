@@ -40,6 +40,10 @@ const systemSettingsSchema = new mongoose.Schema({
   saverApi: {
     baseUrl: { type: String, default: '' },
     apiKey: { type: String, default: '' },
+    // 商家计量收费：按提交号码数扣积分；关闭时免费
+    billingEnabled: { type: Boolean, default: false },
+    priceDefault: { type: Number, default: 0.01 }, // 积分/条
+    priceOverrides: { type: Map, of: Number, default: {} }, // taskType → 单价
   },
 
   // Floating WhatsApp chat widget (public landing page)
