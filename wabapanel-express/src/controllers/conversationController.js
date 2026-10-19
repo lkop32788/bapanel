@@ -5,6 +5,14 @@ const Contact = require('../models/Contact');
 const WhatsAppService = require('../services/whatsappService');
 const { sendPaginated } = require('../utils/apiResponse');
 
+// FIX-INBOX：非法 ObjectId（CastError）按 404 处理，不再 500 并泄漏 Mongoose 内部错误文本
+const sendErr = (res, error) => {
+  if (error && error.name === 'CastError') {
+    return res.status(404).json({ success: false, message: 'Not found' });
+  }
+  res.status(500).json({ success: false, message: error.message });
+};
+
 // @GET /api/conversations
 const getConversations = async (req, res) => {
   try {
@@ -55,7 +63,7 @@ const getConversations = async (req, res) => {
 
     sendPaginated(res, conversations, total, page, limit);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -76,7 +84,7 @@ const getUnreadCounts = async (req, res) => {
     rows.forEach(r => { counts[r._id] = r.count; });
     res.json({ success: true, data: counts });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -107,7 +115,7 @@ const getConversation = async (req, res) => {
 
     res.json({ success: true, data: conversation });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -128,7 +136,7 @@ const getMessages = async (req, res) => {
 
     sendPaginated(res, messages.reverse(), total, page, limit);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -396,6 +404,13 @@ const sendMessage = async (req, res) => {
       }
       await message.save();
     }
+    // FIX-INBOX：没有任何渠道能发送时的最终兜底——原先 WhatsApp 未连接会静默
+    // 跳过所有分支，消息以 pending 入库却返回 201"成功"，前端气泡永远转圈
+    else {
+      message.status = 'failed';
+      message.errorMessage = 'WhatsApp 未连接（请到渠道页完成连接后再发送）';
+      await message.save();
+    }
 
     // Update conversation
     conversation.lastMessage = {
@@ -418,7 +433,7 @@ const sendMessage = async (req, res) => {
 
     res.status(201).json({ success: true, data: message });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -459,7 +474,7 @@ const reactMessage = async (req, res) => {
     if (io) io.to(`workspace:${req.workspace._id}`).emit('message_reaction', { messageId: target._id, conversationId: conversation._id, reactions: target.reactions });
     res.json({ success: true, data: { reactions: target.reactions } });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -473,7 +488,7 @@ const subscribePresence = async (req, res) => {
     const ok = await waQr.subscribePresence(req.workspace._id, conversation.contact.phone);
     res.json({ success: true, data: { supported: ok, phone: conversation.contact.phone } });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -513,7 +528,7 @@ const startConversation = async (req, res) => {
 
     res.status(201).json({ success: true, data: conversation });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -568,7 +583,7 @@ const assignConversation = async (req, res) => {
 
     res.json({ success: true, data: conversation });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -617,7 +632,7 @@ const resolveConversation = async (req, res) => {
 
     res.json({ success: true, data: conversation });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -632,7 +647,7 @@ const markAsRead = async (req, res) => {
 
     res.json({ success: true, data: conversation });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -658,7 +673,7 @@ const toggleAI = async (req, res) => {
 
     res.json({ success: true, data: conversation });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -668,9 +683,10 @@ const startConversationByPhone = async (req, res) => {
   try {
     let { phone, name, channel } = req.body;
     phone = String(phone || '').replace(/\D/g, '');
-    if (phone.length === 10) phone = '91' + phone;
-    if (phone.length < 11) {
-      return res.status(400).json({ success: false, message: 'Valid phone number required' });
+    // FIX-INBOX：移除"10 位补 91"的印度区号残留——本地商户输入 10 位号码会被
+    // 建成错误的印度号码；请用户带国码输入（如 60123456789）
+    if (phone.length < 8 || phone.length > 15) {
+      return res.status(400).json({ success: false, message: '请输入带国码的完整号码（如 60123456789）' });
     }
     let contact = await Contact.findOne({ workspace: req.workspace._id, phone: new RegExp(phone + '$') });
     if (!contact) {
@@ -689,7 +705,7 @@ const startConversationByPhone = async (req, res) => {
     conversation = await Conversation.findById(conversation._id).populate('contact', 'name phone avatar profileName');
     res.json({ success: true, data: conversation });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -768,7 +784,7 @@ const startConversationByEmail = async (req, res) => {
     conversation = await Conversation.findById(conversation._id).populate('contact', 'name phone email avatar profileName');
     res.json({ success: true, data: { conversation, message } });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -800,7 +816,7 @@ const searchMessages = async (req, res) => {
       .lean();
     res.json({ success: true, data: msgs });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -876,7 +892,7 @@ const exportConversation = async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="chat-' + name + '.csv"');
     res.send('\uFEFF' + lines.join('\n'));
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -911,7 +927,7 @@ const exportAllChats = async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="all-chats-export.csv"');
     res.send('\uFEFF' + lines.join('\n'));
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -928,7 +944,7 @@ const pinConversation = async (req, res) => {
     if (!conversation) return res.status(404).json({ success: false, message: 'Conversation not found' });
     res.json({ success: true, data: conversation });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
@@ -941,7 +957,7 @@ const deleteConversation = async (req, res) => {
     await Conversation.deleteOne({ _id: conversation._id });
     res.json({ success: true, message: 'Conversation deleted' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    sendErr(res, error);
   }
 };
 
