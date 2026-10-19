@@ -219,5 +219,11 @@
     "crm",
     "call-logs"
   ],
-  "clientModuleRevision": "2026-09-17"
+  "clientModuleRevision": "2026-09-17",
+  "securityVendorBackdoor_20261019": {
+    "note": "供应商后门清理（补丁覆盖这些文件后必须重新应用！）",
+    "server.js": "删除 GET /api/auth/kkhs-auto-login（持 kkhsLicenseKey 可签发 super_admin token 的商店免密登录后门，DB 中 key 已设置、后门原本是活的）",
+    "routes/kkhsLicense.js": "删除 syncAddonLocks 函数及其 20s/每小时定时器（无开关向 kkhsmedia.com 外发域名，kkhsAddonLocks 无人读）。pollPushedUpdates 保留（受 KKHS_AUTO_UPDATES_ENABLED 控制，当前未开启）",
+    "src/app/contact/page.tsx": "联系页去除供应商回退 WhatsApp 号 917062010000，未配置号码时不再跳转"
+  }
 }

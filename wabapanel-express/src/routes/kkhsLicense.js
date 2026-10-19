@@ -747,23 +747,8 @@ const pollPushedUpdates = async () => {
 };
 setInterval(pollPushedUpdates, 10 * 60 * 1000);
 
-// Add-on licences are per panel, so they need the domain-specific feature locks
-// from the store (the generic lock sync only carries the global defaults).
-const syncAddonLocks = async () => {
-  try {
-    const axios = require('axios');
-    const SystemSettings = require('../models/SystemSettings');
-    const s = await SystemSettings.findOne().select('appUrl kkhsDomain').lean();
-    const domain = (s?.appUrl || s?.kkhsDomain || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    if (!domain) return;
-    const r = await axios.get('https://kkhsmedia.com/api/waba-panel-nodejs.php?action=get_feature_locks&domain=' + encodeURIComponent(domain), { timeout: 20000 });
-    const locks = r.data && r.data.success ? r.data.locks : null;
-    if (!locks || typeof locks !== 'object') return;
-    await SystemSettings.findOneAndUpdate({}, { $set: { kkhsAddonLocks: locks } });
-  } catch (e) { /* store unreachable: keep the last known locks */ }
-};
-setTimeout(syncAddonLocks, 20 * 1000);
-setInterval(syncAddonLocks, 60 * 60 * 1000);
+// SEC: syncAddonLocks 定时器已删除——它无开关地每小时向 kkhsmedia.com 外发本站域名，
+// 而写入的 kkhsAddonLocks 在本安装中无人读取（license 已 stub 为 active）。
 
 /**
  * GET /api/admin/kkhs-license/installed-patches

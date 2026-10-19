@@ -45,9 +45,12 @@ export default function ContactPage() {
       const res = await fetch(`${API}/inquiries`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (res.ok) {
         setStatus('sent');
-        const waNumber = String(contact.phone || '917062010000').replace(/\D/g, '');
-        const waText = encodeURIComponent(`Hi, I am ${form.name}. I have visited your website ${typeof window !== 'undefined' ? window.location.host : ''} for WhatsApp API.\n\n${form.message}`);
-        window.open(`https://wa.me/${waNumber}?text=${waText}`, '_blank');
+        // SEC: 原回退号码 917062010000 是供应商号码，未配置联系号码时不再跳转 WhatsApp
+        const waNumber = String(contact.phone || '').replace(/\D/g, '');
+        if (waNumber) {
+          const waText = encodeURIComponent(`Hi, I am ${form.name}. I have visited your website ${typeof window !== 'undefined' ? window.location.host : ''} for WhatsApp API.\n\n${form.message}`);
+          window.open(`https://wa.me/${waNumber}?text=${waText}`, '_blank');
+        }
         setForm({ name: '', email: '', phone: '', message: '' });
         if (captchaEnabled) loadCaptcha();
       }

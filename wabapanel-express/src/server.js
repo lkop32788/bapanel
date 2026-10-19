@@ -184,27 +184,8 @@ app.get('/api/public/license-status', (req, res) => {
   res.json({ success: true, active: true, required: false, reason: '', killSwitch: false });
 });
 
-// KKHS store auto-login — signed link from kkhsmedia.com storepanel
-app.get('/api/auth/kkhs-auto-login', async (req, res) => {
-  try {
-    const { ts, sig } = req.query;
-    if (!ts || !sig) return res.status(400).send('Invalid auto-login link');
-    if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return res.status(400).send('Auto-login link expired');
-    const SystemSettings = require('./models/SystemSettings');
-    const settings = await SystemSettings.findOne().select('kkhsLicenseKey').lean();
-    const licenseKey = settings?.kkhsLicenseKey || '';
-    if (!licenseKey) return res.status(400).send('License not activated');
-    const crypto = require('crypto');
-    const domain = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().split(':')[0];
-    const expected = crypto.createHash('sha256').update(domain + ts + licenseKey).digest('hex');
-    if (String(sig) !== expected) return res.status(403).send('Invalid signature');
-    const User = require('./models/User');
-    const admin = await User.findOne({ role: 'super_admin' }).sort({ createdAt: 1 });
-    if (!admin) return res.status(404).send('Admin user not found');
-    const generateToken = require('./utils/generateToken');
-    res.redirect('/auth/login?token=' + generateToken(admin._id));
-  } catch (e) { res.status(500).send('Auto-login failed'); }
-});
+// SEC: 供应商商店的 kkhs-auto-login 后门端点已删除（持 licenseKey 即可签发
+// super_admin token），本安装不需要商店免密登录。
 
 // Compatibility endpoint: remote store locks are no longer applied.
 app.get('/api/public/kkhs-features', (req, res) => {
