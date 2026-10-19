@@ -482,6 +482,7 @@ export const adminApi = {
   // Settings
   getSettings: () => api.get('/admin/settings'),
   getSaverBalance: () => api.get('/admin/settings/saver-balance'),
+  saverOverview: () => api.get('/admin/saver-billing/overview'),
   saverWallets: (kw?: string) => api.get('/admin/saver-billing/wallets', { params: kw ? { kw } : {} }),
   saverTopup: (data: { workspaceId: string; amount: number; note?: string }) =>
     api.post('/admin/saver-billing/topup', data),

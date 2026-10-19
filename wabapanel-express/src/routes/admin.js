@@ -41,6 +41,46 @@ router.get('/settings', admin.getSettings);
 router.put('/settings', superAdminOnly, admin.updateSettings);
 router.post('/settings/test-email', superAdminOnly, admin.sendTestEmail);
 // 省钱专家：商家计费 —— 钱包列表 / 充值扣减 / 流水
+// 管理仪表盘「省钱专家·今日」概览：今日检测/消费/充值 + 钱包合计 + 待审批数
+router.get('/saver-billing/overview', superAdminOnly, async (req, res) => {
+  try {
+    const SaverCheckTask = require('../models/SaverCheckTask');
+    const SaverLedger = require('../models/SaverLedger');
+    const SaverWallet = require('../models/SaverWallet');
+    const SaverTopupRequest = require('../models/SaverTopupRequest');
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0); // 服务器已是北京时区
+    const [tasks, ledger, wallet, pendingTopups] = await Promise.all([
+      SaverCheckTask.aggregate([
+        { $match: { createdAt: { $gte: dayStart } } },
+        { $group: { _id: null, count: { $sum: 1 }, numbers: { $sum: '$total' }, cost: { $sum: '$cost' } } },
+      ]),
+      SaverLedger.aggregate([
+        { $match: { createdAt: { $gte: dayStart } } },
+        { $group: { _id: '$type', amount: { $sum: '$amount' } } },
+      ]),
+      SaverWallet.aggregate([
+        { $group: { _id: null, balance: { $sum: '$balance' }, count: { $sum: 1 } } },
+      ]),
+      SaverTopupRequest.countDocuments({ status: 'pending' }),
+    ]);
+    const byType = Object.fromEntries(ledger.map((l) => [l._id, l.amount]));
+    const r2 = (n) => Math.round((n || 0) * 100) / 100;
+    res.json({ success: true, data: {
+      todayTasks: tasks[0]?.count || 0,
+      todayNumbers: tasks[0]?.numbers || 0,
+      todayCharge: r2(Math.abs(byType.charge || 0)),   // 今日消费（扣费）
+      todayRefund: r2(byType.refund || 0),
+      todayTopup: r2(byType.topup || 0),               // 今日充值入账（USDT自动+审批+手动充值）
+      totalBalance: r2(wallet[0]?.balance || 0),
+      walletCount: wallet[0]?.count || 0,
+      pendingTopups,
+    } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // SEC-PAY3：资金查询端点与写侧对齐收口 super_admin（原先普通 admin 可翻全平台余额/订单）
 router.get('/saver-billing/wallets', superAdminOnly, async (req, res) => {
   try {

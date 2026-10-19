@@ -14,7 +14,6 @@ const L = ({ href, children }: { href: string; children: React.ReactNode }) => (
 );
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 interface RecentUser {
   _id: string;
@@ -25,11 +24,14 @@ interface RecentUser {
   lastLogin?: string;
 }
 
-interface MoneyOverview {
+interface SaverOverview {
+  todayTasks: number;     // 今日检测任务数
+  todayNumbers: number;   // 今日检测号码条数
+  todayCharge: number;    // 今日消费（扣费，元）
+  todayRefund: number;    // 今日退款（元）
+  todayTopup: number;     // 今日充值入账（元）
   totalBalance: number;   // 全部商户钱包余额合计（元）
   walletCount: number;
-  paid30Count: number;    // 近 30 天已入账 USDT 订单
-  paid30Rmb: number;      // 近 30 天入账金额（元）
   pendingTopups: number;  // 待审批线下充值申请
 }
 
@@ -42,7 +44,7 @@ export default function AdminDashboard() {
     userGrowthChart: Array<{ _id: string; count: number }>;
     ops?: KkhsAdminOpsData | null;
   } | null>(null);
-  const [money, setMoney] = useState<MoneyOverview | null>(null);
+  const [saver, setSaver] = useState<SaverOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const kkhs = useKkhsTheme();
   // PERF-16: load the chart library in its own chunk, after the page shell (same pattern as client dashboard)
@@ -54,25 +56,8 @@ export default function AdminDashboard() {
     adminApi.getDashboard().then(r => {
       setData(r.data.data);
     }).catch(() => {}).finally(() => setLoading(false));
-    // 资金概览：钱包合计 / 近30天入账 / 待审批申请（superAdmin 接口，普通 admin 拿不到就不展示）
-    Promise.allSettled([
-      adminApi.saverWallets(),
-      adminApi.saverUsdtOrders('paid'),
-      adminApi.saverTopupRequests('pending'),
-    ]).then(([w, o, t]) => {
-      const wallets = w.status === 'fulfilled' ? (w.value.data.data || []) : null;
-      if (!wallets) return; // 无权限（非超管）时整块隐藏
-      const orders = o.status === 'fulfilled' ? (o.value.data.data || []) : [];
-      const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
-      const paid30 = orders.filter((x: { paidAt?: string }) => x.paidAt && new Date(x.paidAt).getTime() >= cutoff);
-      setMoney({
-        totalBalance: round2(wallets.reduce((s: number, x: { balance?: number }) => s + (x.balance || 0), 0)),
-        walletCount: wallets.length,
-        paid30Count: paid30.length,
-        paid30Rmb: round2(paid30.reduce((s: number, x: { credits?: number }) => s + (x.credits || 0), 0)),
-        pendingTopups: t.status === 'fulfilled' ? (t.value.data.data || []).length : 0,
-      });
-    }).catch(() => {});
+    // 省钱专家·今日：检测量/消费/充值/钱包合计（superAdmin 接口，普通 admin 拿不到就整块隐藏）
+    adminApi.saverOverview().then(r => setSaver(r.data.data)).catch(() => {});
   }, []);
 
   if (loading) {
@@ -172,30 +157,39 @@ export default function AdminDashboard() {
 
         <Card className="flex flex-col">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-semibold text-gray-900">资金概览</h3>
+            <h3 className="text-base font-semibold text-gray-900">省钱专家 · 今日</h3>
             <Link href="/admin/vendors" className="text-sm text-emerald-600 hover:underline">商户管理</Link>
           </div>
-          {money ? (
+          {saver ? (
             <div className="space-y-3">
-              <div className="rounded-xl bg-emerald-50 px-4 py-3">
-                <p className="text-[11px] text-emerald-700">商户钱包余额合计（{money.walletCount} 个钱包）</p>
-                <p className="text-2xl font-bold text-emerald-700">￥{money.totalBalance.toLocaleString()}</p>
+              <div className="rounded-xl bg-emerald-50 px-4 py-3 flex items-end justify-between">
+                <div>
+                  <p className="text-[11px] text-emerald-700">今日检测号码</p>
+                  <p className="text-2xl font-bold text-emerald-700">{saver.todayNumbers.toLocaleString()} <span className="text-sm font-medium">条</span></p>
+                </div>
+                <p className="text-xs text-emerald-600 mb-1">{saver.todayTasks} 个任务</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-gray-50 px-3 py-2.5">
-                  <p className="text-[11px] text-gray-500">充值入账（30 天）</p>
-                  <p className="text-lg font-semibold text-gray-900">￥{money.paid30Rmb.toLocaleString()}</p>
-                  <p className="text-[11px] text-gray-400">{money.paid30Count} 笔</p>
+                  <p className="text-[11px] text-gray-500">今日消费（扣费）</p>
+                  <p className="text-lg font-semibold text-gray-900">￥{saver.todayCharge.toLocaleString()}</p>
+                  <p className="text-[11px] text-gray-400">{saver.todayRefund > 0 ? `退款 ￥${saver.todayRefund}` : '无退款'}</p>
                 </div>
-                <div className={`rounded-xl px-3 py-2.5 ${money.pendingTopups > 0 ? 'bg-orange-50' : 'bg-gray-50'}`}>
-                  <p className="text-[11px] text-gray-500">待审批充值申请</p>
-                  <p className={`text-lg font-semibold ${money.pendingTopups > 0 ? 'text-orange-600' : 'text-gray-900'}`}>{money.pendingTopups}</p>
-                  <p className="text-[11px] text-gray-400">{money.pendingTopups > 0 ? '去商户管理处理' : '无待办'}</p>
+                <div className="rounded-xl bg-gray-50 px-3 py-2.5">
+                  <p className="text-[11px] text-gray-500">今日充值入账</p>
+                  <p className="text-lg font-semibold text-gray-900">￥{saver.todayTopup.toLocaleString()}</p>
+                  <p className="text-[11px] text-gray-400">USDT + 审批入账</p>
                 </div>
+              </div>
+              <div className="flex items-center justify-between text-xs text-gray-500 px-1">
+                <span>钱包余额合计（{saver.walletCount} 个）<span className="font-semibold text-gray-800 ml-1">￥{saver.totalBalance.toLocaleString()}</span></span>
+                {saver.pendingTopups > 0 && (
+                  <Link href="/admin/vendors" className="text-orange-600 font-medium hover:underline">待审批 {saver.pendingTopups} 笔 →</Link>
+                )}
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-400 py-2">资金数据加载中或无权限</p>
+            <p className="text-sm text-gray-400 py-2">数据加载中或无权限</p>
           )}
           <div className="mt-auto pt-3 border-t border-gray-100 space-y-1">
             {[
