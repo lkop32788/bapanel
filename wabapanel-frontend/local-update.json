@@ -278,7 +278,7 @@
       "SEC-H1 admin自提权": "routes/admin.js 用户写操作(POST/PUT/DELETE /users)加 superAdminOnly；adminController createUser/updateUser 改字段白名单(name/email/password/phone/role/status)，role 不允许设为 super_admin；不能修改其他超管、不能把超管降级、不能删除超管账号",
       "SEC-H2 补丁接口RCE": "routes/kkhsLicense.js 的 activate/deactivate/install-update/upload-patch/apply-frontend-patch/frontend-rebuild/rollback 由 adminOnly 收口为 superAdminOnly（这些端点可覆写源码并以 root 执行）",
       "SEC-UP1 上传folder路径穿越": "s3Service upload/_uploadLocal/uploadBuffer 对 folder 消毒（只留字母数字_-）+ resolve 断言落盘必须在 uploads 根内 + 扩展名只收 .字母数字1-10 位（此前 req.body.folder 可 ../ 以 root 写任意目录）",
-      "SEC-XSS 上传内联渲染白名单": "server.js setUploadHeaders 改白名单：仅图片/音视频/PDF/txt/csv 可内联，其余一律 Content-Disposition:attachment + CSP sandbox（旧黑名单漏 .xht/.svgz 可同源执行脚本偷token）；公开表单上传加扩展名白名单双重校验（routes/forms.js）",
+      "SEC-XSS 上传内联渲染白名单": "server.js setUploadHeaders 改白名单：仅图片/音视频/PDF/txt/csv 可内联，其余一律 Content-Disposition:attachment + CSP sandbox（旧黑名单漏 .xht/.svgz 可同源执行脚本偷token）；公开表单上传加扩展名白名单双重校验（routes/forms.js）；2026-10-19 进一步收紧：公开表单上传只允许 txt（mimetype text/plain + .txt 扩展名双校验）",
       "SEC-PAY1 USDT蹭账冒领": "saverUsdtService：金额去重窗口扩为 48h 全状态（过期订单金额被预留不可复用）；匹配要求链上交易晚于订单创建（删掉-60s宽限）；晚到款 48h 内自动补入原订单（tick 候选含 expired，无 pending 时降频 60s）；每工作区 pending≤3 + 创建间隔≥10s；externalId partial unique 索引防同一交易双入账（已手动建索引 externalId_1）",
       "SEC-PAY2 手动补单功能删除": "routes/admin.js 删除 /saver-billing/usdt-orders/:id/credit；前端商户管理充值订单tab删除补单按钮（过期订单显示 48h内到账自动补单）；api.ts 删 saverCreditUsdtOrder——不绑交易hash的补单可致同一笔链上钱双入账，由晚到自动补单取代"
     },

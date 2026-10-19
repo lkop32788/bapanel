@@ -16,10 +16,9 @@ router.post('/:id/upload', (req, res) => {
     try {
       if (err) return res.status(400).json({ success: false, message: '文件过大（上限 8MB）' });
       if (!req.file) return res.status(400).json({ success: false, message: '缺少文件' });
-      // SEC-XSS：mimetype 是客户端自报的，必须同时用扩展名白名单双重校验
-      if (!/^(image\/|application\/pdf|application\/msword|application\/vnd\.openxmlformats|text\/plain)/.test(req.file.mimetype || '')
-        || !/\.(jpe?g|png|gif|webp|pdf|docx?|xlsx?|txt)$/i.test(req.file.originalname || '')) {
-        return res.status(400).json({ success: false, message: '只支持图片（jpg/png/gif/webp）、PDF、Word、Excel、txt 文件' });
+      // SEC-XSS：公开上传只收 txt 纯文本（mimetype 是客户端自报的，扩展名双重校验）
+      if (req.file.mimetype !== 'text/plain' || !/\.txt$/i.test(req.file.originalname || '')) {
+        return res.status(400).json({ success: false, message: '只支持上传 txt 文本文件' });
       }
       const Form = require('../models/Form');
       const form = await Form.findById(req.params.id).lean().catch(() => null);
