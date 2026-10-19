@@ -34,12 +34,18 @@ const handleFacebookLeadWebhook = async (req, res) => {
     const settings = await SystemSettings.findOne();
     const appSecret = settings?.facebook?.appSecret || process.env.META_APP_SECRET;
 
-    // Verify signature if app secret is configured
-    if (appSecret && req.headers['x-hub-signature-256']) {
-      const signature = req.headers['x-hub-signature-256'];
-      const rawBody = JSON.stringify(body);
-      const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
-      if (signature !== expected) {
+    // SEC-IDOR：appSecret 已配置则强制验签（原先不带签名头即跳过=验签旁路），
+    // 用 req.rawBody 计算并做常数时间比较
+    if (appSecret) {
+      const signature = String(req.headers['x-hub-signature-256'] || '');
+      const raw = req.rawBody || Buffer.from(JSON.stringify(body));
+      const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(raw).digest('hex');
+      let ok = false;
+      try {
+        ok = signature.length === expected.length
+          && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+      } catch { ok = false; }
+      if (!ok) {
         console.error('Facebook webhook signature mismatch');
         return;
       }
@@ -56,9 +62,13 @@ const handleFacebookLeadWebhook = async (req, res) => {
 
         if (!leadgenId) continue;
 
-        // Find workspace linked to this page
-        const workspaces = await Workspace.find({ status: 'active' });
-
+        // SEC-IDOR：线索只归属 pageId 对应的工作区（原先广播给全部工作区——
+        // 跨租户 PII 泄露 + 伪造 payload 可在所有租户触发自动化）
+        const workspaces = await Workspace.find({ status: 'active', 'metaChat.pageId': pageId });
+        if (!workspaces.length) {
+          console.warn(`[fb-leads] no workspace bound to page ${pageId}, lead ${leadgenId} dropped`);
+          continue;
+        }
         for (const workspace of workspaces) {
           await _processLead(workspace, leadgenId, formId, pageId, settings);
         }

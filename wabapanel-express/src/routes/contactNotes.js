@@ -22,6 +22,9 @@ router.post('/', async (req, res) => {
   try {
     const { contact, text, remindAt } = req.body;
     if (!contact || !text) return res.status(400).json({ success: false, message: 'contact and text are required' });
+    // SEC-IDOR：联系人必须归属本工作区（否则 GET 时 populate 回显他租户联系人姓名/电话）
+    const owned = await require('../models/Contact').exists({ _id: contact, workspace: req.workspace._id }).catch(() => null);
+    if (!owned) return res.status(404).json({ success: false, message: '联系人不存在' });
     const note = await ContactNote.create({
       workspace: req.workspace._id, contact, text,
       remindAt: remindAt ? new Date(remindAt) : undefined,

@@ -42,10 +42,19 @@ const getDrip = async (req, res) => {
   }
 };
 
+// SEC-IDOR：template 等引用必须归属本工作区（populate 泄露防护）
+const assertDripRefs = async (req, body) => {
+  const assertRef = require('../utils/assertWorkspaceRef');
+  await assertRef(require('../models/Template'), body.template, req.workspace._id, '模板');
+  await assertRef(require('../models/PresetMessage'), body.presetMessage, req.workspace._id, '预设消息');
+};
+
 const createDrip = async (req, res) => {
   try {
+    await assertDripRefs(req, req.body);
+    const body = require('../utils/stripProtected')(req.body, ['stats', 'status', 'type']);
     const drip = await Campaign.create({
-      ...req.body,
+      ...body,
       type: 'drip',
       workspace: req.workspace._id,
       createdBy: req.user._id,
@@ -54,12 +63,13 @@ const createDrip = async (req, res) => {
     });
     res.status(201).json({ success: true, data: drip });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || 500).json({ success: false, message: error.message });
   }
 };
 
 const updateDrip = async (req, res) => {
   try {
+    await assertDripRefs(req, req.body); // SEC-IDOR
     const drip = await Campaign.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id, type: 'drip' },
       (({ workspace, stats, createdBy, _id, status, type, ...rest }) => rest)(req.body),

@@ -38,18 +38,39 @@ const getContacts = async (req, res) => {
   }
 };
 
+// SEC-IDOR：tags/segments/badges 引用只保留归属本工作区的 id；
+// assignedAgent 必须是本工作区成员，否则丢弃
+const sanitizeContactRefs = async (req, body) => {
+  const filterOwned = async (Model, ids) => {
+    if (!Array.isArray(ids) || !ids.length) return ids;
+    const rows = await Model.find({ _id: { $in: ids }, workspace: req.workspace._id }).select('_id').lean();
+    return rows.map((r) => r._id);
+  };
+  if (body.tags !== undefined) body.tags = await filterOwned(Tag, body.tags);
+  if (body.segments !== undefined) body.segments = await filterOwned(require('../models/Segment'), body.segments);
+  if (body.badges !== undefined) body.badges = await filterOwned(require('../models/Badge'), body.badges);
+  if (body.assignedAgent) {
+    const uid = String(body.assignedAgent);
+    const isMember = String(req.workspace.owner) === uid
+      || (req.workspace.members || []).some((m) => String(m.user) === uid);
+    if (!isMember) delete body.assignedAgent;
+  }
+  return body;
+};
+
 // @POST /api/contacts
 const createContact = async (req, res) => {
   try {
+    const body = await sanitizeContactRefs(req, require('../utils/stripProtected')(req.body));
     const contact = await Contact.create({
-      ...req.body,
+      ...body,
       workspace: req.workspace._id,
     });
 
-    // Update tag counts
-    if (req.body.tags && req.body.tags.length > 0) {
+    // Update tag counts（SEC-IDOR：限定本工作区的标签）
+    if (body.tags && body.tags.length > 0) {
       await Tag.updateMany(
-        { _id: { $in: req.body.tags } },
+        { _id: { $in: body.tags }, workspace: req.workspace._id },
         { $inc: { contactCount: 1 } }
       );
     }
@@ -91,9 +112,11 @@ const updateContact = async (req, res) => {
     const before = req.body.tags
       ? await Contact.findOne({ _id: req.params.id, workspace: req.workspace._id }).populate('tags', 'name').lean()
       : null;
+    // SEC-IDOR：剥离 workspace 等保护字段 + 引用归属过滤（原先 req.body 整体写库）
+    const updBody = await sanitizeContactRefs(req, require('../utils/stripProtected')(req.body));
     const contact = await Contact.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      updBody,
       { new: true, runValidators: true }
     ).populate('tags', 'name color').populate('badges', 'name color icon');
 
@@ -219,6 +242,9 @@ const importContacts = async (req, res) => {
     for (const c of contacts) {
       try {
         const { tagNames, segmentNames, birthdayStr, anniversaryStr, rawFields, ...base } = c;
+        // SEC-IDOR：JSON 导入路径只走 tagNames/segmentNames，裸引用 id 一律丢弃
+        delete base.tags; delete base.segments; delete base.badges;
+        delete base.assignedAgent; delete base.workspace; delete base._id;
         const doc = { ...base, workspace: req.workspace._id, source: 'import' };
         const _bd = parseFlexibleDate(birthdayStr); if (_bd) doc.birthday = _bd;
         const _an = parseFlexibleDate(anniversaryStr); if (_an) doc.anniversary = _an;

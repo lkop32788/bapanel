@@ -701,8 +701,21 @@ const startConversationByEmail = async (req, res) => {
     const subject = String(req.body.subject || '').trim();
     const body = String(req.body.body || '');
     const html = String(req.body.html || '').trim();
+    // SEC-LFI：nodemailer 的 path 接受本地文件路径——只允许指向本站 uploads 的 http(s) 绝对 URL，
+    // 杜绝 {"url":"/path/to/.env"} 把服务器文件当附件发出去
+    const selfHost = String(req.get('host') || '').toLowerCase();
+    const backendHost = (() => { try { return new URL(process.env.BACKEND_URL || '').host.toLowerCase(); } catch { return ''; } })();
+    const safeAttachment = (u) => {
+      try {
+        const url = new URL(String(u));
+        if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+        const host = url.host.toLowerCase();
+        if (host !== selfHost && (!backendHost || host !== backendHost)) return false;
+        return url.pathname.startsWith('/api/uploads/') || url.pathname.startsWith('/uploads/');
+      } catch { return false; }
+    };
     const attachments = Array.isArray(req.body.attachments) ? req.body.attachments
-      .filter(a => a && a.url)
+      .filter(a => a && typeof a.url === 'string' && safeAttachment(a.url))
       .map(a => ({ filename: a.filename || 'attachment', path: a.url })) : [];
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
       return res.status(400).json({ success: false, message: 'A valid recipient email address is required' });

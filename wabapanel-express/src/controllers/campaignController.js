@@ -101,9 +101,19 @@ const mapAudience = (body) => {
   };
 };
 
+// SEC-IDOR：template/presetMessage/abTest.templateB 引用必须归属本工作区
+// （否则 getCampaign 的 populate('template') 会回显他人模板全文）
+const assertCampaignRefs = async (req, body) => {
+  const assertRef = require('../utils/assertWorkspaceRef');
+  const Template = require('../models/Template');
+  await assertRef(Template, body.template, req.workspace._id, '模板');
+  await assertRef(require('../models/PresetMessage'), body.presetMessage, req.workspace._id, '预设消息');
+  await assertRef(Template, body.abTest && body.abTest.templateB, req.workspace._id, 'A/B 测试模板B');
+};
+
 const createCampaign = async (req, res) => {
   try {
-
+    await assertCampaignRefs(req, req.body);
     const campaign = await Campaign.create({
       ...mapAudience(req.body),
       workspace: req.workspace._id,
@@ -114,7 +124,7 @@ const createCampaign = async (req, res) => {
 
     res.status(201).json({ success: true, data: campaign });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || 500).json({ success: false, message: error.message });
   }
 };
 
@@ -141,6 +151,7 @@ const getCampaign = async (req, res) => {
 // @PUT /api/campaigns/:id
 const updateCampaign = async (req, res) => {
   try {
+    await assertCampaignRefs(req, req.body); // SEC-IDOR
     const campaign = await Campaign.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
       (({ workspace, stats, createdBy, _id, status, ...rest }) => rest)(mapAudience(req.body)),
@@ -460,7 +471,8 @@ const runCampaignCore = async (campaign, workspace, io) => {
     // A/B test: preload template B
     let abTemplateB = null;
     if (campaign.abTest?.enabled && campaign.abTest?.templateB) {
-      try { abTemplateB = await require('../models/Template').findById(campaign.abTest.templateB); } catch (e) { /* noop */ }
+      // SEC-IDOR：运行期也按 workspace 加载，拒绝外部模板 id
+      try { abTemplateB = await require('../models/Template').findOne({ _id: campaign.abTest.templateB, workspace: campaign.workspace }); } catch (e) { /* noop */ }
     }
     const abSplit = Math.min(100, Math.max(0, campaign.abTest?.splitPercent || 50));
 

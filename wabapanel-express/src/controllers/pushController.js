@@ -30,6 +30,8 @@ const subscribe = async (req, res) => {
     if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
       return res.status(400).json({ success: false, message: 'Invalid subscription' });
     }
+    // 按 endpoint 持有即授权：endpoint 是推送服务下发的不可猜 URL，同一浏览器
+    // 换账号登录时需要重绑，属设计行为（2026-10-19 IDOR 审计评估为可接受）
     await PushSubscription.findOneAndUpdate(
       { endpoint },
       { endpoint, keys, user: req.user && req.user._id, workspace: req.workspace && req.workspace._id },

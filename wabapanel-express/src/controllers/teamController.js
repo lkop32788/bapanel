@@ -57,7 +57,7 @@ const updateTeam = async (req, res) => {
   try {
     const team = await Team.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      require('../utils/stripProtected')(req.body), // SEC-IDOR
       { new: true }
     );
     if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
@@ -150,6 +150,12 @@ const addAgent = async (req, res) => {
 
     const team = await Team.findOne({ _id: teamId || req.params.id, workspace: req.workspace._id });
     if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
+
+    // SEC-IDOR：userId 必须是本工作区成员（否则 populate 会泄露平台任意用户的姓名/邮箱）
+    const uid = String(userId || '');
+    const isWsMember = String(req.workspace.owner) === uid
+      || (req.workspace.members || []).some((m) => String(m.user) === uid);
+    if (!isWsMember) return res.status(400).json({ success: false, message: '该用户不是本工作区成员' });
 
     if (!team.members.includes(userId)) {
       team.members.push(userId);

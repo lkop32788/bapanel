@@ -35,7 +35,7 @@ exports.update = async (req, res) => {
   try {
     const field = await DataField.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      require('../utils/stripProtected')(req.body), // SEC-IDOR
       { new: true }
     );
     if (!field) return res.status(404).json({ success: false, message: "Field not found" });

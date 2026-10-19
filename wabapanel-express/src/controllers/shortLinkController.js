@@ -27,9 +27,17 @@ const createShortLink = async (req, res) => {
 
 const updateShortLink = async (req, res) => {
   try {
+    // SEC-IDOR：字段白名单（原先整体写库可改 workspace/user/clicks/clickDetails）
+    const body = {};
+    for (const k of ['originalUrl', 'title', 'description', 'isActive', 'expiresAt', 'shortCode']) {
+      if (req.body[k] !== undefined) body[k] = req.body[k];
+    }
+    if (body.originalUrl !== undefined && !/^https?:\/\//i.test(String(body.originalUrl))) {
+      return res.status(400).json({ success: false, message: '目标链接必须以 http:// 或 https:// 开头' });
+    }
     const link = await ShortLink.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      body,
       { new: true }
     );
     if (!link) return res.status(404).json({ success: false, message: 'Short link not found' });

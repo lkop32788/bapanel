@@ -281,6 +281,9 @@ const createTemplate = async (req, res) => {
       data.header.content = sanitizeTemplateText(data.header.content).replace(/\n+/g, ' ');
     }
 
+    // SEC-IDOR：isGlobal 只能由平台管理端设置（否则任意商家可把模板注入全租户探索库）
+    delete data.isGlobal;
+    delete data.metaTemplateId;
     const template = await Template.create({
       ...data,
       workspace: req.workspace._id,
@@ -453,9 +456,11 @@ const flagForReview = async (req, res) => {
 // @PUT /api/templates/:id
 const updateTemplate = async (req, res) => {
   try {
+    // SEC-IDOR：剥离 workspace/isGlobal/metaTemplateId/status（status 由 Meta 同步流程维护）
+    const updBody = require('../utils/stripProtected')(req.body, ['isGlobal', 'metaTemplateId', 'status']);
     const template = await Template.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      updBody,
       { new: true, runValidators: true }
     );
 

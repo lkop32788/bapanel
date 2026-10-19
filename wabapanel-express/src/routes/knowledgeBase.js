@@ -22,7 +22,7 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const item = await WorkspaceKB.findOneAndUpdate({ _id: req.params.id, workspace: req.workspace._id }, req.body, { new: true });
+    const item = await WorkspaceKB.findOneAndUpdate({ _id: req.params.id, workspace: req.workspace._id }, require('../utils/stripProtected')(req.body), { new: true }); // SEC-IDOR
     res.json({ success: true, data: item });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });

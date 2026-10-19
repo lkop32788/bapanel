@@ -41,7 +41,7 @@ const updateSegment = async (req, res) => {
   try {
     const segment = await Segment.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      sanitizeSegmentBody(req.body),
+      require('../utils/stripProtected')(sanitizeSegmentBody(req.body)), // SEC-IDOR
       { new: true }
     );
     if (!segment) return res.status(404).json({ success: false, message: 'Segment not found' });

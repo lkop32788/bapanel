@@ -42,7 +42,7 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const action = await PredefinedAction.findOneAndUpdate({ _id: req.params.id, workspace: req.workspace._id }, req.body, { new: true });
+    const action = await PredefinedAction.findOneAndUpdate({ _id: req.params.id, workspace: req.workspace._id }, require('../utils/stripProtected')(req.body), { new: true }); // SEC-IDOR
     if (!action) return res.status(404).json({ success: false, message: "Action not found" });
     res.json({ success: true, data: action });
   } catch (err) {

@@ -42,6 +42,11 @@ router.get('/stickers/library', async (req, res) => {
 router.get('/:id', getConversation);
 router.post('/:id/ai-summary', async (req, res) => {
   try {
+    // SEC-IDOR：校验会话归属本工作区（原先直接透传 id，可跨租户读他人聊天摘要）；客服同样受范围限制
+    const Conversation = require('../models/Conversation');
+    const scope = (req.user.role === 'agent' && req.user.inboxScope === 'assigned') ? { assignedAgent: req.user._id } : {};
+    const owned = await Conversation.exists({ _id: req.params.id, workspace: req.workspace._id, ...scope });
+    if (!owned) return res.status(404).json({ success: false, message: 'Conversation not found' });
     const summary = await require('../services/aiFeatures').summarizeConversation({ workspaceId: req.workspace._id, conversationId: req.params.id });
     res.json({ success: true, data: { summary } });
   } catch (e) { res.status(400).json({ success: false, message: e.message }); }

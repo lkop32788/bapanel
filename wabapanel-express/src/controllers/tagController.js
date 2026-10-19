@@ -34,7 +34,7 @@ const updateTag = async (req, res) => {
   try {
     const tag = await Tag.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      require('../utils/stripProtected')(req.body, ['contactCount']), // SEC-IDOR
       { new: true }
     );
     if (!tag) return res.status(404).json({ success: false, message: 'Tag not found' });

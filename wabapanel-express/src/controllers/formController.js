@@ -31,9 +31,11 @@ const getForm = async (req, res) => {
 
 const updateForm = async (req, res) => {
   try {
+    // SEC-IDOR：剥离 workspace 与提交数据/发布状态字段（原先可整体覆盖 submissions/waFlow）
+    const body = require('../utils/stripProtected')(req.body, ['submissions', 'submissionCount', 'waFlow']);
     const form = await Form.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      body,
       { new: true }
     );
     if (!form) return res.status(404).json({ success: false, message: 'Form not found' });

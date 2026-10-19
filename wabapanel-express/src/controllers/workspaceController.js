@@ -65,7 +65,11 @@ const updateWorkspace = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    Object.assign(workspace, req.body);
+    // SEC-IDOR：禁止经此接口改写的字段——owner 换绑会让 featureGate 按新 owner 判定
+    // （付费开关绕过）、members 整组覆盖可夺权、waQr.dailyLimit 有专门接口且封顶 2000
+    const body = { ...req.body };
+    for (const k of ['owner', 'members', 'status', 'waQr', '_id', 'createdAt', 'updatedAt', '__v']) delete body[k];
+    Object.assign(workspace, body);
 
     // Connecting a Telegram bot: validate the token and register the webhook
     if (req.body.telegram && req.body.telegram.enabled && req.body.telegram.botToken) {

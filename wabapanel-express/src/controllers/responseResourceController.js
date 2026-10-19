@@ -32,7 +32,7 @@ exports.use = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const resource = await ResponseResource.findOneAndUpdate({ _id: req.params.id, workspace: req.workspace._id }, req.body, { new: true });
+    const resource = await ResponseResource.findOneAndUpdate({ _id: req.params.id, workspace: req.workspace._id }, require('../utils/stripProtected')(req.body), { new: true }); // SEC-IDOR
     if (!resource) return res.status(404).json({ success: false, message: "Resource not found" });
     res.json({ success: true, data: resource });
   } catch (err) {

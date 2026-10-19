@@ -30,24 +30,41 @@ const getKeyword = async (req, res) => {
   }
 };
 
+// SEC-IDOR：responseTemplate/automation 引用必须归属本工作区
+// （否则 populate 会把他人模板/自动化全文回显，机器人还会拿他人内容回复）
+const assertKeywordRefs = async (req, body) => {
+  if (body.responseTemplate) {
+    const ok = await require('../models/Template').exists({ _id: body.responseTemplate, workspace: req.workspace._id });
+    if (!ok) { const e = new Error('无效的回复模板'); e.status = 400; throw e; }
+  }
+  if (body.automation) {
+    const ok = await require('../models/Automation').exists({ _id: body.automation, workspace: req.workspace._id });
+    if (!ok) { const e = new Error('无效的自动化'); e.status = 400; throw e; }
+  }
+};
+
 const createKeyword = async (req, res) => {
   try {
+    const body = require('../utils/stripProtected')(req.body);
+    await assertKeywordRefs(req, body);
     const keyword = await Keyword.create({
-      ...req.body,
+      ...body,
       workspace: req.workspace._id,
       createdBy: req.user._id,
     });
     res.status(201).json({ success: true, data: keyword });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || 500).json({ success: false, message: error.message });
   }
 };
 
 const updateKeyword = async (req, res) => {
   try {
+    const body = require('../utils/stripProtected')(req.body);
+    await assertKeywordRefs(req, body);
     const keyword = await Keyword.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      body,
       { new: true, runValidators: true }
     );
     if (!keyword) {

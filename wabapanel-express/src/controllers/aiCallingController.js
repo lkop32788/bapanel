@@ -55,7 +55,7 @@ const updateAgent = async (req, res) => {
   try {
     const agent = await AICallingAgent.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      require('../utils/stripProtected')(req.body), // SEC-IDOR
       { new: true, runValidators: true }
     );
     if (!agent) {
@@ -367,9 +367,12 @@ const uploadRecording = async (req, res) => {
     const safe = String(req.params.callId).replace(/[^a-zA-Z0-9_-]/g, '');
     if (!safe) return res.status(400).json({ success: false, message: 'Bad call id' });
     const name = safe + '-manual.webm';
-    fs.writeFileSync(path.join(REC_DIR, name), req.file.buffer);
     const url = '/uploads/recordings/' + name;
-    await CallSession.findOneAndUpdate({ callId: req.params.callId, workspace: req.workspace._id }, { recordingUrl: url });
+    // SEC-IDOR：先验归属再写盘（原先先写文件，callId 属于他人时可覆盖他租户录音）
+    const session = await CallSession.findOneAndUpdate(
+      { callId: req.params.callId, workspace: req.workspace._id }, { recordingUrl: url });
+    if (!session) return res.status(404).json({ success: false, message: 'Call not found' });
+    fs.writeFileSync(path.join(REC_DIR, name), req.file.buffer);
     res.json({ success: true, data: { url } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

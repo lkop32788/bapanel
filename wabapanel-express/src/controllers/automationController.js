@@ -60,7 +60,7 @@ const updateAutomation = async (req, res) => {
   try {
     const automation = await Automation.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      require('../utils/stripProtected')(req.body), // SEC-IDOR：自动化是"可执行资源"，workspace 严禁改写
       { new: true }
     );
 

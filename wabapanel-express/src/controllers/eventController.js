@@ -69,7 +69,7 @@ const updateEvent = async (req, res) => {
   try {
     const event = await Event.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
-      req.body,
+      require('../utils/stripProtected')(req.body), // SEC-IDOR：事件可被公开 hook 触发，workspace 不许改写
       { new: true, runValidators: true }
     );
     if (!event) {

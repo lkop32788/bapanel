@@ -163,7 +163,8 @@ app.use('/api/webhook', require('./routes/webhooks'));
 app.use('/api/admin', require('./routes/admin'));
 // 分销/联盟模块已整块下线（空壳功能：佣金链路从未实现）
 app.use('/api/admin/kkhs-license', require('./routes/kkhsLicense'));
-app.use("/api/embedded-signup", require("./routes/embeddedSignup"));
+// /api/embedded-signup 独立挂载已移除：路由没有 :id 参数而控制器读 req.params.id，
+// 恒 404 的死路由（真正在用的是 workspace.js 里带 workspaceParamOwner 的同名挂载）
 app.use("/api/data-fields", require("./routes/dataFields"));
 app.use("/api/badges", require("./routes/badges"));
 app.use("/api/ai-settings", require("./routes/aiSettings"));
