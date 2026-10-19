@@ -41,13 +41,24 @@ const updateBotFlow = async (req, res) => {
     const allowed = ['name', 'triggerKeywords', 'matchType', 'eventTrigger', 'isActive', 'startNode', 'nodes', 'startX', 'startY'];
     const update = {};
     allowed.forEach((k) => { if (req.body[k] !== undefined) update[k] = req.body[k]; });
+    // SEC-PUB：生成/轮换外部触发密钥（前端「生成密钥」按钮，URL 只在本次响应里给一次）
+    let newKey = '';
+    if (req.body.generateWebhookKey === true) {
+      newKey = require('crypto').randomBytes(12).toString('hex');
+      update.webhookKey = newKey;
+    }
     const flow = await BotFlow.findOneAndUpdate(
       { _id: req.params.id, workspace: req.workspace._id },
       update,
       { new: true, runValidators: true }
     );
     if (!flow) return res.status(404).json({ success: false, message: 'Flow not found' });
-    res.json({ success: true, data: flow });
+    const out = { success: true, data: flow };
+    if (newKey) {
+      const base = (process.env.API_BASE_URL || process.env.BACKEND_URL || '').replace(/\/$/, '');
+      out.webhookTriggerUrl = `${base}/api/ext/webhook/${req.workspace._id}/${flow._id}?key=${newKey}`;
+    }
+    res.json(out);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

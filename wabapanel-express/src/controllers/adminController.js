@@ -48,7 +48,8 @@ const getUsers = async (req, res) => {
 
 const getUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    // SEC-PUB：2FA 密钥绝不回传（原先带出 twoFactorSecret 可离线生成他人 TOTP）
+    const user = await User.findById(req.params.id).select('-password -twoFactorSecret -twoFactorEmailOTP');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json({ success: true, data: user });
   } catch (error) {

@@ -1,7 +1,11 @@
 const nodemailer = require('nodemailer');
 const SystemSettings = require('../models/SystemSettings');
 
-const render = (str, vars) => String(str || '').replace(/{{\s*(\w+)\s*}}/g, (_, k) => (vars[k] !== undefined ? String(vars[k]) : ''));
+// SEC-PUB：模板变量（userName 等来自用户输入）一律 HTML 转义后再替换进模板
+const escHtml = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const render = (str, vars) => String(str || '').replace(/{{\s*(\w+)\s*}}/g, (_, k) => (vars[k] !== undefined ? escHtml(vars[k]) : ''));
 
 // Built-in fallbacks so critical emails still send on panels whose stored
 // SystemSettings pre-dates these template keys (older docs miss them entirely).

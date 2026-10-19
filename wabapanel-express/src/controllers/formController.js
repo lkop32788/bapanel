@@ -57,25 +57,51 @@ const deleteForm = async (req, res) => {
 const getPublicForm = async (req, res) => {  try {    const form = await Form.findById(req.params.id).select("name description fields status workspace");    if (!form || form.status !== "active") {      return res.status(404).json({ success: false, message: "Form not found or inactive" });    }    const SystemSettings = require("../models/SystemSettings");    const settings = await SystemSettings.findOne().select("appName").lean();    const brandName = settings?.appName || "";    res.json({ success: true, data: { _id: form._id, name: form.name, description: form.description, fields: form.fields, brandName } });  } catch (error) {    res.status(500).json({ success: false, message: error.message });  }};
 const submitForm = async (req, res) => {
   try {
+    // SEC-PUB：公开提交限频（每 IP 每表单 10 次/分钟）
+    const rateLimit = require('../utils/simpleRateLimit');
+    if (!rateLimit(`formsubmit:${req.params.id}:${req.ip}`, 10, 60 * 1000)) {
+      return res.status(429).json({ success: false, message: '提交过于频繁，请稍后再试' });
+    }
     const form = await Form.findById(req.params.id);
     if (!form || form.status !== 'active') {
       return res.status(404).json({ success: false, message: 'Form not found or inactive' });
     }
 
-    form.submissions.push({ data: req.body, submittedAt: new Date() });
-    form.submissionCount++;
-    await form.save();
+    // SEC-PUB：只收表单定义里的字段 + 常用联系字段，值一律转字符串并限长
+    // （原先整个 body 原样入库——可灌任意对象、把文档刷向 16MB 上限）
+    const allowed = new Set(['name', 'phone', 'email']);
+    for (const f of (form.fields || [])) {
+      if (f && f.name) allowed.add(String(f.name));
+      if (f && f.label) allowed.add(String(f.label));
+    }
+    const data = {};
+    let n = 0;
+    for (const [k, v] of Object.entries(req.body || {})) {
+      if (!allowed.has(k) || n >= 50) continue;
+      data[k] = String(v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : v)).slice(0, 1000);
+      n++;
+    }
 
-    // Auto-create contact if enabled
-    if (form.autoCreateContact && req.body.phone) {
+    // 原子追加并封顶最近 1000 条提交，防止把表单文档刷爆
+    await Form.updateOne({ _id: form._id }, {
+      $push: { submissions: { $each: [{ data, submittedAt: new Date() }], $slice: -1000 } },
+      $inc: { submissionCount: 1 },
+    });
+
+    // Auto-create contact if enabled。SEC-PUB：phone 强制字符串防操作符注入；
+    // 只在新建时写入资料（原先匿名提交可覆盖已有联系人的姓名/邮箱）
+    const phone = String(data.phone || '').trim().slice(0, 30);
+    if (form.autoCreateContact && phone) {
       await Contact.findOneAndUpdate(
-        { workspace: form.workspace, phone: req.body.phone },
+        { workspace: form.workspace, phone },
         {
-          workspace: form.workspace,
-          name: req.body.name || '',
-          phone: req.body.phone,
-          email: req.body.email || '',
-          source: 'form',
+          $setOnInsert: {
+            workspace: form.workspace,
+            name: data.name || '',
+            phone,
+            email: data.email || '',
+            source: 'form',
+          },
         },
         { upsert: true }
       );

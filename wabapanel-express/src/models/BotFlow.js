@@ -7,6 +7,9 @@ const botFlowSchema = new mongoose.Schema({
   matchType: { type: String, enum: ['exact', 'contains'], default: 'exact' },
   eventTrigger: { type: String, enum: ['', 'dnp', 'new_lead'], default: '' },
   isActive: { type: Boolean, default: false },
+  // SEC-PUB：外部触发 /api/ext/webhook/:ws/:flow 的密钥（流程页「生成密钥」生成/轮换），
+  // 为空时外部触发一律拒绝
+  webhookKey: { type: String, default: '' },
   runs: { type: Number, default: 0 },
   nodeHits: { type: Map, of: Number, default: {} },
   startNode: { type: String, default: '' },

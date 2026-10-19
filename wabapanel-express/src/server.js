@@ -65,6 +65,36 @@ setupSocket(io);
 // Connect DB
 connectDB();
 
+// SEC-PUB：installed.lock 自愈——系统已有 super_admin 却缺 lock 文件时自动补上，
+// 防止 lock 被误删/迁移丢失后，公开的 /api/install/complete 被用来重置超管
+setTimeout(async () => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const lock = path.join(__dirname, '..', 'installed.lock');
+    if (!fs.existsSync(lock)) {
+      const hasAdmin = await require('./models/User').exists({ role: 'super_admin' });
+      if (hasAdmin) {
+        fs.writeFileSync(lock, 'installed (auto-restored ' + new Date().toISOString() + ')\n');
+        console.log('[Fixup] installed.lock 缺失已自动恢复');
+      }
+    }
+  } catch (e) { console.error('[Fixup] install lock self-heal:', e.message); }
+}, 8000);
+
+// SEC-PUB：给存量 Telegram webhook 补注册 secret_token（注册成功后入站强制验签）
+setTimeout(async () => {
+  try {
+    const Workspace = require('./models/Workspace');
+    const tg = require('./services/telegramService');
+    const rows = await Workspace.find({ 'telegram.enabled': true, 'telegram.botToken': { $gt: '' }, 'telegram.secretSynced': { $ne: true } }).select('_id telegram.botToken');
+    for (const w of rows) {
+      try { await tg.setWebhook(w.telegram.botToken, w._id); console.log('[Fixup] telegram secret registered:', String(w._id)); }
+      catch (e) { console.warn('[Fixup] telegram secret register failed:', String(w._id), e.message); }
+    }
+  } catch (e) { console.error('[Fixup] telegram secret fixup:', e.message); }
+}, 12000);
+
 // Self-signup customers must appear on the admin Vendors page. Older versions
 // registered them with role 'user'; promote workspace owners to 'vendor'.
 require('mongoose').connection.once('open', async () => {
@@ -394,7 +424,8 @@ app.get("/api/public/knowledge", async (req, res) => {
     const KB = require("./models/KnowledgeBase");
     const filter = { status: "published" };
     if (req.query.category) filter.category = req.query.category;
-    if (req.query.search) filter.title = { $regex: req.query.search, $options: "i" };
+    // SEC-PUB：公开搜索必须转义正则（原先可注入灾难性回溯正则打满 CPU）
+    if (req.query.search) filter.title = { $regex: require('./utils/escapeRegex')(String(req.query.search).slice(0, 100)), $options: "i" };
     const articles = await KB.find(filter).sort("order").lean();
     const categories = await KB.distinct("category", { status: "published" });
     res.json({ success: true, data: articles, categories });

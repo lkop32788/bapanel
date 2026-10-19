@@ -17,6 +17,13 @@ const notifyAdmin = async (subject, lines = [], actionUrl = '') => {
     const appUrl = settings?.appUrl || 'https://app.wabapanel.com';
     const link = actionUrl ? (actionUrl.startsWith('http') ? actionUrl : appUrl + actionUrl) : '';
 
+    // SEC-PUB：subject/lines 可能含公开入口来的用户输入（联系表单/注册名），HTML 转义
+    const escHtml = (s) => String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    subject = escHtml(subject);
+    lines = (lines || []).map(escHtml);
+
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
         <div style="background:#4f46e5;color:#fff;padding:16px 24px"><h2 style="margin:0;font-size:18px">${appName} — Admin Alert</h2></div>

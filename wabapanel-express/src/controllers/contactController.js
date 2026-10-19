@@ -310,7 +310,12 @@ const exportContacts = async (req, res) => {
     const DataField = require('../models/DataField');
     const dataFields = await DataField.find({ workspace: req.workspace._id, isActive: true }).sort('order').lean();
 
-    const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    // SEC-PUB：防 CSV 公式注入——以 =+-@ 开头的单元格加 ' 前缀（联系人姓名来自外部客户）
+    const esc = (v) => {
+      let s = String(v == null ? '' : v);
+      if (/^[=+\-@]/.test(s)) s = "'" + s;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
     const fmtDate = (d) => fmtDMY(d);
     const headers = ['name', 'phone', 'email', 'birthday', 'anniversary', 'tags', 'segments', 'status', 'source', ...dataFields.map((f) => f.name)].join(',');
     const rows = contacts.map(c => {

@@ -36,6 +36,8 @@ const workspaceSchema = new mongoose.Schema({
     botToken: { type: String, default: '' },
     botUsername: { type: String, default: '' },
     enabled: { type: Boolean, default: false },
+    // SEC-PUB：secret_token 已随 setWebhook 注册，入站路由强制校验该头
+    secretSynced: { type: Boolean, default: false },
   },
   waQr: {
     enabled: { type: Boolean, default: false },

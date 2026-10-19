@@ -12,9 +12,17 @@ const getShortLinks = async (req, res) => {
 
 const createShortLink = async (req, res) => {
   try {
+    // SEC-PUB：字段白名单（原先 spread 可预置 clicks/clickDetails）+ 协议限定
+    const body = {};
+    for (const k of ['originalUrl', 'title', 'description', 'isActive', 'expiresAt']) {
+      if (req.body[k] !== undefined) body[k] = req.body[k];
+    }
+    if (!/^https?:\/\//i.test(String(body.originalUrl || ''))) {
+      return res.status(400).json({ success: false, message: '目标链接必须以 http:// 或 https:// 开头' });
+    }
     const shortCode = req.body.shortCode || uuidv4().substring(0, 8);
     const link = await ShortLink.create({
-      ...req.body,
+      ...body,
       shortCode,
       workspace: req.workspace._id,
       user: req.user._id,
@@ -106,15 +114,19 @@ const getPublicShortLink = async (req, res) => {
     const link = await ShortLink.findOne({ shortCode: req.params.code, isActive: true });
     if (!link) return res.status(404).json({ success: false, message: 'Link not found' });
     if (link.expiresAt && new Date() > link.expiresAt) return res.status(404).json({ success: false, message: 'Link expired' });
-    if (record) {
-      link.clicks++;
-      link.clickDetails.push({
-        ip: req.headers['x-visitor-ip'] || req.ip,
-        userAgent: req.headers['x-visitor-ua'] || req.headers['user-agent'],
-        referrer: req.headers['x-visitor-referrer'] || '',
-        clickedAt: new Date(),
+    // SEC-PUB：打点改原子 $push + $slice 封顶 1000 条、字段截断、每 IP 限频
+    // （原先无限 push 可把单文档刷向 16MB 上限搞废链接）
+    if (record && require('../utils/simpleRateLimit')(`slhit:${req.params.code}:${req.ip}`, 10, 10 * 1000)) {
+      await ShortLink.updateOne({ _id: link._id }, {
+        $inc: { clicks: 1 },
+        $push: { clickDetails: { $each: [{
+          ip: String(req.headers['x-visitor-ip'] || req.ip || '').slice(0, 64),
+          userAgent: String(req.headers['x-visitor-ua'] || req.headers['user-agent'] || '').slice(0, 300),
+          referrer: String(req.headers['x-visitor-referrer'] || '').slice(0, 300),
+          clickedAt: new Date(),
+        }], $slice: -1000 } },
       });
-      await link.save();
+      link.clicks++;
     }
     res.json({ success: true, data: { title: link.title, description: '', imageUrl: '', originalUrl: link.originalUrl, showPreview: false, clicks: link.clicks } });
   } catch (error) {
@@ -138,14 +150,18 @@ const redirectShortLink = async (req, res) => {
       return res.status(410).json({ success: false, message: 'Link expired' });
     }
 
-    link.clicks++;
-    link.clickDetails.push({
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-      referrer: req.headers.referer || '',
-      clickedAt: new Date(),
-    });
-    await link.save();
+    // SEC-PUB：同上，原子打点 + 封顶 + 截断 + 限频
+    if (require('../utils/simpleRateLimit')(`slhit:${req.params.code}:${req.ip}`, 10, 10 * 1000)) {
+      await ShortLink.updateOne({ _id: link._id }, {
+        $inc: { clicks: 1 },
+        $push: { clickDetails: { $each: [{
+          ip: String(req.ip || '').slice(0, 64),
+          userAgent: String(req.headers['user-agent'] || '').slice(0, 300),
+          referrer: String(req.headers.referer || '').slice(0, 300),
+          clickedAt: new Date(),
+        }], $slice: -1000 } },
+      });
+    }
 
     res.redirect(301, link.originalUrl);
   } catch (error) {

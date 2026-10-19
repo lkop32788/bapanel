@@ -90,7 +90,10 @@ const listAgents = async (req, res) => {
     }
     // Legacy agents created before workspace linking existed: they belong to
     // no workspace at all, so surface them here for cleanup/re-creation.
-    const candidates = await User.find({ role: { $in: ['agent', 'user'] }, status: 'active' }).select('_id');
+    // SEC-PUB：只对工作区管理者展示（原先任意成员可枚举全平台未挂靠账号）
+    const candidates = isWorkspaceManager(req.workspace, req.user)
+      ? await User.find({ role: { $in: ['agent', 'user'] }, status: 'active' }).select('_id')
+      : [];
     const candidateIds = candidates.map(c => c._id);
     if (candidateIds.length) {
       const Workspace = require('../models/Workspace');

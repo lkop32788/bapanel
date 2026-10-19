@@ -3,10 +3,20 @@ const axios = require('axios');
 // Telegram Bot API channel: inbound via webhook, outbound via bot token.
 const API = (token) => `https://api.telegram.org/bot${token}`;
 
+// SEC-PUB：webhook secret_token（无状态 HMAC 派生），入站路由校验同一个值
+const webhookSecret = (workspaceId) => require('crypto')
+  .createHmac('sha256', process.env.JWT_SECRET || 'default_jwt_secret')
+  .update(`tgwh:${workspaceId}`).digest('hex').slice(0, 32);
+
 async function setWebhook(token, workspaceId) {
   const base = process.env.API_BASE_URL || process.env.BACKEND_URL || process.env.API_URL || 'https://api.wabapanel.com';
   const url = `${base.replace(/\/$/, '')}/api/webhook/telegram/${workspaceId}`;
-  const r = await axios.post(`${API(token)}/setWebhook`, { url });
+  const r = await axios.post(`${API(token)}/setWebhook`, { url, secret_token: webhookSecret(workspaceId) });
+  // 注册成功后置位：入站路由从此强制校验 secret 头（防伪造入站消息）
+  try {
+    await require('../models/Workspace').updateOne(
+      { _id: workspaceId }, { $set: { 'telegram.secretSynced': true } });
+  } catch { /* 置位失败则保持宽松校验，下次 setWebhook 再试 */ }
   return r.data;
 }
 
@@ -75,4 +85,4 @@ async function handleUpdate(workspace, update, io) {
 
 }
 
-module.exports = { setWebhook, getMe, sendMessage, sendMedia, handleUpdate };
+module.exports = { setWebhook, getMe, sendMessage, sendMedia, handleUpdate, webhookSecret };

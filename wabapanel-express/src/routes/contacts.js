@@ -119,6 +119,15 @@ router.post('/bulk-assign', async (req, res) => {
     if (!Array.isArray(ids) || ids.length === 0 || ids.length > 2000) {
       return res.status(400).json({ success: false, message: '请选择联系人（单次最多 2000 个）' });
     }
+    // SEC-PUB：引用的标签/分组 id 必须归属本工作区（防跨租户计数污染/引用注入）
+    const filterOwned = async (Model, values) => {
+      if (!Array.isArray(values) || !values.length) return values;
+      const rows = await Model.find({ _id: { $in: values }, workspace: req.workspace._id }).select('_id').lean();
+      return rows.map((r) => r._id);
+    };
+    const ownTags = await filterOwned(require('../models/Tag'), tags);
+    const ownSegments = await filterOwned(require('../models/Segment'), segments);
+
     const update = {};
     const apply = (field, values) => {
       if (!Array.isArray(values) || values.length === 0) return;
@@ -128,8 +137,8 @@ router.post('/bulk-assign', async (req, res) => {
         update.$addToSet = { ...(update.$addToSet || {}), [field]: { $each: values } };
       }
     };
-    apply('tags', tags);
-    apply('segments', segments);
+    apply('tags', ownTags);
+    apply('segments', ownSegments);
     if (!Object.keys(update).length) {
       return res.status(400).json({ success: false, message: '请选择要分配的标签或分组' });
     }
