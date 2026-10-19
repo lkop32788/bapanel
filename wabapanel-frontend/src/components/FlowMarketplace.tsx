@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { botFlowApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+import FlowPhonePreview from '@/components/FlowPhonePreview';
 
 export interface MarketTemplate {
   id: string;
@@ -26,7 +27,17 @@ export interface MarketTemplate {
   steps: number;
 }
 interface MarketCategory { key: string; label: string; count: number }
-interface PreviewStep { name: string; type: string; text: string; actionTag: string }
+interface PreviewStep {
+  name: string; type: string; text: string; actionTag: string;
+  actionType?: string; mode?: string;
+  headerType?: string; headerMediaUrl?: string;
+  mediaType?: string; mediaUrl?: string;
+  listButtonText?: string;
+  buttons?: { title: string }[];
+  rows?: { title: string; description?: string }[];
+  delaySeconds?: number; delayUnit?: string;
+}
+
 interface PreviewTemplate extends MarketTemplate { preview: PreviewStep[]; triggerKeywords: string[] }
 
 interface Props {
@@ -216,15 +227,7 @@ export default function FlowMarketplace({ isOpen, onClose, onInstalled }: Props)
             {!!preview.triggerKeywords.length && (
               <p className="text-xs text-gray-500">从关键字开始： {preview.triggerKeywords.join(', ')}</p>
             )}
-            <div className="space-y-2 max-h-[45vh] overflow-y-auto">
-              {preview.preview.map((s, i) => (
-                <div key={i} className="p-3 rounded-lg border border-gray-200">
-                  <p className="text-[11px] font-semibold text-gray-500">{i + 1}. {s.name} · {translateDisplay(s.type)}</p>
-                  {!!s.text && <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">{s.text}</p>}
-                  {!!s.actionTag && <p className="text-xs text-indigo-600 mt-1">添加标签： {s.actionTag}</p>}
-                </div>
-              ))}
-            </div>
+            <FlowPhonePreview steps={preview.preview} title={preview.name} />
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setPreview(null)}>关闭</Button>
               <Button icon={<Download className="w-4 h-4" />} onClick={() => { setInstallTarget(preview); setInstallName(preview.name); }}>使用模板</Button>

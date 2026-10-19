@@ -172,7 +172,7 @@ function getSender(workspace, conversation) {
   return new WhatsAppService(workspace.whatsapp.accessToken, workspace.whatsapp.phoneNumberId);
 }
 
-async function saveOutbound({ workspace, conversation, contact, type, text, result, io, interactive }) {
+async function saveOutbound({ workspace, conversation, contact, type, text, result, io, interactive, flow }) {
   const msg = await Message.create({
     workspace: workspace._id,
     conversation: conversation._id,
@@ -183,7 +183,7 @@ async function saveOutbound({ workspace, conversation, contact, type, text, resu
     ...(interactive ? { interactive } : {}),
     waMessageId: result?.data?.messages?.[0]?.id || '',
     status: 'sent',
-    metadata: { source: 'bot_flow' },
+    metadata: { source: 'bot_flow', flowId: flow ? String(flow._id) : '', flowName: flow?.name || '' },
   });
   if (io) io.to(`workspace:${workspace._id}`).emit('new_message', { message: msg, conversationId: conversation._id });
 }
@@ -212,7 +212,7 @@ async function sendNode({ flow, node, workspace, conversation, contact, to, io, 
       console.error('[BotFlow] question send failed:', result?.error?.message || '');
       return false;
     }
-    await saveOutbound({ workspace, conversation, contact, type: 'text', text: savedText, result, io });
+    await saveOutbound({ workspace, conversation, contact, type: 'text', text: savedText, result, io, flow });
     const Conversation = require('../models/Conversation');
     // If a timeout branch is configured, expire after waitTimeoutHours so the scheduler can fire it.
     const waitHrs = Math.max(0, Number(node.waitTimeoutHours) || 0);
@@ -403,7 +403,7 @@ async function sendNode({ flow, node, workspace, conversation, contact, to, io, 
           body: { text: c.text },
           action: { name: 'cta_url', parameters: { display_text: c.text.slice(0, 20), url: c.url } },
         });
-        if (ctaRes?.success) await saveOutbound({ workspace, conversation, contact, type: 'interactive', text: `${c.text}: ${c.url}`, result: ctaRes, io, interactive: { type: 'cta_url', body: c.text, ctaText: c.text.slice(0, 20), ctaUrl: c.url } });
+        if (ctaRes?.success) await saveOutbound({ workspace, conversation, contact, type: 'interactive', text: `${c.text}: ${c.url}`, result: ctaRes, io, interactive: { type: 'cta_url', body: c.text, ctaText: c.text.slice(0, 20), ctaUrl: c.url }, flow });
       }
     }
   }
@@ -412,7 +412,7 @@ async function sendNode({ flow, node, workspace, conversation, contact, to, io, 
     console.error('[BotFlow] send failed:', node.type, result?.error?.message || result?.error || '');
     return false;
   }
-  await saveOutbound({ workspace, conversation, contact, type: savedType, text: savedText, result, io, interactive: savedInteractive || undefined });
+  await saveOutbound({ workspace, conversation, contact, type: savedType, text: savedText, result, io, interactive: savedInteractive || undefined, flow });
 
   for (const nid of nextIds(node.next)) {
     const nextNode = flow.nodes.find((n) => n.id === nid);

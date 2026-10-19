@@ -468,18 +468,6 @@ export const dripApi = {
   pause: (id: string) => api.post(`/drips/${id}/pause`),
 };
 
-export const sequenceApi = {
-  list: (params?: object) => api.get('/sequences', { params }),
-  get: (id: string) => api.get(`/sequences/${id}`),
-  create: (data: object) => api.post('/sequences', data),
-  update: (id: string, data: object) => api.put(`/sequences/${id}`, data),
-  delete: (id: string) => api.delete(`/sequences/${id}`),
-  start: (id: string) => api.post(`/sequences/${id}/start`),
-  pause: (id: string) => api.post(`/sequences/${id}/pause`),
-  stop: (id: string, contactId?: string) => api.post(`/sequences/${id}/stop`, contactId ? { contactId } : {}),
-  enrollments: (id: string, params?: object) => api.get(`/sequences/${id}/enrollments`, { params }),
-};
-
 // Admin APIs
 export const adminApi = {
   // Dashboard

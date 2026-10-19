@@ -242,6 +242,14 @@
       "routes/facebookConnect.js": "新增 GET /diagnose（Page令牌/订阅/IG绑定/收件箱计数）、POST /resubscribe、/sync-chats 返回明确的不支持提示",
       "workspaceController+routes/workspace.js": "GET /:id/whatsapp/diagnose 深诊断（令牌/debug_token授予WABA/订阅/模板权限/审核状态），?fix=1 自动纠正 WABA ID 并重订阅",
       "server.js": "挂载 /api/channel-diagnose"
+    },
+    "删除分阶段营销": "死功能下线：删 src/app/client/sequence-campaigns、ClientSidebar 菜单项和 feature 映射、api.ts sequenceApi、zhNavigation 译名（后端 /api/sequences 本就不存在）",
+    "botFlows完善": {
+      "services/marketplaceTemplates.js(新增)": "本地模板市场目录：8 个内置模板（销售跟进×2、客服接待×5 含按钮式售前/售后/列表式预约引导、复购留存×1），不依赖供应商云端",
+      "botFlowController+routes": "新增 GET /:id/export（JSON导出）、POST /import（导入为非激活）、GET /report（按联系人聚合 bot消息/回复/起止时间，format=excel|pdf 导出，新装 pdfkit 顺带修好聊天导出PDF的依赖缺失）、marketplace 列表/详情/install；固定路径注册在 /:id 之前",
+      "services/botFlowEngine.js": "saveOutbound 的 metadata 增加 flowId/flowName（报表按流程分组的数据源，历史消息显示“(未标记)”）",
+      "简易编辑器": "新增 /client/bot-flows/[id]/easy：傻瓜式步骤卡片（发文字/图片/图文按钮/列表/提问/等待/打标签）+ 右侧手机实时预览（FlowPhonePreview 公共组件，点气泡定位步骤）；按钮/列表项可跳转任意步骤；新建流程和装模板默认进简易编辑器，高级画布保留；含复杂分支（nextTimeout 等）的流程显示提示",
+      "src/components/FlowPhonePreview.tsx(新增)": "WhatsApp 手机模拟预览公共组件（市场预览+简易编辑器共用），支持高亮/点击联动"
     }
   }
 }

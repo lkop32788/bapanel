@@ -170,6 +170,185 @@ const createPresetFlow = async (req, res) => {
   }
 };
 
+// 导出流程为 JSON（去掉运行数据和归属字段，可跨面板导入）
+const exportBotFlow = async (req, res) => {
+  try {
+    const flow = await BotFlow.findOne({ _id: req.params.id, workspace: req.workspace._id }).lean();
+    if (!flow) return res.status(404).json({ success: false, message: 'Flow not found' });
+    const { name, triggerKeywords, matchType, eventTrigger, startNode, startX, startY, nodes } = flow;
+    res.json({ success: true, data: { name, triggerKeywords, matchType, eventTrigger, startNode, startX, startY, nodes } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 从导出的 JSON 导入（创建为非激活流程）
+const importBotFlow = async (req, res) => {
+  try {
+    const f = req.body?.flow;
+    if (!f || typeof f !== 'object' || !f.name || !Array.isArray(f.nodes) || f.nodes.length === 0 || f.nodes.length > 300) {
+      return res.status(400).json({ success: false, message: '流程文件无效：需要 name 和 nodes' });
+    }
+    const flow = await BotFlow.create({
+      workspace: req.workspace._id,
+      name: String(f.name).slice(0, 120),
+      triggerKeywords: Array.isArray(f.triggerKeywords) ? f.triggerKeywords.slice(0, 50).map(String) : [],
+      matchType: ['exact', 'contains'].includes(f.matchType) ? f.matchType : 'contains',
+      eventTrigger: ['', 'dnp', 'new_lead'].includes(f.eventTrigger) ? f.eventTrigger : '',
+      startNode: String(f.startNode || ''),
+      startX: Number(f.startX) || 40,
+      startY: Number(f.startY) || 60,
+      nodes: f.nodes,
+      isActive: false,
+      createdBy: req.user._id,
+    });
+    res.status(201).json({ success: true, data: flow });
+  } catch (error) {
+    res.status(400).json({ success: false, message: '流程文件无效：' + error.message });
+  }
+};
+
+// 运行报表：按联系人聚合机器人消息与回复（?from&to&flowId&format=excel|pdf）
+const botFlowReport = async (req, res) => {
+  try {
+    const Message = require('../models/Message');
+    const from = req.query.from ? new Date(req.query.from) : new Date(Date.now() - 29 * 86400000);
+    const to = req.query.to ? new Date(new Date(req.query.to).getTime() + 86400000 - 1) : new Date();
+    const match = {
+      workspace: req.workspace._id,
+      direction: 'outbound',
+      'metadata.source': 'bot_flow',
+      createdAt: { $gte: from, $lte: to },
+    };
+    if (req.query.flowId) match['metadata.flowId'] = String(req.query.flowId);
+
+    const LIMIT = 20000;
+    const perContact = await Message.aggregate([
+      { $match: match },
+      { $group: {
+        _id: '$contact',
+        botMessages: { $sum: 1 },
+        firstAt: { $min: '$createdAt' },
+        lastAt: { $max: '$createdAt' },
+        flowNames: { $addToSet: '$metadata.flowName' },
+      } },
+      { $sort: { lastAt: -1 } },
+      { $limit: LIMIT + 1 },
+    ]);
+    const truncated = perContact.length > LIMIT;
+    const list = perContact.slice(0, LIMIT);
+    const contactIds = list.map(r => r._id).filter(Boolean);
+
+    const [contacts, replyAgg, flowAgg] = await Promise.all([
+      require('../models/Contact').find({ _id: { $in: contactIds } }).select('name phone').lean(),
+      Message.aggregate([
+        { $match: { workspace: req.workspace._id, direction: 'inbound', contact: { $in: contactIds }, createdAt: { $gte: from, $lte: to } } },
+        { $group: { _id: '$contact', n: { $sum: 1 } } },
+      ]),
+      Message.aggregate([
+        { $match: match },
+        { $group: { _id: { $ifNull: ['$metadata.flowName', '(未标记)'] }, botMessages: { $sum: 1 }, contacts: { $addToSet: '$contact' } } },
+        { $sort: { botMessages: -1 } },
+      ]),
+    ]);
+    const cMap = Object.fromEntries(contacts.map(c => [String(c._id), c]));
+    const rMap = Object.fromEntries(replyAgg.map(r => [String(r._id), r.n]));
+    const rows = list.map(r => ({
+      phone: cMap[String(r._id)]?.phone || '',
+      name: cMap[String(r._id)]?.name || '',
+      flows: (r.flowNames || []).filter(Boolean).join(', ') || '(未标记)',
+      botMessages: r.botMessages,
+      replies: rMap[String(r._id)] || 0,
+      firstAt: r.firstAt,
+      lastAt: r.lastAt,
+    }));
+    const data = {
+      totals: {
+        numbers: rows.length,
+        botMessages: rows.reduce((s, r) => s + r.botMessages, 0),
+        replies: rows.reduce((s, r) => s + r.replies, 0),
+        truncated,
+      },
+      flows: flowAgg.map(f => ({ name: f._id, numbers: (f.contacts || []).length, botMessages: f.botMessages })),
+      rows,
+    };
+
+    const format = String(req.query.format || '');
+    if (format === 'excel') {
+      const XLSX = require('xlsx');
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.map(r => ({
+        号码: r.phone, 名称: r.name, 机器人流程: r.flows, 机器人消息: r.botMessages,
+        回复: r.replies, 首次活动: r.firstAt, 最近活动: r.lastAt,
+      }))), 'Report');
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.set('Content-Disposition', 'attachment; filename="bot-flow-report.xlsx"');
+      return res.send(buf);
+    }
+    if (format === 'pdf') {
+      const PDFDocument = require('pdfkit');
+      const doc = new PDFDocument({ margin: 36, size: 'A4' });
+      res.set('Content-Type', 'application/pdf');
+      res.set('Content-Disposition', 'attachment; filename="bot-flow-report.pdf"');
+      doc.pipe(res);
+      doc.fontSize(14).text('Bot Flow Report', { align: 'center' });
+      doc.fontSize(9).text(`${from.toISOString().slice(0, 10)} ~ ${to.toISOString().slice(0, 10)}  |  Numbers: ${data.totals.numbers}  Bot msgs: ${data.totals.botMessages}  Replies: ${data.totals.replies}`, { align: 'center' });
+      doc.moveDown();
+      for (const r of rows.slice(0, 2000)) {
+        doc.fontSize(8).text(`${r.phone}  ${r.name}  |  flow: ${r.flows}  |  bot ${r.botMessages} / reply ${r.replies}`);
+      }
+      doc.end();
+      return;
+    }
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 模板市场（本地内置模板）
+const marketplaceList = async (req, res) => {
+  try {
+    res.json({ success: true, data: require('../services/marketplaceTemplates').getCatalog() });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const marketplaceItem = async (req, res) => {
+  try {
+    const t = require('../services/marketplaceTemplates').getTemplate(req.params.id);
+    if (!t) return res.status(404).json({ success: false, message: '模板不存在' });
+    const { def, ...rest } = t;
+    res.json({ success: true, data: rest });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const marketplaceInstall = async (req, res) => {
+  try {
+    const t = require('../services/marketplaceTemplates').getTemplate(req.params.id);
+    if (!t) return res.status(404).json({ success: false, message: '模板不存在' });
+    const def = t.def;
+    const flow = await BotFlow.create({
+      workspace: req.workspace._id,
+      name: String(req.body?.name || def.name).slice(0, 120),
+      triggerKeywords: def.triggerKeywords || [],
+      matchType: def.matchType || 'contains',
+      eventTrigger: def.eventTrigger || '',
+      startNode: def.startNode,
+      nodes: def.nodes,
+      isActive: false,
+      createdBy: req.user._id,
+    });
+    res.status(201).json({ success: true, data: flow });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 const deleteBotFlow = async (req, res) => {
   try {
     const flow = await BotFlow.findOneAndDelete({ _id: req.params.id, workspace: req.workspace._id });
@@ -180,4 +359,4 @@ const deleteBotFlow = async (req, res) => {
   }
 };
 
-module.exports = { getBotFlows, getBotFlow, createBotFlow, updateBotFlow, deleteBotFlow, generateBotFlow, createPresetFlow };
+module.exports = { getBotFlows, getBotFlow, createBotFlow, updateBotFlow, deleteBotFlow, generateBotFlow, createPresetFlow, exportBotFlow, importBotFlow, botFlowReport, marketplaceList, marketplaceItem, marketplaceInstall };

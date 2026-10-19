@@ -2,7 +2,7 @@
 import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit, Trash2, Workflow, BarChart3, Sparkles, LayoutTemplate, Download, Upload, FileBarChart, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Workflow, BarChart3, Sparkles, LayoutTemplate, Download, Upload, FileBarChart, Copy, Smartphone } from 'lucide-react';
 import FlowMarketplace from '@/components/FlowMarketplace';
 import BotFlowReport from '@/components/BotFlowReport';
 import Button from '@/components/ui/Button';
@@ -161,9 +161,9 @@ export default function BotFlowsPage() {
         toast.success(translateApiMessage("流程已更新"));
       } else {
         const res = await botFlowApi.create(payload);
-        toast.success(translateApiMessage("流程已创建 — 打开构建器"));
+        toast.success(translateApiMessage("流程已创建 — 打开简易编辑器"));
         rememberTriggerUrl(res);
-        router.push(`/client/bot-flows/${res.data.data._id}`);
+        router.push(`/client/bot-flows/${res.data.data._id}/easy`);
         return;
       }
       setShowModal(false); load();
@@ -245,7 +245,8 @@ export default function BotFlowsPage() {
     )},
     { key: 'actions', title: "行动", render: (f: BotFlow) => (
       <div className="flex gap-1">
-        <Button size="sm" onClick={() => router.push(`/client/bot-flows/${f._id}`)} icon={<Workflow className="w-3.5 h-3.5" />}>流程设计器</Button>
+        <Button size="sm" onClick={() => router.push(`/client/bot-flows/${f._id}/easy`)} icon={<Smartphone className="w-3.5 h-3.5" />}>简易编辑</Button>
+        <Button size="sm" variant="outline" onClick={() => router.push(`/client/bot-flows/${f._id}`)} icon={<Workflow className="w-3.5 h-3.5" />}>高级设计器</Button>
         <button onClick={() => setStatsFlow(f)} className="p-1.5 hover:bg-indigo-50 rounded" title={"分析 — 查看客户离开的地方"}><BarChart3 className="w-4 h-4 text-indigo-500" /></button>
         <button onClick={() => {
           setEditId(f._id);
@@ -416,7 +417,7 @@ export default function BotFlowsPage() {
         flows={flows.map((f) => ({ _id: f._id, name: f.name }))} />
 
       <FlowMarketplace isOpen={showPreset} onClose={() => setShowPreset(false)}
-        onInstalled={(id) => router.push(`/client/bot-flows/${id}`)} />
+        onInstalled={(id) => router.push(`/client/bot-flows/${id}/easy`)} />
 
       <Modal isOpen={showAiModal} onClose={() => !generating && setShowAiModal(false)} title={"使用 AI 生成机器人流程"} size="lg">
         <div className="space-y-4">

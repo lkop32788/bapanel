@@ -46,7 +46,6 @@ export const navItems: NavItem[] = [
       { label: 'Message Templates', href: '/client/templates', icon: <FileText className="w-4 h-4" /> },
       { label: 'Broadcast', href: '/client/broadcasts', icon: <Send className="w-4 h-4" /> },
       { label: 'Smart Broadcast', href: '/client/smart-broadcast', icon: <Zap className="w-4 h-4" /> },
-      { label: 'Sequence Campaigns', href: '/client/sequence-campaigns', icon: <Layers className="w-4 h-4" /> },
     ],
   },
   {
@@ -155,7 +154,6 @@ const ADMIN_FEATURE_MAP: Record<string, string> = {
   '/client/templates': 'templates',
   '/client/broadcasts': 'broadcasts',
   '/client/smart-broadcast': 'smartBroadcast',
-  '/client/sequence-campaigns': 'sequenceCampaigns',
   '/client/followups': 'followups',
   '/client/bot-flows': 'botFlows',
   '/client/automations': 'automations',
