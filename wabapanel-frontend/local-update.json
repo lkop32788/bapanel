@@ -159,6 +159,13 @@
       "src/app/admin/settings/page.tsx": "系统偏好设置新增「省钱专家」tab：接口地址 + API Token + 测试连接（查余额）",
       "src/lib/saverTypes.tsx(新增)": "检测类型目录：19 个平台分组（slug/图标），组内 ~52 种类型（tab名/全名/input/country/hint）",
       "src/app/client/saver/[type]/page.tsx(新增)": "动态路由：每个平台分组一页（/client/saver/ws 等），组内类型用页内 tab 切换"
+    },
+    "yuncangProxy": {
+      "note": "独立 Go 缓存代理「云仓中转管理」yuncang-proxy/（透明模仿 th333 接口），面板 saverApi.baseUrl 指向 http://127.0.0.1:5090；命中缓存的号码不再提交上游。th333 有 IP 白名单，服务器出口 IP 43.160.215.105 需加白",
+      "部署": "pm2 进程 yuncang-proxy（已 pm2 save），二进制 yuncang-proxy/yuncang-proxy（go1.23 /usr/local/go 编译），数据 yuncang-proxy/data/（SQLite cache.db + results/，已 gitignore）",
+      "缓存有效期": "筛开通类30天、性别年龄90天、筛活跃2天、用户名类7天、开关机状态不缓存；wsValid/wsSimpleValid 共享缓存，zaloGender/Quick 共享",
+      "行为": "未知类型/未知任务编号/余额查询原样透传；上游结果（txt/zip）解析入库后与缓存命中合并输出为纯文本",
+      "管理页": "自带 /admin 网页「云仓中转管理」（Basic Auth，用户 admin，密码在 yuncang-proxy/admin-pass.txt，pm2 启动环境 SAVER_ADMIN_PASS）：概览/各类型缓存量/最近任务/清空缓存。绑定 0.0.0.0:5090，外部访问需放行 5090 端口"
     }
   },
   "backupArchive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz",
