@@ -293,5 +293,6 @@
       "cleanup_20261019": "文件权限：两个.env改600、wa_sessions改700；删真孤儿 services/auditService.js、services/emailService.js、config/worldCurrencies.js、middleware/licenseGate.js（models/index.js仍被chatRouter/dailyDigest引用，保留）；卸载无用依赖：后端slugify/patch-package，前端@tanstack/react-query/@xyflow/react/date-fns/react-dropzone"
     },
     "patchRisk": "供应商补丁若覆盖 routes/admin.js、routes/kkhsLicense.js、controllers/adminController.js 需重新应用本修复"
-  }
+  },
+  "dashboardRedesign_20261019": "商户仪表盘排版重做（src/app/client/dashboard/page.tsx）：7个彩色分区标题全删，改三层结构——顶部一行6个核心KPI（今天发/收/未读/活跃对话/联系人/新增30天）→ 主体双栏（近30天消息柱状图+底部内嵌发送/送达/已读/失败四统计，右侧今日待办=到期提醒+AI跟进/机器人/营销活动快捷行，失败>0时追加红色行）→ 底部三栏（联系人增长/最近对话/最近营销活动）→ 页尾功能入口chips（模板/预设/关键词/AI外呼）。删低信息量饼图与重复卡片，文案修正（读→已读、接触增长→联系人增长、最近的谈话→最近对话、running→进行中）。KkhsDashboard/AgentDashboard分支未动"
 }
