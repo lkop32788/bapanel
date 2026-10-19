@@ -125,6 +125,9 @@ function getSender(workspace, conversation) {
   if (conversation && conversation.channel === 'whatsapp_qr') {
     const waQr = require('./waQrService');
     const wsId = workspace._id;
+    // 号池：机器人/自动化回复跟会话绑定的槽位走（客户视角不换号）
+    const _qm = /^qr:(.+)$/.exec(conversation.waNumberId || '');
+    const qrSlot = _qm ? _qm[1] : 'default';
     const wrap = async (fn) => {
       try {
         const r = await fn();
@@ -135,8 +138,8 @@ function getSender(workspace, conversation) {
       }
     };
     const sender = {
-      sendTextMessage: (to, text) => wrap(() => waQr.sendMessage(wsId, to, { type: 'text', text })),
-      sendMediaMessage: (to, type, url, caption) => wrap(() => waQr.sendMessage(wsId, to, { type, media: { url, caption: caption || '' } })),
+      sendTextMessage: (to, text) => wrap(() => waQr.sendMessage(wsId, to, { type: 'text', text }, qrSlot)),
+      sendMediaMessage: (to, type, url, caption) => wrap(() => waQr.sendMessage(wsId, to, { type, media: { url, caption: caption || '' } }, qrSlot)),
       sendTemplateMessage: async () => ({ success: false, error: { message: 'Templates are not supported on the WhatsApp QR channel' } }),
       // Interactive buttons/lists are rendered as numbered text options on QR;
       // the reply number/title is mapped back to the option id on incoming.
@@ -163,8 +166,8 @@ function getSender(workspace, conversation) {
         sender.lastSentText = text;
         const h = interactive?.header;
         const mediaLink = h && h.type && h.type !== 'text' && h[h.type]?.link;
-        if (mediaLink) return waQr.sendMessage(wsId, to, { type: h.type, media: { url: mediaLink, caption: text } });
-        return waQr.sendMessage(wsId, to, { type: 'text', text });
+        if (mediaLink) return waQr.sendMessage(wsId, to, { type: h.type, media: { url: mediaLink, caption: text } }, qrSlot);
+        return waQr.sendMessage(wsId, to, { type: 'text', text }, qrSlot);
       }),
     };
     return sender;

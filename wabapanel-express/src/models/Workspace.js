@@ -60,6 +60,33 @@ const workspaceSchema = new mongoose.Schema({
     apiId: { type: String, default: '' },
     apiHash: { type: String, default: '' },
   },
+  // ===== 号池 v2（2026-10-20）：网页版 WhatsApp / TG 个人号 多槽位 =====
+  // 主槽位 slotId='default' 沿用上面的 waQr / tgPersonal 子文档（向后兼容）；
+  // 这里只存附加槽位。会话绑定写在 conversation.waNumberId（'qr:<slotId>' / 'tgp:<slotId>'）
+  waQrSlots: [{
+    slotId: { type: String, required: true },
+    label: { type: String, default: '' },
+    status: { type: String, default: 'disconnected' },
+    phone: { type: String, default: '' },
+    enabled: { type: Boolean, default: true },
+    warmupStartedAt: { type: Date },
+    dailyLimit: { type: Number, default: 1000 },
+    sentToday: { type: Number, default: 0 },
+    sentDate: { type: String, default: '' },
+  }],
+  waQrPoolEnabled: { type: Boolean, default: false },
+  waQrPoolCursor: { type: Number, default: 0 },
+  tgPersonalSlots: [{
+    slotId: { type: String, required: true },
+    label: { type: String, default: '' },
+    status: { type: String, default: 'disconnected' },
+    phone: { type: String, default: '' },
+    username: { type: String, default: '' },
+    session: { type: String, default: '' },
+    enabled: { type: Boolean, default: true },
+  }],
+  tgPersonalPoolEnabled: { type: Boolean, default: false },
+  tgPersonalPoolCursor: { type: Number, default: 0 },
   // Aliyun Chat App Message Service — Meta Premier BSP, official WhatsApp
   // channel reached through Alibaba Cloud instead of a direct Meta token.
   chatApp: {

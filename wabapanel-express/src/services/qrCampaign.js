@@ -2,6 +2,13 @@
 // Uses the QR sender adapter (numbered-option buttons, media, lists) and the
 // QR warm-up/daily-limit engine; when the daily cap is hit the campaign
 // auto-pauses and resumes when quota is available again.
+//
+// 号池模式（campaign.senderNumberId === 'pool'，2026-10-20）：
+// - 每个受众在可用槽位（已连接 + enabled + 今日未达日限额，含 default）间
+//   原子轮询取槽发送；已绑定 qr:<slot> 的会话优先用原槽（粘住，客户视角不换号）
+// - 某槽发送中达到日限额自动换下一个可用槽重试
+// - 全部槽位不可用时沿用原有"自动暂停 + resumePending 恢复"机制
+// 非 pool 时行为与旧版完全一致（default 槽）。
 const Campaign = require('../models/Campaign');
 const Contact = require('../models/Contact');
 const Workspace = require('../models/Workspace');
@@ -10,13 +17,33 @@ const Message = require('../models/Message');
 
 const LIMIT_ERR = /Daily safety limit reached/i;
 
-async function sendToContact(workspace, campaign, preset, contact, io) {
+// slotId 为空 = 旧行为（default 槽，走 botFlowEngine.getSender）；
+// 传了 slotId = 号池模式，按槽发送并把新建会话绑定到 'qr:<slotId>'。
+async function sendToContact(workspace, campaign, preset, contact, io, slotId) {
   const conversation = await Conversation.findOneAndUpdate(
     { workspace: workspace._id, contact: contact._id, channel: 'whatsapp_qr' },
-    { workspace: workspace._id, contact: contact._id, channel: 'whatsapp_qr', status: 'active' },
+    {
+      $set: { status: 'active' },
+      // 新建会话绑定发送槽位（$setOnInsert：已有会话不覆盖其 waNumberId）
+      $setOnInsert: {
+        workspace: workspace._id, contact: contact._id, channel: 'whatsapp_qr',
+        ...(slotId ? { waNumberId: `qr:${slotId}` } : {}),
+      },
+    },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
-  const sender = require('./botFlowEngine').getSender(workspace, conversation);
+  // 号池模式：老会话没绑定号的补绑到本次发送槽（仅当为空，不覆盖已有）
+  if (slotId && !conversation.waNumberId) {
+    try {
+      await Conversation.updateOne(
+        { _id: conversation._id, $or: [{ waNumberId: null }, { waNumberId: '' }] },
+        { $set: { waNumberId: `qr:${slotId}` } }
+      );
+    } catch (e) { /* noop */ }
+  }
+  const sender = slotId
+    ? require('./waQrService').makeSlotSender(workspace, conversation, slotId)
+    : require('./botFlowEngine').getSender(workspace, conversation);
   const { sendPreset } = require('./presetSend');
   const { result, msgType, renderedText } = await sendPreset(sender, contact.phone, preset, contact);
   if (!result?.success) {
@@ -38,7 +65,7 @@ async function sendToContact(workspace, campaign, preset, contact, io) {
     media: preset.mediaUrl ? { url: preset.mediaUrl } : undefined,
     waMessageId: result.data?.messages?.[0]?.id || '',
     status: 'sent',
-    metadata: { source: 'qr_campaign', campaignId: campaign._id, channel: 'whatsapp_qr' },
+    metadata: { source: 'qr_campaign', campaignId: campaign._id, channel: 'whatsapp_qr', ...(slotId ? { qrSlotId: slotId } : {}) },
   });
   await Conversation.findByIdAndUpdate(conversation._id, {
     lastMessage: { text, timestamp: new Date(), direction: 'outbound', type: msgType || 'text' },
@@ -46,6 +73,40 @@ async function sendToContact(workspace, campaign, preset, contact, io) {
   });
   if (io) io.to(`workspace:${workspace._id}`).emit('new_message', { message: msg, conversationId: conversation._id });
   return true;
+}
+
+// 号池模式下给单个受众发送：粘住优先 + 限额自动换槽。
+// 全部槽位不可用时抛 qrLimit 错误（外层据此自动暂停）。
+async function sendViaPool(workspace, campaign, preset, contact, io) {
+  const waQr = require('./waQrService');
+  // 粘住：会话已绑定 qr:<slot> 且该槽当前可用则继续用原槽
+  let slotId = '';
+  try {
+    const conv = await Conversation.findOne({ workspace: workspace._id, contact: contact._id, channel: 'whatsapp_qr' })
+      .select('waNumberId').lean();
+    const m = conv && /^qr:(.+)$/.exec(conv.waNumberId || '');
+    if (m) {
+      const usable = await waQr.usableSlots(workspace._id);
+      if (usable.includes(m[1])) slotId = m[1];
+    }
+  } catch (e) { /* noop */ }
+  if (!slotId) slotId = await waQr.pickPoolSlot(workspace._id);
+  let attempts = 0;
+  let lastErr = null;
+  while (slotId) {
+    try {
+      return await sendToContact(workspace, campaign, preset, contact, io, slotId);
+    } catch (e) {
+      if (!e.qrLimit) throw e;
+      // 该槽发送中达到日限额：换下一个可用槽重试（pickPoolSlot 会自动跳过已满的槽）
+      lastErr = e;
+      if (++attempts >= 20) break;
+      slotId = await waQr.pickPoolSlot(workspace._id);
+    }
+  }
+  const err = lastErr || new Error('Daily safety limit reached (号池所有槽位均不可用或已达日限额)');
+  err.qrLimit = true;
+  throw err;
 }
 
 // Runs (or continues) a QR preset campaign over the given contacts.
@@ -56,6 +117,7 @@ async function execute(campaign, workspace, contacts, io) {
     await campaign.save();
     return;
   }
+  const poolMode = campaign.senderNumberId === 'pool';
   for (let i = 0; i < contacts.length; i++) {
     let contact = contacts[i];
     try {
@@ -72,12 +134,15 @@ async function execute(campaign, workspace, contacts, io) {
           (await Contact.findOne({ workspace: workspace._id, phone: new RegExp(phone + '$') })) ||
           (await Contact.create({ workspace: workspace._id, phone, name: 'WA ' + phone, channel: 'whatsapp_qr' }));
       }
-      const ok = await sendToContact(workspace, campaign, preset, contact, io);
+      const ok = poolMode
+        ? await sendViaPool(workspace, campaign, preset, contact, io)
+        : await sendToContact(workspace, campaign, preset, contact, io);
       if (ok) campaign.stats.sent++;
       else campaign.stats.failed++;
     } catch (e) {
       if (e.qrLimit) {
         // Daily cap reached: pause and remember who is still pending.
+        // 号池模式下走到这里 = 全部槽位都满/不可用（单槽满会自动换槽）。
         const remaining = contacts.slice(i)
           .map((c) => (c._id ? String(c._id) : String(c.phone || '')))
           .filter(Boolean);
@@ -108,8 +173,14 @@ async function resumePending() {
   for (const campaign of campaigns) {
     try {
       const waQr = require('./waQrService');
-      const st = await waQr.getStatus(campaign.workspace);
-      if (st.status !== 'connected' || st.sentToday >= st.todayCap) continue;
+      if (campaign.senderNumberId === 'pool') {
+        // 号池模式：任一槽位可用（已连接且今日未满额）即可恢复
+        const usable = await waQr.usableSlots(campaign.workspace);
+        if (!usable.length) continue;
+      } else {
+        const st = await waQr.getStatus(campaign.workspace);
+        if (st.status !== 'connected' || st.sentToday >= st.todayCap) continue;
+      }
       const workspace = await Workspace.findById(campaign.workspace);
       if (!workspace) continue;
       const pending = (campaign.variables && campaign.variables.qrPending) || [];

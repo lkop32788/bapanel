@@ -9,8 +9,9 @@ import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import Badge from '@/components/ui/Badge';
 import CampaignReportModal from '@/components/campaigns/CampaignReportModal';
-import { campaignApi, presetMessageApi, segmentApi, tagApi } from '@/lib/api';
-import type { Campaign, Segment, Tag } from '@/types';
+import { campaignApi, presetMessageApi, segmentApi, tagApi, waqrApi } from '@/lib/api';
+import type { Campaign, Segment, Tag, WaQrSlot } from '@/types';
+import { useAuthStore } from '@/stores/authStore';
 import toast from 'react-hot-toast';
 
 interface Preset { _id: string; name: string; body: string; }
@@ -20,11 +21,12 @@ export default function QrCampaignsPage() {
   const [presets, setPresets] = useState<Preset[]>([]);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
-  
+  const [qrSlots, setQrSlots] = useState<WaQrSlot[]>([]);
+  const { currentWorkspace } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', preset: '', audienceType: 'all', segments: [] as string[], tags: [] as string[],   minInterval: 5, maxInterval: 15 });
+  const [form, setForm] = useState({ name: '', preset: '', audienceType: 'all', segments: [] as string[], tags: [] as string[],   minInterval: 5, maxInterval: 15, senderNumberId: '' });
   const [numbersText, setNumbersText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
@@ -60,18 +62,19 @@ export default function QrCampaignsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [campRes, presetRes, segRes, tagRes] = await Promise.allSettled([
+      const [campRes, presetRes, segRes, tagRes, slotRes] = await Promise.allSettled([
         campaignApi.list({ type: 'preset', sendChannel: 'whatsapp_qr' }),
         presetMessageApi.list(),
         segmentApi.list(),
         tagApi.list(),
-        
+        waqrApi.slots(),
       ]);
       if (campRes.status === 'fulfilled') setCampaigns(campRes.value.data.data || []);
       if (presetRes.status === 'fulfilled') setPresets(presetRes.value.data.data || []);
       if (segRes.status === 'fulfilled') setSegments(segRes.value.data.data || []);
       if (tagRes.status === 'fulfilled') setTags(tagRes.value.data.data || []);
-      
+      if (slotRes.status === 'fulfilled') setQrSlots(slotRes.value.data.data || []);
+
     } catch { /* empty */ }
     setLoading(false);
   }, []);
@@ -89,6 +92,7 @@ export default function QrCampaignsPage() {
       const maxSec = Math.max(minSec, Number(form.maxInterval) || 0);
       const payload = {
         name: form.name, type: 'preset', presetMessage: form.preset, sendChannel: 'whatsapp_qr',
+        senderNumberId: form.senderNumberId || '',
         sendInterval: { minSec, maxSec },
         audience: { type: form.audienceType, segments: form.segments, tags: form.tags, numbers,   },
       };
@@ -103,7 +107,7 @@ export default function QrCampaignsPage() {
       toast.success(translateApiMessage(editId ? "WhatsApp 网络营销活动已更新" : "已创建 Web WhatsApp 活动"));
       setShowModal(false); setEditId(null);
       setCreateSchedAt(''); setCreateSchedRec('none');
-      setForm({ name: '', preset: '', audienceType: 'all', segments: [], tags: [],   minInterval: 5, maxInterval: 15 });
+      setForm({ name: '', preset: '', audienceType: 'all', segments: [], tags: [],   minInterval: 5, maxInterval: 15, senderNumberId: '' });
       fetchData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -112,13 +116,13 @@ export default function QrCampaignsPage() {
     setSubmitting(false);
   };
 
-  const handleEdit = (c: Campaign & { targetType?: string; targetSegments?: string[]; targetTags?: string[]; targetNumbers?: string[];   presetMessage?: { _id?: string } | string }) => {
+  const handleEdit = (c: Campaign & { targetType?: string; targetSegments?: string[]; targetTags?: string[]; targetNumbers?: string[]; senderNumberId?: string;   presetMessage?: { _id?: string } | string }) => {
     setEditId(c._id);
     setForm({
       name: c.name, preset: typeof c.presetMessage === 'string' ? c.presetMessage : (c.presetMessage?._id || ''),
       audienceType: c.targetType || 'all',
       segments: (c.targetSegments || []).map(String), tags: (c.targetTags || []).map(String),
-       
+      senderNumberId: c.senderNumberId || '',
       minInterval: (c as { sendInterval?: { minSec?: number } }).sendInterval?.minSec ?? 5,
       maxInterval: (c as { sendInterval?: { maxSec?: number } }).sendInterval?.maxSec ?? 15,
     });
@@ -212,6 +216,14 @@ export default function QrCampaignsPage() {
           <Select label={"预设模板"} value={form.preset} onChange={(e) => setForm({ ...form, preset: e.target.value })}
             options={[{ value: '', label: "选择预设模板" }, ...presets.map(p => ({ value: p._id, label: p.name }))]} />
           {presets.length === 0 && <p className="text-xs text-amber-600">首先在“预设模板”页面上创建一个模板。</p>}
+          {(currentWorkspace?.waQrPoolEnabled || qrSlots.some(s => !s.isDefault)) && (
+            <Select label={"发送号码"} value={form.senderNumberId} onChange={(e) => setForm({ ...form, senderNumberId: e.target.value })}
+              options={[
+                { value: '', label: '默认号（主号）' },
+                ...(currentWorkspace?.waQrPoolEnabled ? [{ value: 'pool', label: '号池轮询（已连接槽位平均分摊发送）' }] : []),
+                ...qrSlots.filter(s => !s.isDefault).map(s => ({ value: s.slotId, label: `${s.label || '槽位'}${s.phone ? ` (+${s.phone})` : ''}${s.status !== 'connected' ? ' — 未连接' : ''}` })),
+              ]} />
+          )}
           <Select label={"观众"} value={form.audienceType} onChange={(e) => setForm({ ...form, audienceType: e.target.value })}
             options={[{ value: 'all', label: "所有联系人" }, { value: 'segment', label: "按细分市场" }, { value: 'tag', label: "按标签" },  { value: 'numbers', label: "号码列表/CSV（bina 联系人保存 kiye）" }]} />
           

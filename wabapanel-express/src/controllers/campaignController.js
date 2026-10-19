@@ -662,9 +662,19 @@ const startCampaign = async (req, res) => {
     }
 
     if (campaign.sendChannel === 'whatsapp_qr') {
-      const st = await require('../services/waQrService').getStatus(req.workspace._id);
-      if (st.status !== 'connected') {
-        return res.status(400).json({ success: false, message: 'WhatsApp by QR is not connected (scan the QR on the Channels page)' });
+      const waQrSvc = require('../services/waQrService');
+      if (campaign.senderNumberId === 'pool') {
+        // 号池模式：任一槽位（含 default）已连接即可启动；
+        // 全部已满额时允许启动，由 qrCampaign 自动暂停、resumePending 次日恢复
+        const slots = await waQrSvc.listSlots(req.workspace._id);
+        if (!slots.some((s) => s.enabled && s.status === 'connected')) {
+          return res.status(400).json({ success: false, message: '号池中没有已连接的网页版 WhatsApp 号码（请先在渠道页扫码连接）' });
+        }
+      } else {
+        const st = await waQrSvc.getStatus(req.workspace._id);
+        if (st.status !== 'connected') {
+          return res.status(400).json({ success: false, message: 'WhatsApp by QR is not connected (scan the QR on the Channels page)' });
+        }
       }
     } else if (campaign.sendChannel === 'whatsapp_chatapp') {
       if (!req.workspace.chatApp?.enabled || !req.workspace.chatApp?.isConnected) {

@@ -24,9 +24,32 @@ export interface Workspace {
   settings: WorkspaceSettings;
 
   timezone: string;
-  
-  
+  waQrPoolEnabled?: boolean; // 号池 v2：网页版 WhatsApp 多槽位轮询
+  tgPersonalPoolEnabled?: boolean; // 号池 v2：TG 个人号多账号轮询
   createdAt: string;
+}
+
+// 号池 v2：网页版 WhatsApp (QR) 号码槽位
+export interface WaQrSlot {
+  slotId: string;
+  label: string;
+  status: string; // connected | qr | connecting | reconnecting | disconnected
+  phone?: string;
+  enabled: boolean;
+  dailyLimit?: number;
+  sentToday?: number;
+  isDefault?: boolean;
+}
+
+// 号池 v2：Telegram 个人号账号槽位
+export interface TgPersonalSlot {
+  slotId: string;
+  label: string;
+  status: string; // connected | qr | connecting | awaiting_code | awaiting_password | verifying | disconnected | error
+  phone?: string;
+  username?: string;
+  enabled: boolean;
+  isDefault?: boolean;
 }
 
 export interface WorkspaceMember {

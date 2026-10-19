@@ -223,7 +223,15 @@ const sendMessage = async (req, res) => {
     else if (conversation.channel === 'telegram_personal') {
       try {
         const tgUser = require('../services/tgUserService');
-        const result = await tgUser.send(req.workspace._id, conversation.contact.phone, { type: type || 'text', text, media });
+        // 号池：会话已绑定账号则粘住；未绑定且开池时轮询取号并绑定
+        let tgpSlot = 'default';
+        const tm = /^tgp:(.+)$/.exec(conversation.waNumberId || '');
+        if (tm) tgpSlot = tm[1];
+        else if (req.workspace.tgPersonalPoolEnabled) {
+          const picked = await tgUser.pickPoolSlot(req.workspace._id);
+          if (picked) { tgpSlot = picked; conversation.waNumberId = 'tgp:' + picked; }
+        }
+        const result = await tgUser.send(req.workspace._id, conversation.contact.phone, { type: type || 'text', text, media, slotId: tgpSlot });
         message.waMessageId = result?.id ? 'tgp_' + result.id : '';
         message.status = 'sent';
       } catch (e) {
@@ -236,7 +244,15 @@ const sendMessage = async (req, res) => {
     else if (conversation.channel === 'whatsapp_qr') {
       try {
         const waQr = require('../services/waQrService');
-        const result = await waQr.sendMessage(req.workspace._id, conversation.contact.phone, { type: type || 'text', text, media, contextMessageId: contextWamid, contextFromMe: quotedContext && quotedContext.from === 'outbound', contextText: quotedContext && quotedContext.text });
+        // 号池：会话已绑定槽位则粘住；未绑定且开池时轮询取槽并绑定
+        let qrSlot = 'default';
+        const qm = /^qr:(.+)$/.exec(conversation.waNumberId || '');
+        if (qm) qrSlot = qm[1];
+        else if (req.workspace.waQrPoolEnabled) {
+          const picked = await waQr.pickPoolSlot(req.workspace._id);
+          if (picked) { qrSlot = picked; conversation.waNumberId = 'qr:' + picked; }
+        }
+        const result = await waQr.sendMessage(req.workspace._id, conversation.contact.phone, { type: type || 'text', text, media, contextMessageId: contextWamid, contextFromMe: quotedContext && quotedContext.from === 'outbound', contextText: quotedContext && quotedContext.text }, qrSlot);
         message.waMessageId = result?.key?.id ? 'qr_' + result.key.id : '';
         message.status = 'sent';
       } catch (e) {
@@ -456,7 +472,8 @@ const reactMessage = async (req, res) => {
     try {
       if (conversation.channel === 'whatsapp_qr') {
         const waQr = require('../services/waQrService');
-        await waQr.sendReaction(req.workspace._id, phone, wamid, emoji || '', target.direction === 'outbound');
+        const qm = /^qr:(.+)$/.exec(conversation.waNumberId || '');
+        await waQr.sendReaction(req.workspace._id, phone, wamid, emoji || '', target.direction === 'outbound', qm ? qm[1] : 'default');
       } else if (req.workspace.whatsapp && req.workspace.whatsapp.isConnected) {
         const waCfg = req.workspace.whatsapp;
         const senderId = conversation.waNumberId || waCfg.phoneNumberId;
@@ -490,7 +507,8 @@ const subscribePresence = async (req, res) => {
     if (!conversation) return res.status(404).json({ success: false, message: 'Conversation not found' });
     if (conversation.channel !== 'whatsapp_qr') return res.json({ success: true, data: { supported: false } });
     const waQr = require('../services/waQrService');
-    const ok = await waQr.subscribePresence(req.workspace._id, conversation.contact.phone);
+    const qmP = /^qr:(.+)$/.exec(conversation.waNumberId || '');
+    const ok = await waQr.subscribePresence(req.workspace._id, conversation.contact.phone, qmP ? qmP[1] : 'default');
     res.json({ success: true, data: { supported: ok, phone: conversation.contact.phone } });
   } catch (error) {
     sendErr(res, error);

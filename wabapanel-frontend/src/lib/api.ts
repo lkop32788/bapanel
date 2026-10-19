@@ -110,6 +110,18 @@ export const tgPersonalApi = {
   password: (password: string) => api.post('/tgpersonal/password', { password }),
   status: () => api.get('/tgpersonal/status'),
   disconnect: () => api.post('/tgpersonal/disconnect', {}),
+  // 号池 v2：多账号槽位
+  slots: () => api.get('/tgpersonal/slots'),
+  createSlot: (label: string) => api.post('/tgpersonal/slots', { label }),
+  slotConnectQr: (slotId: string) => api.post(`/tgpersonal/slots/${slotId}/connect-qr`, {}),
+  slotConnect: (slotId: string, phone: string, apiId?: string, apiHash?: string) => api.post(`/tgpersonal/slots/${slotId}/connect`, { apiId, apiHash, phone }),
+  slotCode: (slotId: string, code: string) => api.post(`/tgpersonal/slots/${slotId}/code`, { code }),
+  slotPassword: (slotId: string, password: string) => api.post(`/tgpersonal/slots/${slotId}/password`, { password }),
+  slotStatus: (slotId: string) => api.get(`/tgpersonal/slots/${slotId}/status`),
+  slotDisconnect: (slotId: string) => api.post(`/tgpersonal/slots/${slotId}/disconnect`, {}),
+  deleteSlot: (slotId: string) => api.delete(`/tgpersonal/slots/${slotId}`),
+  updateSlotSettings: (slotId: string, data: { label?: string; enabled?: boolean }) => api.put(`/tgpersonal/slots/${slotId}/settings`, data),
+  setPool: (enabled: boolean) => api.put('/tgpersonal/pool', { enabled }),
 };
 
 // Workspaces
@@ -120,6 +132,15 @@ export const waqrApi = {
   settings: (dailyLimit: number) => api.post('/waqr/settings', { dailyLimit }),
   sendNew: (phone: string, text: string) => api.post('/waqr/send-new', { phone, text }),
   disconnect: () => api.post('/waqr/disconnect', {}),
+  // 号池 v2：多号码槽位
+  slots: () => api.get('/waqr/slots'),
+  createSlot: (label: string) => api.post('/waqr/slots', { label }),
+  connectSlot: (slotId: string) => api.post(`/waqr/slots/${slotId}/connect`, {}),
+  slotStatus: (slotId: string) => api.get(`/waqr/slots/${slotId}/status`),
+  disconnectSlot: (slotId: string) => api.post(`/waqr/slots/${slotId}/disconnect`, {}),
+  deleteSlot: (slotId: string) => api.delete(`/waqr/slots/${slotId}`),
+  updateSlotSettings: (slotId: string, data: { label?: string; dailyLimit?: number; enabled?: boolean }) => api.put(`/waqr/slots/${slotId}/settings`, data),
+  setPool: (enabled: boolean) => api.put('/waqr/pool', { enabled }),
 };
 
 export const workspaceApi = {
