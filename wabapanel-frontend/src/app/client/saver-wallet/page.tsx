@@ -131,13 +131,18 @@ export default function RechargeCenterPage() {
     } catch { /* empty */ }
   };
 
+  // 线下申请也按 USDT 输入，按当前汇率折算成元提交
+  const rate = wallet?.usdt?.rate || 7;
   const submitRequest = async () => {
-    const n = Number(amount);
-    if (!Number.isFinite(n) || n <= 0) { setMsg('请输入有效金额'); return; }
+    const u = Number(amount);
+    if (!Number.isFinite(u) || u < 1) { setMsg('请输入 USDT 金额（最低 1）'); return; }
     setSubmitting(true);
     setMsg('');
     try {
-      await saverCheckApi.topupRequest({ amount: n, note });
+      await saverCheckApi.topupRequest({
+        amount: round2(u * rate),
+        note: `USDT ${u}U${note ? ' · ' + note : ''}`,
+      });
       setAmount('');
       setNote('');
       setMsg('申请已提交，管理员审核后自动到账');
@@ -200,9 +205,12 @@ export default function RechargeCenterPage() {
           <Card>
             <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2"><Send className="w-4 h-4 text-emerald-600" />申请充值</h3>
             <div className="space-y-3">
-              <input type="number" min="0" value={amount} onChange={e => setAmount(e.target.value)} placeholder="充值金额（元）"
+              <input type="number" min="1" value={amount} onChange={e => setAmount(e.target.value)} placeholder="充值金额（USDT）"
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              <input value={note} onChange={e => setNote(e.target.value)} placeholder="备注：付款方式/凭证说明（选填）"
+              {Number(amount) > 0 && (
+                <p className="text-xs text-gray-400">到账约 <span className="font-semibold text-emerald-600">{rmb(Number(amount) * rate)}</span>（1 USDT = ￥{rate}）</p>
+              )}
+              <input value={note} onChange={e => setNote(e.target.value)} placeholder="备注：转账凭证/哈希说明（选填）"
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
               <div className="flex items-center gap-3">
                 <Button onClick={submitRequest} loading={submitting}>提交申请</Button>

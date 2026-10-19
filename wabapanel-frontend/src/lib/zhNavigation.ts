@@ -19,7 +19,6 @@ export const zhNavigation: Record<string, string> = {
   "WhatsApp Status Check": "WS客户状态",
   "Telegram Status Check": "TG客户状态",
   "More Status Checks": "更多检测",
-  "Saver Billing": "商家计费",
   "Saver Credits": "充值中心",
   "Preset Templates": "预设模板",
   "Preset Campaigns": "预设营销活动",

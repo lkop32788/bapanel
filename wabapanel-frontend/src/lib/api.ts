@@ -303,14 +303,6 @@ export const shortLinkApi = {
 };
 
 // Lead source tracking links / QR codes
-export const trackedLinkApi = {
-  list: () => api.get('/tracked-links'),
-  create: (data: object) => api.post('/tracked-links', data),
-  qr: (id: string) => api.get(`/tracked-links/${id}/qr`),
-  update: (id: string, data: object) => api.put(`/tracked-links/${id}`, data),
-  delete: (id: string) => api.delete(`/tracked-links/${id}`),
-};
-
 export const rotationLinkApi = {
   list: () => api.get('/rotation-links'),
   numbers: () => api.get('/rotation-links/numbers'),
@@ -512,6 +504,10 @@ export const adminApi = {
     api.post('/admin/saver-billing/topup', data),
   saverLedger: (params: { workspace?: string; page?: number; limit?: number }) =>
     api.get('/admin/saver-billing/ledger', { params }),
+  saverUsdtOrders: (status?: string) =>
+    api.get('/admin/saver-billing/usdt-orders', { params: status ? { status } : {} }),
+  saverCreditUsdtOrder: (id: string, note?: string) =>
+    api.post(`/admin/saver-billing/usdt-orders/${id}/credit`, { note }),
   saverTopupRequests: (status?: string) =>
     api.get('/admin/saver-billing/topup-requests', { params: status ? { status } : {} }),
   saverHandleTopupRequest: (id: string, data: { action: 'approve' | 'reject'; adminNote?: string }) =>

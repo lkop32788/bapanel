@@ -122,7 +122,7 @@
     },
     "frontend": {
       "src/components/RotationLinks.tsx(新增)": "轮询链接 tab 组件",
-      "src/app/client/tracked-links/page.tsx": "第三个 tab「轮询链接」",
+      "src/app/client/tracked-links/page.tsx": "只留 短链接/轮询链接 两个tab；供应商死功能「潜在客户来源和二维码」tab 已删除（/api/tracked-links 后端从不存在），trackedLinkApi 一并从 api.ts 移除",
       "src/lib/api.ts": "rotationLinkApi"
     }
   },
@@ -178,17 +178,17 @@
         "models/SystemSettings.js": "saverApi 加 billingEnabled/priceDefault/priceOverrides(Map)",
         "models/SaverCheckTask.js": "加 cost/unitPrice/refunded",
         "routes/saver.js": "创建任务预扣费；GET /api/saver/wallet（商家余额+单价）；移除了泄露平台上游余额的 /api/saver/balance；商家端 /wallet/ledger 流水、/wallet/topup-request 充值申请（pending≤3）",
-        "routes/admin.js": "/admin/saver-billing/wallets|topup(superAdmin)|ledger；/saver-billing/topup-requests 列表+审批(superAdmin，approve自动入账)",
+        "routes/admin.js": "/admin/saver-billing/wallets|topup(superAdmin)|ledger；/saver-billing/topup-requests 列表+审批(superAdmin，approve自动入账)；/saver-billing/usdt-orders 列表 + /:id/credit 手动补单(superAdmin，按当前汇率入账，防重复)",
         "services/saverCheckService.js": "任务失败自动退款",
         "controllers/adminController.js": "saver section 读写计费字段",
         "models/SaverTopupRequest.js(新增)": "商家充值申请（线下收款后管理员审批入账），pending 原子抢占防重复入账"
       },
       "frontend": {
-        "src/app/admin/saver-billing/page.tsx(新增)": "商家计费页：余额列表/充值/扣减/流水（AdminSidebar 新入口）",
         "src/app/admin/settings/page.tsx": "省钱专家tab：计费开关+默认单价+按类型覆盖价",
         "src/components/SaverStatusCheck.tsx": "工具栏显示商家积分和单价（替换平台余额）、弹窗预计扣费、任务表扣费列(含已退标记)",
         "src/lib/api.ts": "saverCheckApi.wallet；adminApi.saverWallets/saverTopup/saverLedger",
-        "src/app/client/saver-wallet/page.tsx(新增)": "商家「积分充值」页：余额/充值申请表单/申请记录/积分流水分页；侧边栏省钱专家组末尾入口，检测页积分旁有去充值链接"
+        "src/app/client/saver-wallet/page.tsx(新增)": "商家「积分充值」页：余额/充值申请表单/申请记录/积分流水分页；侧边栏省钱专家组末尾入口，检测页积分旁有去充值链接",
+        "src/app/admin/vendors/page.tsx": "商户管理页改三tab：商户列表（新增余额(元)列+充值/扣减/明细，按所有者邮箱匹配workspace钱包）、充值订单（USDT订单+手动补单）、充值申请（审批）。独立「商家计费」页已删除"
       },
       "usdt": "充值中心（USDT TRC20 直收）：商户输入 USDT 金额 → 返回后台设定的收款地址+二维码+带随机尾数的唯一精确转账金额 → services/saverUsdtService 每5秒轮询 TronGrid 监听收款地址入账，金额精确匹配即原子入账（实际到账U × 汇率 = RMB），15分钟超时；弹窗前端5秒轮询订单状态。配置 SystemSettings.saverApi.usdt{enabled,address,rate(1U=元),tronApiKey}（管理后台省钱专家tab）。全项目钱包/余额/单价均按 RMB 元计（含分销 ₹→￥、SEO INR→CNY）。曾短暂实现过 Cryptomus 网关版，已替换为链上直收"
     }

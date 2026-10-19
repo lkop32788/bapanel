@@ -33,7 +33,7 @@ async function createOrder({ workspaceId, userId, usdtAmount }) {
 
   let payAmount = 0;
   for (let i = 0; i < 30; i++) {
-    const candidate = round4(amount + (Math.floor(Math.random() * 99) + 1) / 10000);
+    const candidate = round2(amount + (Math.floor(Math.random() * 99) + 1) / 100); // 随机 2 位小数尾数
     const clash = await SaverUsdtOrder.exists({
       status: 'pending', usdtAmount: candidate,
       createdAt: { $gte: new Date(Date.now() - ORDER_TTL_MS) },
