@@ -1,11 +1,11 @@
 const router = require('express').Router();
 const { requireFeature } = require('../middleware/featureGate');
-const { protect, workspaceAccess } = require('../middleware/auth');
+const { protect, workspaceAccess, denyAgent } = require('../middleware/auth');
 const {
   getSmartTemplates, createSmartTemplate, updateSmartTemplate, deleteSmartTemplate, sendSmartBroadcast, stopSmartCampaign, getSmartReports,
 } = require('../controllers/smartBroadcastController');
 
-router.use(protect, workspaceAccess);
+router.use(protect, workspaceAccess, denyAgent); // SEC-AGENT：智能群发是管理功能
 router.use(requireFeature('smartBroadcast'));
 
 router.get('/templates', getSmartTemplates);

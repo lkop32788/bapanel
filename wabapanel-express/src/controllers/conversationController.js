@@ -80,12 +80,23 @@ const getUnreadCounts = async (req, res) => {
   }
 };
 
+// SEC-AGENT：inboxScope=assigned 的客服只能触达分配给自己的会话。
+// 列表（getConversations）早有此过滤，这里补齐单条读取/消息/搜索，堵住
+// "拿到会话 id 就能读全文"的绕过。
+const agentScope = (req) => {
+  if (req.user && req.user.role === 'agent' && req.user.inboxScope === 'assigned') {
+    return { assignedAgent: req.user._id };
+  }
+  return {};
+};
+
 // @GET /api/conversations/:id
 const getConversation = async (req, res) => {
   try {
     const conversation = await Conversation.findOne({
       _id: req.params.id,
       workspace: req.workspace._id,
+      ...agentScope(req),
     })
       .populate({ path: 'contact', populate: [{ path: 'tags', select: 'name color' }, { path: 'badges', select: 'name color icon' }] })
       .populate('assignedAgent', 'name email avatar');
@@ -105,7 +116,7 @@ const getMessages = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 2000);
-    const owned = await Conversation.exists({ _id: req.params.id, workspace: req.workspace._id });
+    const owned = await Conversation.exists({ _id: req.params.id, workspace: req.workspace._id, ...agentScope(req) });
     if (!owned) return res.status(404).json({ success: false, message: 'Conversation not found' });
     const total = await Message.countDocuments({ conversation: req.params.id });
     const messages = await Message.find({ conversation: req.params.id })
@@ -510,6 +521,23 @@ const startConversation = async (req, res) => {
 const assignConversation = async (req, res) => {
   try {
     const { agentId, teamId } = req.body;
+    // SEC-AGENT：客服只能把会话认领给自己（不能改派团队/他人）；
+    // 只看已分配的客服连认领都不行——它本来就看不到未分配会话
+    if (req.user.role === 'agent') {
+      if (req.user.inboxScope === 'assigned') {
+        return res.status(403).json({ success: false, message: '客服账号无权分配会话' });
+      }
+      if (teamId || (agentId && String(agentId) !== String(req.user._id))) {
+        return res.status(403).json({ success: false, message: '客服只能把会话认领给自己' });
+      }
+    }
+    // 目标客服必须是本工作区成员（防止把会话挂到外部用户名下）
+    if (agentId) {
+      const uid = String(agentId);
+      const isMember = String(req.workspace.owner) === uid
+        || (req.workspace.members || []).some((m) => String(m.user) === uid);
+      if (!isMember) return res.status(400).json({ success: false, message: '目标客服不在本工作区' });
+    }
     const update = {};
     if (agentId) update.assignedAgent = agentId;
     if (teamId) update.assignedTeam = teamId;
@@ -742,6 +770,16 @@ const searchMessages = async (req, res) => {
       text: { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' },
     };
     if (req.query.conversation) filter.conversation = req.query.conversation;
+    // SEC-AGENT：只看已分配的客服，全文搜索也只搜自己会话里的消息
+    const scope = agentScope(req);
+    if (scope.assignedAgent) {
+      const mine = await Conversation.find({ workspace: req.workspace._id, assignedAgent: scope.assignedAgent }).select('_id').lean();
+      const mineIds = mine.map((c) => c._id);
+      filter.conversation = req.query.conversation
+        ? (mineIds.some((id) => String(id) === String(req.query.conversation)) ? req.query.conversation : null)
+        : { $in: mineIds };
+      if (filter.conversation === null) return res.json({ success: true, data: [] });
+    }
     const msgs = await Message.find(filter)
       .sort('-createdAt').limit(req.query.conversation ? 200 : 30)
       .populate('contact', 'name phone')

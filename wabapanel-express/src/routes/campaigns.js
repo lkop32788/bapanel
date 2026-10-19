@@ -1,12 +1,12 @@
 const router = require('express').Router();
 const { requireFeature } = require('../middleware/featureGate');
-const { protect, workspaceAccess } = require('../middleware/auth');
+const { protect, workspaceAccess, denyAgent } = require('../middleware/auth');
 const {
   getCampaigns, createCampaign, getCampaign, updateCampaign,
   deleteCampaign, startCampaign, pauseCampaign,
 } = require('../controllers/campaignController');
 
-router.use(protect, workspaceAccess);
+router.use(protect, workspaceAccess, denyAgent); // SEC-AGENT：群发是管理功能
 router.use(requireFeature('broadcasts'));
 router.get('/', getCampaigns);
 router.post('/', createCampaign);

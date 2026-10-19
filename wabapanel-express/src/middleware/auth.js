@@ -43,6 +43,14 @@ const adminOnly = (req, res, next) => {
   }
 };
 
+// SEC-AGENT：客服(agent)账号只负责接待聊天——管理、导出、群发、资金等功能一律拒绝
+const denyAgent = (req, res, next) => {
+  if (req.user && req.user.role === 'agent') {
+    return res.status(403).json({ success: false, message: '客服账号无权使用此功能' });
+  }
+  next();
+};
+
 const superAdminOnly = (req, res, next) => {
   if (req.user && req.user.role === 'super_admin') {
     next();
@@ -142,4 +150,4 @@ const workspaceParamOwner = async (req, res, next) => {
   }
 };
 
-module.exports = { protect, adminOnly, superAdminOnly, checkPermission, workspaceAccess, workspaceParamMember, workspaceParamOwner };
+module.exports = { protect, adminOnly, superAdminOnly, denyAgent, checkPermission, workspaceAccess, workspaceParamMember, workspaceParamOwner };

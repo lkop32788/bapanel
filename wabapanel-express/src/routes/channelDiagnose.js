@@ -2,9 +2,9 @@
 // 响应：{ ok, summary, checks: [{ key, label, ok, detail, fix? }] }
 const router = require('express').Router();
 const axios = require('axios');
-const { protect, workspaceAccess } = require('../middleware/auth');
+const { protect, workspaceAccess, denyAgent } = require('../middleware/auth');
 
-router.use(protect, workspaceAccess);
+router.use(protect, workspaceAccess, denyAgent); // SEC-AGENT：诊断会用工作区凭据外呼并暴露配置概况
 
 const check = (key, label, ok, detail = '', fix = '') => ({ key, label, ok: !!ok, detail, ...(ok || !fix ? {} : { fix }) });
 const graphErr = (e) => e.response?.data?.error?.message || e.message;

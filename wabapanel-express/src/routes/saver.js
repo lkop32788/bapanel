@@ -1,11 +1,12 @@
 const router = require('express').Router();
-const { protect, workspaceAccess } = require('../middleware/auth');
+const { protect, workspaceAccess, denyAgent } = require('../middleware/auth');
 const SaverCheckTask = require('../models/SaverCheckTask');
 const { processTask } = require('../services/saverCheckService');
 const { TASK_TYPES, normalizeValue } = require('../services/saverTaskTypes');
 const billing = require('../services/saverBillingService');
 
-router.use(protect, workspaceAccess);
+// SEC-AGENT：筛号会扣商家钱包、充值涉及资金，客服一律不可用
+router.use(protect, workspaceAccess, denyAgent);
 
 const MAX_NUMBERS = 100000;
 const CHANNELS = ['whatsapp', 'telegram', 'more'];

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { requireFeature } = require('../middleware/featureGate');
-const { protect, workspaceAccess } = require('../middleware/auth');
+const { protect, workspaceAccess, denyAgent } = require('../middleware/auth');
 const {
   getConversations, getConversation, getMessages, sendMessage, startConversationByPhone, startConversationByEmail,
   startConversation, assignConversation, resolveConversation, markAsRead, toggleAI,
@@ -11,8 +11,9 @@ router.use(requireFeature('chat'));
 router.get('/', getConversations);
 router.get('/search-messages', require('../controllers/conversationController').searchMessages);
 router.get('/unread-counts', require('../controllers/conversationController').getUnreadCounts);
-router.get('/export-all', require('../controllers/conversationController').exportAllChats);
-router.get('/:id/export', require('../controllers/conversationController').exportConversation);
+// SEC-AGENT：全量/单条导出是管理功能，客服不可用
+router.get('/export-all', denyAgent, require('../controllers/conversationController').exportAllChats);
+router.get('/:id/export', denyAgent, require('../controllers/conversationController').exportConversation);
 router.post('/', startConversation);
 router.post('/by-phone', startConversationByPhone);
 router.post('/by-email', startConversationByEmail);
@@ -57,25 +58,9 @@ router.put('/:id/read', markAsRead);
 
 router.patch('/:id/ai-toggle', toggleAI);
 router.patch('/:id/pin', require('../controllers/conversationController').pinConversation);
-router.delete('/:id', require('../controllers/conversationController').deleteConversation);
+// SEC-AGENT：删除会话是管理功能，客服不可用
+router.delete('/:id', denyAgent, require('../controllers/conversationController').deleteConversation);
 
-// Schedule a message for later
-router.post("/:id/schedule", async (req, res) => {
-  try {
-    const { text, scheduledAt } = req.body;
-    if (!text || !scheduledAt) return res.status(400).json({ success: false, message: "text and scheduledAt required" });
-    const conv = await require("../models").Conversation.findById(req.params.id);
-    if (!conv) return res.status(404).json({ success: false, message: "Conversation not found" });
-    // Store scheduled message
-    const ScheduledMsg = require("mongoose").model("ScheduledMessage", new require("mongoose").Schema({
-      conversation: { type: require("mongoose").Schema.Types.ObjectId, ref: "Conversation" },
-      workspace: { type: require("mongoose").Schema.Types.ObjectId, ref: "Workspace" },
-      text: String,
-      scheduledAt: Date,
-      sent: { type: Boolean, default: false }
-    }, { timestamps: true }), undefined, undefined);
-    await ScheduledMsg.create({ conversation: conv._id, workspace: conv.workspace, text, scheduledAt: new Date(scheduledAt) });
-    res.json({ success: true, message: "Message scheduled" });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
+// 原 POST /:id/schedule（定时消息）已删除：供应商死代码——不校验 workspace（跨租户
+// IDOR），且发送链路调用不存在的方法从未真正发出过消息（SEC-M1）。
 module.exports = router;

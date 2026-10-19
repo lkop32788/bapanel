@@ -1,12 +1,12 @@
 const router = require('express').Router();
 const { requireFeature } = require('../middleware/featureGate');
-const { protect, workspaceAccess } = require('../middleware/auth');
+const { protect, workspaceAccess, denyAgent } = require('../middleware/auth');
 const {
   getBotFlows, getBotFlow, createBotFlow, updateBotFlow, deleteBotFlow, generateBotFlow, createPresetFlow,
   exportBotFlow, importBotFlow, botFlowReport, marketplaceList, marketplaceItem, marketplaceInstall,
 } = require('../controllers/botFlowController');
 
-router.use(protect, workspaceAccess);
+router.use(protect, workspaceAccess, denyAgent); // SEC-AGENT：机器人流程是管理配置
 router.use(requireFeature('botFlows'));
 router.get('/', getBotFlows);
 router.post('/', createBotFlow);

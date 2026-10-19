@@ -4,7 +4,7 @@ const multer = require('multer');
 // SEC-LOCK：全平台上传锁定，仅允许 txt（导入请把 CSV 内容存为 .txt 上传）
 const { txtOnlyFilter } = require('../middleware/txtOnlyUpload');
 const upload = multer({ storage: multer.memoryStorage(), fileFilter: txtOnlyFilter, limits: { fileSize: 5 * 1024 * 1024 } });
-const { protect, workspaceAccess } = require('../middleware/auth');
+const { protect, workspaceAccess, denyAgent } = require('../middleware/auth');
 const {
   getContacts, createContact, getContact, updateContact,
   deleteContact, importContacts, exportContacts, bulkDeleteContacts,
@@ -109,7 +109,7 @@ router.use(protect, workspaceAccess);
 router.use(requireFeature('contacts'));
 router.get('/', getContacts);
 router.post('/', createContact);
-router.post('/import', upload.single('file'), importContacts);
+router.post('/import', denyAgent, upload.single('file'), importContacts); // SEC-AGENT
 router.post('/bulk-delete', denyAgentDelete, bulkDeleteContacts);
 // 批量给联系人加/移除标签或分组：{ ids[], tags?[] | segments?[], mode: 'add'|'remove' }
 router.post('/bulk-assign', async (req, res) => {
@@ -139,7 +139,7 @@ router.post('/bulk-assign', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-router.get('/export', exportContacts);
+router.get('/export', denyAgent, exportContacts); // SEC-AGENT：全量导出客户资料是管理功能
 // FEAT-01：启动“删除所有匹配的联系人”后台任务。
 // body: { confirm: 'DELETE', filter: { search?, tag?, status?, channel? }, expectedCount? }
 router.post('/delete-all', denyAgentDelete, requireWorkspaceAdmin, async (req, res) => {
