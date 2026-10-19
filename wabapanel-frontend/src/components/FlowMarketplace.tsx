@@ -89,7 +89,7 @@ export default function FlowMarketplace({ isOpen, onClose, onInstalled }: Props)
   });
 
   const featured = templates.filter(t => t.featured);
-  const heading = category === 'all' ? 'All templates' : category === 'featured' ? 'Featured' : (categories.find(c => c.key === category)?.label || 'Templates');
+  const heading = category === 'all' ? '全部模板' : category === 'featured' ? '精选' : (categories.find(c => c.key === category)?.label || '模板');
 
   const openPreview = async (t: MarketTemplate) => {
     try {
@@ -161,7 +161,7 @@ export default function FlowMarketplace({ isOpen, onClose, onInstalled }: Props)
 
           <div className="flex gap-4 items-start">
             <div className="w-44 shrink-0 border border-gray-200 rounded-xl overflow-hidden">
-              <p className="px-3 py-2 text-[10px] font-semibold text-gray-500 bg-gray-50 border-b border-gray-100">CATEGORIES</p>
+              <p className="px-3 py-2 text-[10px] font-semibold text-gray-500 bg-gray-50 border-b border-gray-100">模板分类</p>
               <div className="max-h-[50vh] overflow-y-auto">
                 {[{ key: 'all', label: "全部", count: templates.length }, { key: 'featured', label: "精选", count: featured.length }, ...categories].map(c => (
                   <button key={c.key} onClick={() => setCategory(c.key)}

@@ -168,6 +168,7 @@ const ctaPromo = {
 
 // 市场目录：id → { 卡片元数据..., def }
 const CATALOG = [
+  { id: 'image_funnel', category: 'sales', categoryLabel: '销售跟进', description: '图文引导漏斗：三层图片+按钮卡片层层推进（种草→卖点→优惠成交），走到底自动打高意向标签并收集联系信息。安装后替换占位图为产品图。', difficulty: '简单', setupMinutes: 5, featured: true, isNew: true, def: imageFunnel },
   { id: 'lead_nurturing', category: 'sales', categoryLabel: '销售跟进', description: '新线索自动欢迎并在 1/2/3 天无回复时自动跟进，回复即打"Engaged"标签转人工。', difficulty: '中等', setupMinutes: 5, featured: true, isNew: false, def: PRESETS.lead_nurturing },
   { id: 'dnp_recovery', category: 'sales', categoryLabel: '销售跟进', description: '客户未接通/未回应后的自动挽回序列。', difficulty: '中等', setupMinutes: 5, featured: false, isNew: false, def: PRESETS.dnp_recovery },
   { id: 'welcome_menu', category: 'service', categoryLabel: '客服接待', description: '进线先出按钮菜单（咨询/查单/人工），自动分流并打标签。', difficulty: '简单', setupMinutes: 3, featured: true, isNew: true, def: welcomeMenu },
@@ -176,7 +177,6 @@ const CATALOG = [
   { id: 'aftersale_guide', category: 'service', categoryLabel: '客服接待', description: '售后按钮引导：物流/退换/故障分流，自动收集订单号和问题描述。', difficulty: '简单', setupMinutes: 3, featured: false, isNew: true, def: aftersaleGuide },
   { id: 'booking_guide', category: 'service', categoryLabel: '客服接待', description: '列表式预约引导：选服务类型→收集时间→打预约标签，客服只管确认档期。', difficulty: '简单', setupMinutes: 3, featured: false, isNew: true, def: bookingGuide },
   { id: 'cta_promo', category: 'sales', categoryLabel: '销售跟进', description: '网址按钮引流：一条消息带两个可点击链接按钮（商城/优惠券），点击即跳转，自动打引流标签。安装后替换成自己的链接。', difficulty: '简单', setupMinutes: 2, featured: false, isNew: true, def: ctaPromo },
-  { id: 'image_funnel', category: 'sales', categoryLabel: '销售跟进', description: '图文引导漏斗：三层图片+按钮卡片层层推进（种草→卖点→优惠成交），走到底自动打高意向标签并收集联系信息。安装后替换占位图为产品图。', difficulty: '简单', setupMinutes: 5, featured: true, isNew: true, def: imageFunnel },
   { id: 'feedback', category: 'retention', categoryLabel: '复购留存', description: '服务结束后一键满意度回访，好中差自动打标签，差评自动收集原因。', difficulty: '简单', setupMinutes: 2, featured: false, isNew: true, def: feedback },
 ];
 
