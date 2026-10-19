@@ -12,6 +12,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"log"
 	"math/rand"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -155,12 +157,15 @@ func main() {
 	go storeWorker()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/task/create", handleCreate)
-	mux.HandleFunc("/api/task/progress", handleProgress)
-	mux.HandleFunc("/api/task/result", handleResult)
-	mux.HandleFunc("/api/user/balance", func(w http.ResponseWriter, r *http.Request) { passThrough(w, r) })
+	// SEC-YC：/api/* 只服务本机（面板经 127.0.0.1 调用）。服务对外监听是为了
+	// /admin 管理页远程可达，代理接口没理由暴露公网——否则陌生人可免 token
+	// 读缓存库、枚举下载结果文件、白嫖 SQLite 写入。
+	mux.HandleFunc("/api/task/create", loopbackOnly(handleCreate))
+	mux.HandleFunc("/api/task/progress", loopbackOnly(handleProgress))
+	mux.HandleFunc("/api/task/result", loopbackOnly(handleResult))
+	mux.HandleFunc("/api/user/balance", loopbackOnly(func(w http.ResponseWriter, r *http.Request) { passThrough(w, r) }))
 	mux.HandleFunc("/healthz", handleHealth)
-	mux.HandleFunc("/api/usdt/address", handleUsdtAddress)
+	mux.HandleFunc("/api/usdt/address", loopbackOnly(handleUsdtAddress))
 	// 自带管理页（SAVER_ADMIN_PASS 未设置时关闭）
 	mux.HandleFunc("/admin", requireAdmin(handleAdminPage))
 	mux.HandleFunc("/admin/api/stats", requireAdmin(handleStats))
@@ -738,14 +743,65 @@ func handleHealth(w http.ResponseWriter, _ *http.Request) {
 
 // ---------- 自带管理页 ----------
 
+// SEC-YC：/api/* 仅限本机回环访问
+func loopbackOnly(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil || (host != "127.0.0.1" && host != "::1") {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	}
+}
+
+// SEC-YC：Basic Auth 防爆破——每 IP 每 10 分钟最多 20 次失败，失败延时 300ms
+var (
+	authFailMu sync.Mutex
+	authFails  = map[string][]time.Time{}
+)
+
+func authFailCheck(ip string) bool {
+	authFailMu.Lock()
+	defer authFailMu.Unlock()
+	now := time.Now()
+	list := authFails[ip][:0:0]
+	for _, t := range authFails[ip] {
+		if now.Sub(t) < 10*time.Minute {
+			list = append(list, t)
+		}
+	}
+	authFails[ip] = list
+	if len(authFails) > 10000 { // 防内存膨胀
+		authFails = map[string][]time.Time{ip: list}
+	}
+	return len(list) < 20
+}
+
+func authFailRecord(ip string) {
+	authFailMu.Lock()
+	authFails[ip] = append(authFails[ip], time.Now())
+	authFailMu.Unlock()
+}
+
 func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if adminPass == "" {
 			http.Error(w, "管理页未启用：请设置 SAVER_ADMIN_PASS 环境变量后重启", http.StatusNotFound)
 			return
 		}
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if !authFailCheck(ip) {
+			http.Error(w, "too many attempts, wait 10 minutes", http.StatusTooManyRequests)
+			return
+		}
 		user, pass, ok := r.BasicAuth()
-		if !ok || user != "admin" || pass != adminPass {
+		// SEC-YC：常数时间比较，防时序侧信道
+		userOk := subtle.ConstantTimeCompare([]byte(user), []byte("admin")) == 1
+		passOk := subtle.ConstantTimeCompare([]byte(pass), []byte(adminPass)) == 1
+		if !ok || !userOk || !passOk {
+			authFailRecord(ip)
+			time.Sleep(300 * time.Millisecond)
 			w.Header().Set("WWW-Authenticate", `Basic realm="yuncang"`)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
