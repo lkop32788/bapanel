@@ -220,6 +220,8 @@ router.post('/custom/:id/discover', async (req, res) => {
     const item = s.custom.id(req.params.id);
     if (!item) return res.status(404).json({ success: false, message: 'Custom server not found' });
 
+    await require('../utils/safeOutboundUrl')(item.url, '自定义服务器地址'); // SEC-SSRF：禁内网
+
     const headers = {};
     if (item.authType === 'bearer' && item.authValue) headers['Authorization'] = `Bearer ${item.authValue}`;
     else if (item.authType === 'header' && item.headerName && item.authValue) headers[item.headerName] = item.authValue;
@@ -266,6 +268,7 @@ router.post('/test', async (req, res) => {
     const customServer = s.custom.find(c => c.tools.some(t => t.name === tool));
     if (customServer) {
       const toolDef = customServer.tools.find(t => t.name === tool);
+      await require('../utils/safeOutboundUrl')(customServer.url, '自定义服务器地址'); // SEC-SSRF：禁内网
       const headers = { 'Content-Type': 'application/json' };
       if (customServer.authType === 'bearer' && customServer.authValue) headers['Authorization'] = `Bearer ${customServer.authValue}`;
       else if (customServer.authType === 'header' && customServer.headerName) headers[customServer.headerName] = customServer.authValue;

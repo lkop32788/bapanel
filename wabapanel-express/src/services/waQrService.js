@@ -628,6 +628,8 @@ async function sendMessage(workspaceId, phone, { type = 'text', text, media, but
   await checkAndCountSend(id);
 
   let content;
+  // SEC-SSRF：Baileys 会在服务端拉取 media.url，禁止指向内网
+  if (media && media.url) await require('../utils/safeOutboundUrl')(media.url, '媒体地址');
   if (type === 'image') content = { image: { url: media.url }, caption: media.caption || text || '' };
   else if (type === 'video') content = { video: { url: media.url }, caption: media.caption || text || '' };
   else if (type === 'audio') content = { audio: { url: media.url }, mimetype: 'audio/mp4' };

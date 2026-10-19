@@ -310,6 +310,7 @@ async function sendNode({ flow, node, workspace, conversation, contact, to, io, 
     try {
       const url = renderVars(node.webhookUrl || '', contact);
       if (!url) return false;
+      await require('../utils/safeOutboundUrl')(url, 'Webhook 地址'); // SEC-SSRF：禁内网
       const method = (node.webhookMethod || 'POST').toUpperCase();
       const headers = {};
       (node.webhookHeaders || []).forEach(h => { if (h.key && h.value) headers[h.key] = renderVars(h.value, contact); });
@@ -319,7 +320,7 @@ async function sendNode({ flow, node, workspace, conversation, contact, to, io, 
         const raw = renderVars(node.webhookBody || '{}', contact);
         try { body = JSON.parse(raw); } catch { body = raw; }
       }
-      const resp = await axios({ method, url, headers, data: body, timeout: 15000 });
+      const resp = await axios({ method, url, headers, data: body, timeout: 15000, maxRedirects: 0 }); // SEC-SSRF：禁跟随重定向绕回内网
       console.log(`[BotFlow] webhook ${method} ${url} → ${resp.status}`);
       if (node.text) {
         savedText = renderVars(node.text, contact);

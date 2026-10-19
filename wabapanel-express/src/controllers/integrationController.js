@@ -200,6 +200,7 @@ async function testIntegrationConnection(type, config) {
       if (!config.storeUrl || !config.apiKey || !config.apiSecret) throw new Error('Store URL, Consumer Key and Consumer Secret required');
       try {
         const wcUrl = String(config.storeUrl).replace(/\/$/, '');
+        await require('../utils/safeOutboundUrl')(wcUrl, 'Store URL'); // SEC-SSRF
         await axios.get(`${wcUrl}/wp-json/wc/v3/products?per_page=1`, {
           params: { consumer_key: config.apiKey, consumer_secret: config.apiSecret }, timeout: 12000
         });
@@ -228,6 +229,7 @@ async function testIntegrationConnection(type, config) {
       return { success: true, message: 'Google Analytics configured' };
     case 'webhook':
       if (!config.webhookUrl) throw new Error('Webhook URL required');
+      await require('../utils/safeOutboundUrl')(config.webhookUrl, 'Webhook URL'); // SEC-SSRF
       return { success: true, message: 'Webhook URL saved' };
     case 'zapier':
     case 'make':
@@ -236,10 +238,12 @@ async function testIntegrationConnection(type, config) {
     case 'ifttt':
     case 'bitrix24':
       if (!config.webhookUrl) throw new Error('Webhook URL required');
+      await require('../utils/safeOutboundUrl')(config.webhookUrl, 'Webhook URL'); // SEC-SSRF
       return { success: true, message: 'Webhook URL connected' };
     case 'salesforce':
       if (!config.instanceUrl || !config.apiKey) throw new Error('Instance URL and Access Token required');
       try {
+        await require('../utils/safeOutboundUrl')(config.instanceUrl, 'Instance URL'); // SEC-SSRF
         await axios.get(`${String(config.instanceUrl).replace(/\/$/, '')}/services/data/v59.0/limits`, {
           headers: { Authorization: `Bearer ${config.apiKey}` }, timeout: 12000
         });
@@ -249,6 +253,7 @@ async function testIntegrationConnection(type, config) {
       if (!config.apiKey) throw new Error('OAuth Access Token required');
       try {
         const zBase = (config.apiDomain && String(config.apiDomain).startsWith('http')) ? config.apiDomain.replace(/\/$/, '') : 'https://www.zohoapis.com';
+        await require('../utils/safeOutboundUrl')(zBase, 'API Domain'); // SEC-SSRF
         await axios.get(`${zBase}/crm/v3/settings/modules`, {
           headers: { Authorization: `Zoho-oauthtoken ${config.apiKey}` }, timeout: 12000
         });
@@ -273,6 +278,7 @@ async function syncToWebhook(integration, contacts) {
   const url = integration.config.webhookUrl;
   if (!url) return { synced: 0, message: 'No webhook URL configured' };
   try {
+    await require('../utils/safeOutboundUrl')(url, 'Webhook URL'); // SEC-SSRF
     await axios.post(url, { event: 'contacts_sync', contacts: contacts.map(c => ({
       name: c.name, phone: c.phone, email: c.email, tags: c.tags,
     })), timestamp: new Date().toISOString() }, { timeout: 10000 });

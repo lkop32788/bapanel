@@ -13,6 +13,7 @@ async function cacheHeaderMedia(url, templateName, existingUrl) {
   if (!url) return existingUrl || '';
   if (url.startsWith(PUBLIC_BASE)) return url;
   try {
+    await require('../utils/safeOutboundUrl')(url, '模板头图地址'); // SEC-SSRF：禁内网
     fs.mkdirSync(HEADER_MEDIA_DIR, { recursive: true });
     const resp = await axios.get(url, { responseType: 'arraybuffer', timeout: 20000 });
     const ct = resp.headers['content-type'] || '';
