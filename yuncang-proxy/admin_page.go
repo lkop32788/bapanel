@@ -112,6 +112,15 @@ a.exp:hover{text-decoration:underline}
 </div>
 <p id="tokMsg" class="gray" style="font-size:12px"></p>
 </div>
+<div class="panel" style="max-width:520px">
+<h2>USDT 收款地址（TRC20）</h2>
+<p class="gray" style="font-size:12px">红浪漫充值中心的收款地址从这里读取（面板最多 60 秒同步一次）。T 开头 34 位；清空后面板充值中心将无法创建订单。</p>
+<div class="row">
+<input type="text" id="usdtInput" placeholder="T 开头的 TRC20 地址" style="flex:1">
+<button class="btn pri" onclick="saveUsdt()">保存</button>
+</div>
+<p id="usdtMsg" class="gray" style="font-size:12px"></p>
+</div>
 </div>
 </div>
 
@@ -268,7 +277,18 @@ function loadSettings(){
     document.getElementById('upNow').textContent=d.upstreamEffective||'—';
     document.getElementById('upDefault').textContent=d.upstreamDefault||'—';
     document.getElementById('upInput').value=d.upstream||'';
+    document.getElementById('usdtInput').value=d.usdtAddress||'';
   });
+}
+function saveUsdt(){
+  var v=document.getElementById('usdtInput').value.trim();
+  if(v&&!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(v)){document.getElementById('usdtMsg').textContent='地址格式不对：应为 T 开头的 34 位 TRC20 地址';return}
+  if(!v&&!confirm('清空收款地址？面板充值中心将无法创建新订单'))return;
+  fetch('/admin/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usdtAddress:v})})
+    .then(function(r){return r.json()}).then(function(d){
+      document.getElementById('usdtMsg').textContent=d.code===0?(v?'已保存，面板最多 60 秒后生效':'已清空'):(d.message||'保存失败');
+      loadSettings();
+    });
 }
 function saveUpstream(){
   var v=document.getElementById('upInput').value.trim();

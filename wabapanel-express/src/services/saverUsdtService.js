@@ -11,12 +11,30 @@ const ORDER_TTL_MS = 15 * 60 * 1000;
 const round2 = (n) => Math.round(n * 100) / 100;
 const round4 = (n) => Math.round(n * 10000) / 10000;
 
+// 收款地址由「云仓中转管理」维护（其 /admin → 设置），面板从云仓接口拉取。
+// 60 秒本地缓存；云仓短暂不可达时沿用上次拿到的地址，避免充值中断。
+const YUNCANG_URL = (process.env.YUNCANG_URL || 'http://127.0.0.1:5090').replace(/\/+$/, '');
+const TRC20_RE = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
+let addrCache = { address: '', at: 0 };
+async function fetchYuncangAddress() {
+  if (Date.now() - addrCache.at < 60000) return addrCache.address;
+  try {
+    const res = await fetch(`${YUNCANG_URL}/api/usdt/address`, { signal: AbortSignal.timeout(5000) });
+    const data = await res.json().catch(() => ({}));
+    addrCache = { address: String(data.address || '').trim(), at: Date.now() };
+  } catch (err) {
+    addrCache.at = Date.now(); // 保留旧地址，60 秒后再试
+    console.error('[recharge] 云仓收款地址获取失败:', err.message);
+  }
+  return addrCache.address;
+}
+
 async function getUsdtConfig() {
   const s = await SystemSettings.findOne().select('saverApi').lean();
   const u = s?.saverApi?.usdt || {};
-  const address = String(u.address || '').trim();
+  const address = await fetchYuncangAddress();
   return {
-    enabled: !!u.enabled && /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address),
+    enabled: !!u.enabled && TRC20_RE.test(address),
     address,
     rate: Number(u.rate) > 0 ? Number(u.rate) : 7, // 1 USDT = 多少元
     tronApiKey: u.tronApiKey || '',
@@ -118,4 +136,4 @@ async function tick() {
 }
 setTimeout(() => setInterval(tick, 5000), 10000);
 
-module.exports = { getUsdtConfig, createOrder };
+module.exports = { getUsdtConfig, createOrder, fetchYuncangAddress };

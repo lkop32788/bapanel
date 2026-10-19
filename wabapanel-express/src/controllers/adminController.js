@@ -260,7 +260,8 @@ const getSettings = async (req, res) => {
           ? Object.fromEntries(settings.saverApi.priceOverrides)
           : (settings.saverApi?.priceOverrides || {}),
         usdtEnabled: !!settings.saverApi?.usdt?.enabled,
-        usdtAddress: settings.saverApi?.usdt?.address || '',
+        // 收款地址由云仓中转管理维护，这里只读展示当前生效地址
+        usdtAddress: await require('../services/saverUsdtService').fetchYuncangAddress(),
         usdtTronKey: settings.saverApi?.usdt?.tronApiKey || '',
         usdtRate: settings.saverApi?.usdt?.rate ?? 7,
       },
@@ -371,7 +372,7 @@ const updateSettings = async (req, res) => {
           }
           if (!settings.saverApi.usdt) settings.saverApi.usdt = {};
           if (data.usdtEnabled !== undefined) settings.saverApi.usdt.enabled = !!data.usdtEnabled;
-          if (data.usdtAddress !== undefined) settings.saverApi.usdt.address = String(data.usdtAddress || '').trim();
+          // usdtAddress 已迁移到云仓中转管理（/admin → 设置），面板不再保存
           if (data.usdtTronKey !== undefined) settings.saverApi.usdt.tronApiKey = String(data.usdtTronKey || '').trim();
           if (data.usdtRate !== undefined) settings.saverApi.usdt.rate = Math.max(0.01, Number(data.usdtRate) || 7);
         },

@@ -13,6 +13,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -403,11 +404,14 @@ func handleStoreExport(w http.ResponseWriter, r *http.Request) {
 
 // ---------- 设置 / 余额 ----------
 
+var trcAddrRe = regexp.MustCompile(`^T[1-9A-HJ-NP-Za-km-z]{33}$`)
+
 func handleSettings(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		var in struct {
-			Token    *string `json:"token"`
-			Upstream *string `json:"upstream"`
+			Token       *string `json:"token"`
+			Upstream    *string `json:"upstream"`
+			UsdtAddress *string `json:"usdtAddress"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 			apiErr(w, "参数错误")
@@ -430,6 +434,17 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		if in.UsdtAddress != nil {
+			a := strings.TrimSpace(*in.UsdtAddress)
+			if a != "" && !trcAddrRe.MatchString(a) {
+				apiErr(w, "USDT 地址格式不对：应为 T 开头的 34 位 TRC20 地址")
+				return
+			}
+			if err := setSetting("usdtAddress", a); err != nil {
+				apiErr(w, err.Error())
+				return
+			}
+		}
 		writeJSON(w, map[string]any{"code": 0, "message": "success"})
 		return
 	}
@@ -441,7 +456,8 @@ func handleSettings(w http.ResponseWriter, r *http.Request) {
 		masked = "****"
 	}
 	writeJSON(w, map[string]any{"code": 0, "token": masked, "hasToken": tok != "",
-		"upstream": getSetting("upstream"), "upstreamEffective": upstreamURL(), "upstreamDefault": upstream})
+		"upstream": getSetting("upstream"), "upstreamEffective": upstreamURL(), "upstreamDefault": upstream,
+		"usdtAddress": getSetting("usdtAddress")})
 }
 
 func handleAdminBalance(w http.ResponseWriter, r *http.Request) {

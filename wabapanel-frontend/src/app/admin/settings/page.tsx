@@ -326,7 +326,13 @@ export default function AdminSettingsPage() {
               </span>
               {settings.saver.usdtEnabled ? <ToggleRight className="w-8 h-8 text-emerald-500 shrink-0" /> : <ToggleLeft className="w-8 h-8 text-gray-400 shrink-0" />}
             </button>
-            <Input label={"USDT 收款地址（TRC20，T 开头）"} value={settings.saver.usdtAddress} onChange={e => updateField('saver', 'usdtAddress', e.target.value)} autoComplete="off" />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">USDT 收款地址（TRC20）</label>
+              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm font-mono text-gray-700 break-all">
+                {settings.saver.usdtAddress || '未设置'}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">收款地址已迁移到「云仓中转管理」维护（云仓 /admin → 设置），此处只读展示当前生效地址</p>
+            </div>
             <Input label={"汇率（1 USDT = 多少元）"} type="number" value={String(settings.saver.usdtRate)} onChange={e => updateField('saver', 'usdtRate', e.target.value)} />
             <Input label={"TronGrid API Key（可选，提高链上查询限额）"} type="password" value={settings.saver.usdtTronKey} onChange={e => updateField('saver', 'usdtTronKey', e.target.value)} autoComplete="off" />
           </div>

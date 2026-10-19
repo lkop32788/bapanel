@@ -160,6 +160,7 @@ func main() {
 	mux.HandleFunc("/api/task/result", handleResult)
 	mux.HandleFunc("/api/user/balance", func(w http.ResponseWriter, r *http.Request) { passThrough(w, r) })
 	mux.HandleFunc("/healthz", handleHealth)
+	mux.HandleFunc("/api/usdt/address", handleUsdtAddress)
 	// 自带管理页（SAVER_ADMIN_PASS 未设置时关闭）
 	mux.HandleFunc("/admin", requireAdmin(handleAdminPage))
 	mux.HandleFunc("/admin/api/stats", requireAdmin(handleStats))
@@ -720,6 +721,12 @@ func handleResult(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+t.ID+`.txt"`)
 	_, _ = io.WriteString(w, sb.String())
+}
+
+// 红浪漫充值中心从这里获取 USDT(TRC20) 收款地址（地址在「设置」tab 维护；
+// 地址本身会展示给充值的商户，不属于敏感信息，故不要求 Basic Auth）
+func handleUsdtAddress(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, map[string]any{"code": 0, "address": getSetting("usdtAddress")})
 }
 
 func handleHealth(w http.ResponseWriter, _ *http.Request) {
