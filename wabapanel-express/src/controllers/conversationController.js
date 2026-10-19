@@ -344,6 +344,35 @@ const sendMessage = async (req, res) => {
         await message.save();
       }
     }
+    // 外部 API 占位渠道 — 发给运营者自配的 endpoint
+    else if (conversation.channel === 'external_api') {
+      try {
+        const extSvc = require('../services/externalApiService');
+        // 号池：会话已绑定槽位则粘住；未绑定且开池时轮询取槽并绑定
+        let extSlot = null;
+        const em = /^ext:(.+)$/.exec(conversation.waNumberId || '');
+        if (em) {
+          extSlot = em[1];
+        } else if (req.workspace.externalApiPoolEnabled) {
+          const picked = await extSvc.pickPoolSlot(req.workspace._id);
+          if (picked) { extSlot = picked; conversation.waNumberId = 'ext:' + picked; }
+        }
+        if (!extSlot) {
+          message.status = 'failed';
+          message.errorMessage = '外部 API 渠道：未绑定槽位，请先在渠道页配置外部 API 并开启号池';
+          await message.save();
+        } else {
+          const result = await extSvc.sendMessage(req.workspace._id, conversation.contact.phone, { type: type || 'text', text, media }, extSlot);
+          message.waMessageId = result?.messageId ? 'ext_' + result.messageId : '';
+          message.status = 'sent';
+          await message.save();
+        }
+      } catch (e) {
+        message.status = 'failed';
+        message.errorMessage = e.message;
+        await message.save();
+      }
+    }
     // Send via WhatsApp API
     else if (req.workspace.whatsapp?.isConnected) {
       // Optional per-message sender number override (must belong to this workspace)

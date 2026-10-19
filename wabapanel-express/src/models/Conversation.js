@@ -30,7 +30,7 @@ const conversationSchema = new mongoose.Schema({
   resolvedAt: { type: Date },
   resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   windowExpiresAt: { type: Date }, // 24-hour window
-  channel: { type: String, enum: ['whatsapp', 'whatsapp_qr', 'whatsapp_chatapp', 'facebook', 'instagram', 'telegram', 'telegram_personal', 'email'], default: 'whatsapp' },
+  channel: { type: String, enum: ['whatsapp', 'whatsapp_qr', 'whatsapp_chatapp', 'facebook', 'instagram', 'telegram', 'telegram_personal', 'email', 'external_api'], default: 'whatsapp' },
   snoozedUntil: { type: Date },
   aiEnabled: { type: Boolean, default: false },
   aiDisabled: { type: Boolean, default: false },

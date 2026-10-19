@@ -12,6 +12,7 @@ import Link from 'next/link';
 import ChannelDiagnose, { DiagnosisList } from '@/components/ChannelDiagnose';
 import WaQrSlotsSection from '@/components/channels/WaQrSlotsSection';
 import TgPersonalSlotsSection from '@/components/channels/TgPersonalSlotsSection';
+import ExternalApiSlotsSection from '@/components/channels/ExternalApiSlotsSection';
 
 type MetaDiagnosis = {
   ok: boolean;
@@ -798,6 +799,9 @@ export default function ChannelsPage() {
         <ChannelDiagnose channel="tgpersonal" />
         <TgPersonalSlotsSection initialPoolEnabled={tgpPoolEnabled} />
       </div>
+
+      {/* External API channel placeholder */}
+      <ExternalApiSlotsSection initialPoolEnabled={!!(currentWorkspace as unknown as { externalApiPoolEnabled?: boolean })?.externalApiPoolEnabled} />
 
       {/* Email */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">

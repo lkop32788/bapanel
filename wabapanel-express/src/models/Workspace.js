@@ -87,6 +87,18 @@ const workspaceSchema = new mongoose.Schema({
   }],
   tgPersonalPoolEnabled: { type: Boolean, default: false },
   tgPersonalPoolCursor: { type: Number, default: 0 },
+  // ===== 外部 API 占位渠道（2026-10-20）：对接任意第三方消息 API =====
+  // 每个槽位配置 endpoint + apiKey；会话绑定写在 conversation.waNumberId（'ext:<slotId>'）
+  externalApiSlots: [{
+    slotId: { type: String, required: true },
+    label: { type: String, default: '' },
+    endpoint: { type: String, default: '' },    // 外发消息 POST URL
+    apiKey: { type: String, default: '' },      // 认证密钥（存储明文，传输时遮蔽）
+    authHeader: { type: String, default: 'Authorization' },
+    enabled: { type: Boolean, default: true },
+  }],
+  externalApiPoolEnabled: { type: Boolean, default: false },
+  externalApiPoolCursor: { type: Number, default: 0 },
   // Aliyun Chat App Message Service — Meta Premier BSP, official WhatsApp
   // channel reached through Alibaba Cloud instead of a direct Meta token.
   chatApp: {

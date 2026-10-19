@@ -26,6 +26,8 @@ export interface Workspace {
   timezone: string;
   waQrPoolEnabled?: boolean; // 号池 v2：网页版 WhatsApp 多槽位轮询
   tgPersonalPoolEnabled?: boolean; // 号池 v2：TG 个人号多账号轮询
+  externalApiSlots?: ExternalApiSlot[]; // 外部 API 占位渠道槽位列表
+  externalApiPoolEnabled?: boolean; // 外部 API 号池开关
   createdAt: string;
 }
 
@@ -50,6 +52,18 @@ export interface TgPersonalSlot {
   username?: string;
   enabled: boolean;
   isDefault?: boolean;
+}
+
+// 外部 API 占位渠道：槽位型，可对接任意第三方 HTTP 消息 API
+export interface ExternalApiSlot {
+  slotId: string;
+  label: string;
+  endpoint: string;       // 外发消息的 HTTP POST URL
+  apiKey?: string;        // 认证密钥（写入后后端不回显，前端用"••••"占位）
+  authHeader?: string;    // 认证头字段名，默认 Authorization
+  enabled: boolean;
+  status: 'configured' | 'unconfigured';
+  webhookUrl?: string;    // 后端计算好的入站 webhook URL（只读）
 }
 
 export interface WorkspaceMember {

@@ -157,6 +157,7 @@ app.use('/api/conversations', require('./routes/conversations'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/waqr', require('./routes/waqr'));
 app.use('/api/tgpersonal', require('./routes/tgpersonal'));
+app.use('/api/extchannel', require('./routes/externalapi'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 
 

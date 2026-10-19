@@ -650,6 +650,15 @@ export const auditLogApi = {
 
 // Invoices
 
+// 外部 API 占位渠道（extchannel）
+export const externalApiChannelApi = {
+  listSlots: () => api.get('/extchannel/slots'),
+  createSlot: (label: string) => api.post('/extchannel/slots', { label }),
+  updateSlot: (slotId: string, data: object) => api.put(`/extchannel/slots/${slotId}/settings`, data),
+  deleteSlot: (slotId: string) => api.delete(`/extchannel/slots/${slotId}`),
+  setPool: (enabled: boolean) => api.put('/extchannel/pool', { enabled }),
+};
+
 // Platform (coupons, announcements, support tickets, system admin)
 export const platformApi = {
   publicBranding: () => cachedGet('/public/branding', 60000),

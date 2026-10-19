@@ -13,7 +13,7 @@ const campaignSchema = new mongoose.Schema({
   targetChannel: { type: String, default: '' },
   // 'whatsapp_qr' sends via the QR (Baileys) socket, 'whatsapp_chatapp' via
   // Aliyun Chat App, instead of the Meta Cloud API.
-  sendChannel: { type: String, enum: ['cloud', 'whatsapp_qr', 'whatsapp_chatapp'], default: 'cloud' },
+  sendChannel: { type: String, enum: ['cloud', 'whatsapp_qr', 'whatsapp_chatapp', 'external_api'], default: 'cloud' },
   // WhatsApp phone number ID to send from (empty = workspace default number)
   senderNumberId: { type: String, default: '' },
   targetSegments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Segment' }],

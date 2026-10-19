@@ -26,7 +26,7 @@ export default function QrCampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', preset: '', audienceType: 'all', segments: [] as string[], tags: [] as string[],   minInterval: 5, maxInterval: 15, senderNumberId: '' });
+  const [form, setForm] = useState({ name: '', preset: '', audienceType: 'all', segments: [] as string[], tags: [] as string[],   minInterval: 5, maxInterval: 15, senderNumberId: '', sendChannel: 'whatsapp_qr' });
   const [numbersText, setNumbersText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
@@ -91,7 +91,7 @@ export default function QrCampaignsPage() {
       const minSec = Math.max(0, Number(form.minInterval) || 0);
       const maxSec = Math.max(minSec, Number(form.maxInterval) || 0);
       const payload = {
-        name: form.name, type: 'preset', presetMessage: form.preset, sendChannel: 'whatsapp_qr',
+        name: form.name, type: 'preset', presetMessage: form.preset, sendChannel: form.sendChannel || 'whatsapp_qr',
         senderNumberId: form.senderNumberId || '',
         sendInterval: { minSec, maxSec },
         audience: { type: form.audienceType, segments: form.segments, tags: form.tags, numbers,   },
@@ -107,7 +107,7 @@ export default function QrCampaignsPage() {
       toast.success(translateApiMessage(editId ? "WhatsApp 网络营销活动已更新" : "已创建 Web WhatsApp 活动"));
       setShowModal(false); setEditId(null);
       setCreateSchedAt(''); setCreateSchedRec('none');
-      setForm({ name: '', preset: '', audienceType: 'all', segments: [], tags: [],   minInterval: 5, maxInterval: 15, senderNumberId: '' });
+      setForm({ name: '', preset: '', audienceType: 'all', segments: [], tags: [],   minInterval: 5, maxInterval: 15, senderNumberId: '', sendChannel: 'whatsapp_qr' });
       fetchData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -123,6 +123,7 @@ export default function QrCampaignsPage() {
       audienceType: c.targetType || 'all',
       segments: (c.targetSegments || []).map(String), tags: (c.targetTags || []).map(String),
       senderNumberId: c.senderNumberId || '',
+      sendChannel: (c as { sendChannel?: string }).sendChannel || 'whatsapp_qr',
       minInterval: (c as { sendInterval?: { minSec?: number } }).sendInterval?.minSec ?? 5,
       maxInterval: (c as { sendInterval?: { maxSec?: number } }).sendInterval?.maxSec ?? 15,
     });
@@ -213,6 +214,11 @@ export default function QrCampaignsPage() {
       <Modal isOpen={showModal} onClose={() => { setShowModal(false); setEditId(null); }} title={editId ? "编辑网络 WhatsApp 营销活动" : "创建网络 WhatsApp 活动"} size="lg">
         <div className="space-y-4">
           <Input label={"活动名称"} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <Select label={"发送渠道"} value={form.sendChannel} onChange={(e) => setForm({ ...form, sendChannel: e.target.value, senderNumberId: '' })}
+            options={[
+              { value: 'whatsapp_qr', label: '网页版 WhatsApp (QR)' },
+              { value: 'external_api', label: '外部 API' },
+            ]} />
           <Select label={"预设模板"} value={form.preset} onChange={(e) => setForm({ ...form, preset: e.target.value })}
             options={[{ value: '', label: "选择预设模板" }, ...presets.map(p => ({ value: p._id, label: p.name }))]} />
           {presets.length === 0 && <p className="text-xs text-amber-600">首先在“预设模板”页面上创建一个模板。</p>}

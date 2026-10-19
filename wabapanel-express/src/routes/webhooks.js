@@ -40,4 +40,28 @@ router.post('/telegram/:workspaceId', async (req, res) => {
   }
 });
 
+// ===== 外部 API 占位渠道入站 webhook =====
+// POST /api/webhook/extapi/:workspaceId/:slotId
+// 第三方把入站消息推到这里；面板在收件箱里创建/追加 conversation
+router.post('/extapi/:workspaceId/:slotId', async (req, res) => {
+  res.sendStatus(200); // 立即 ACK，处理异步
+  try {
+    const Workspace = require('../models/Workspace');
+    const ws = await Workspace.findById(req.params.workspaceId);
+    if (!ws) return;
+    const slot = (ws.externalApiSlots || []).find((s) => s.slotId === req.params.slotId);
+    if (!slot || !slot.enabled) return;
+
+    const { from, type = 'text', text = '', messageId, media } = req.body || {};
+    if (!from) return;
+
+    const io = req.app.get('io') || global.io;
+    await require('../services/externalApiInbound').handleInbound({
+      workspace: ws, slotId: slot.slotId, from, type, text, messageId, media, io,
+    });
+  } catch (e) {
+    console.error('[ExtAPI] inbound webhook error:', e.message);
+  }
+});
+
 module.exports = router;

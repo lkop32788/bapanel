@@ -311,7 +311,7 @@ export default function PresetCampaignsPage() {
           
           {form.audienceType !== 'numbers' && (
             <Select label={"平台（可选）"} value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}
-              options={[{ value: '', label: "所有平台" }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'whatsapp_qr', label: "WhatsApp 二维码" }, { value: 'facebook', label: 'Facebook' }, { value: 'instagram', label: 'Instagram' }, { value: 'telegram', label: 'Telegram' }, { value: 'telegram_personal', label: "电报个人" }, { value: 'email', label: "Gmail/电子邮件" }]} />
+              options={[{ value: '', label: "所有平台" }, { value: 'whatsapp', label: 'WhatsApp' }, { value: 'whatsapp_qr', label: "WhatsApp 二维码" }, { value: 'facebook', label: 'Facebook' }, { value: 'instagram', label: 'Instagram' }, { value: 'telegram', label: 'Telegram' }, { value: 'telegram_personal', label: "电报个人" }, { value: 'email', label: "Gmail/电子邮件" }, { value: 'external_api', label: "外部 API" }]} />
           )}
           {form.audienceType === 'numbers' && (
             <div className="space-y-2">

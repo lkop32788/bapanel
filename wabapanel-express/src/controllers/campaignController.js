@@ -348,6 +348,17 @@ const runCampaignCore = async (campaign, workspace, io) => {
       return;
     }
 
+    // 外部 API 渠道群发 — 通过运营者自配的 HTTP endpoint 逐条发送
+    if (campaign.sendChannel === 'external_api' && campaign.presetMessage) {
+      const extCampaign = require('../services/extApiCampaign');
+      setImmediate(() => {
+        extCampaign.execute(campaign, workspace, contacts, io).catch((e) =>
+          console.error('[ExtApiCampaign] execute error:', e.message)
+        );
+      });
+      return;
+    }
+
     // Send messages asynchronously — from the campaign's selected number if it
     // belongs to this workspace, otherwise the default number.
     const validSenderIds = [
@@ -679,6 +690,11 @@ const startCampaign = async (req, res) => {
     } else if (campaign.sendChannel === 'whatsapp_chatapp') {
       if (!req.workspace.chatApp?.enabled || !req.workspace.chatApp?.isConnected) {
         return res.status(400).json({ success: false, message: 'Aliyun Chat App is not connected (add your AccessKey on the Channels page)' });
+      }
+    } else if (campaign.sendChannel === 'external_api') {
+      const hasSlot = (req.workspace.externalApiSlots || []).some((s) => s.enabled && s.endpoint);
+      if (!hasSlot) {
+        return res.status(400).json({ success: false, message: '外部 API 渠道没有已配置的槽位（请先在渠道页添加外部 API）' });
       }
     } else if (!req.workspace.whatsapp?.isConnected) {
       return res.status(400).json({ success: false, message: 'WhatsApp not connected' });
