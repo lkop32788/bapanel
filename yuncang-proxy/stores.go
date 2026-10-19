@@ -2,11 +2,10 @@ package main
 
 // 云仓管理：号码仓库。上传号码（待入仓）→ 先对共享缓存，再由后台工作器
 // 自动提交 th333 检测 → 沉淀为有效/无效两个池子，可分别导出 txt。
-// 自动检测使用「设置」里保存的上游 token（settings 表 k='token'）。
+// 自动检测使用「设置」里保存的上游 token（settings 集合 _id='token'）。
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +16,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func buildCreateForm(values []string, country, taskType, taskName string) (io.Reader, string) {
@@ -33,36 +36,6 @@ func buildCreateForm(values []string, country, taskType, taskName string) (io.Re
 	}
 	_ = mw.Close()
 	return &buf, mw.FormDataContentType()
-}
-
-const storeSchema = `
-CREATE TABLE IF NOT EXISTS stores (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL, remark TEXT NOT NULL DEFAULT '',
-  country TEXT NOT NULL DEFAULT '', task_type TEXT NOT NULL,
-  last_error TEXT NOT NULL DEFAULT '',
-  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS store_numbers (
-  store_id INTEGER NOT NULL, value TEXT NOT NULL,
-  status TEXT NOT NULL, -- pending | checking | valid | invalid
-  job_id INTEGER NOT NULL DEFAULT 0,
-  extra TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL,
-  PRIMARY KEY (store_id, value)
-);
-CREATE INDEX IF NOT EXISTS idx_store_status ON store_numbers(store_id, status);
-CREATE TABLE IF NOT EXISTS store_jobs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  store_id INTEGER NOT NULL, upstream_id TEXT NOT NULL DEFAULT '',
-  count INTEGER NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL);
-`
-
-func getSetting(k string) string {
-	var v string
-	_ = db.QueryRow("SELECT v FROM settings WHERE k=?", k).Scan(&v)
-	return v
 }
 
 // 从上游 consume 字段解析本次扣费
@@ -83,13 +56,6 @@ func upstreamURL() string {
 		return v
 	}
 	return upstream
-}
-
-func setSetting(k, v string) error {
-	writeMu.Lock()
-	defer writeMu.Unlock()
-	_, err := db.Exec("INSERT OR REPLACE INTO settings (k,v) VALUES (?,?)", k, v)
-	return err
 }
 
 // ---------- 上游调用（带显式 token，供后台工作器使用） ----------
@@ -155,25 +121,47 @@ func upstreamResultWithToken(token, upstreamID string) (string, error) {
 	return resultToText(buf), nil
 }
 
-// ---------- 云仓 CRUD ----------
+// ---------- 云仓文档 ----------
 
-type storeRow struct {
-	ID                                   int64
-	Name, Remark, Country, TaskType, Err string
-	Created, Updated                     int64
-	Pending, Checking, Valid, Invalid    int
+type storeDoc struct {
+	ID        int64  `bson:"_id"`
+	Name      string `bson:"name"`
+	Remark    string `bson:"remark"`
+	Country   string `bson:"country"`
+	TaskType  string `bson:"taskType"`
+	LastError string `bson:"lastError"`
+	CreatedAt int64  `bson:"createdAt"`
+	UpdatedAt int64  `bson:"updatedAt"`
 }
 
+type numberDoc struct {
+	StoreID   int64  `bson:"storeId"`
+	Value     string `bson:"value"`
+	Status    string `bson:"status"` // pending | checking | valid | invalid
+	JobID     int64  `bson:"jobId"`
+	Extra     string `bson:"extra"`
+	UpdatedAt int64  `bson:"updatedAt"`
+}
+
+type jobDoc struct {
+	ID         int64   `bson:"_id"`
+	StoreID    int64   `bson:"storeId"`
+	UpstreamID string  `bson:"upstreamId"`
+	Count      int     `bson:"count"`
+	State      string  `bson:"state"`
+	CreatedAt  int64   `bson:"createdAt"`
+	Deduction  float64 `bson:"deduction"`
+}
+
+// ---------- 云仓 CRUD ----------
+
 func handleStores(w http.ResponseWriter, r *http.Request) {
-	q := "SELECT id,name,remark,country,task_type,last_error,created_at,updated_at FROM stores WHERE 1=1"
-	var args []any
+	filter := bson.M{}
 	if kw := strings.TrimSpace(r.URL.Query().Get("kw")); kw != "" {
-		q += " AND name LIKE ?"
-		args = append(args, "%"+kw+"%")
+		filter["name"] = bson.M{"$regex": regexp.QuoteMeta(kw), "$options": "i"}
 	}
-	if c := r.URL.Query().Get("country"); c != "" {
-		q += " AND country=?"
-		args = append(args, c)
+	if cc := r.URL.Query().Get("country"); cc != "" {
+		filter["country"] = cc
 	}
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
@@ -183,50 +171,43 @@ func handleStores(w http.ResponseWriter, r *http.Request) {
 	if limit < 1 || limit > 100 {
 		limit = 10
 	}
-	var total int
-	_ = db.QueryRow("SELECT COUNT(*) FROM ("+q+")", args...).Scan(&total)
-	q += " ORDER BY updated_at DESC LIMIT ? OFFSET ?"
-	args = append(args, limit, (page-1)*limit)
 
-	rows, err := db.Query(q, args...)
+	c, cancel := ctx()
+	defer cancel()
+	total, _ := colStores.CountDocuments(c, filter)
+	cur, err := colStores.Find(c, filter, options.Find().
+		SetSort(bson.D{{Key: "updatedAt", Value: -1}}).
+		SetSkip(int64((page-1)*limit)).SetLimit(int64(limit)))
 	if err != nil {
 		apiErr(w, err.Error())
 		return
 	}
-	var list []storeRow
-	for rows.Next() {
-		var s storeRow
-		if rows.Scan(&s.ID, &s.Name, &s.Remark, &s.Country, &s.TaskType, &s.Err, &s.Created, &s.Updated) == nil {
-			list = append(list, s)
-		}
-	}
-	rows.Close()
+	var list []storeDoc
+	_ = cur.All(c, &list)
+
 	out := make([]map[string]any, 0, len(list))
 	for _, s := range list {
-		cr, _ := db.Query("SELECT status, COUNT(*) FROM store_numbers WHERE store_id=? GROUP BY status", s.ID)
-		for cr.Next() {
-			var st string
-			var n int
-			if cr.Scan(&st, &n) == nil {
-				switch st {
-				case "pending":
-					s.Pending = n
-				case "checking":
-					s.Checking = n
-				case "valid":
-					s.Valid = n
-				case "invalid":
-					s.Invalid = n
+		counts := map[string]int{}
+		if cr, err := colNumbers.Aggregate(c, []bson.M{
+			{"$match": bson.M{"storeId": s.ID}},
+			{"$group": bson.M{"_id": "$status", "n": bson.M{"$sum": 1}}},
+		}); err == nil {
+			var rows []struct {
+				ID string `bson:"_id"`
+				N  int    `bson:"n"`
+			}
+			if cr.All(c, &rows) == nil {
+				for _, row := range rows {
+					counts[row.ID] = row.N
 				}
 			}
 		}
-		cr.Close()
 		out = append(out, map[string]any{
 			"id": s.ID, "name": s.Name, "remark": s.Remark, "country": s.Country,
-			"taskType": s.TaskType, "lastError": s.Err,
-			"pending": s.Pending + s.Checking, "checking": s.Checking,
-			"valid": s.Valid, "invalid": s.Invalid,
-			"createdAt": s.Created, "updatedAt": s.Updated,
+			"taskType": s.TaskType, "lastError": s.LastError,
+			"pending": counts["pending"] + counts["checking"], "checking": counts["checking"],
+			"valid": counts["valid"], "invalid": counts["invalid"],
+			"createdAt": s.CreatedAt, "updatedAt": s.UpdatedAt,
 		})
 	}
 	writeJSON(w, map[string]any{"code": 0, "data": out, "total": total, "page": page, "limit": limit})
@@ -263,16 +244,18 @@ func handleStoreSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now().Unix()
-	writeMu.Lock()
+	c, cancel := ctx()
+	defer cancel()
 	var err error
 	if in.ID > 0 {
-		_, err = db.Exec("UPDATE stores SET name=?, remark=?, country=?, updated_at=? WHERE id=?",
-			in.Name, in.Remark, in.Country, now, in.ID)
+		_, err = colStores.UpdateOne(c, bson.M{"_id": in.ID},
+			bson.M{"$set": bson.M{"name": in.Name, "remark": in.Remark, "country": in.Country, "updatedAt": now}})
 	} else {
-		_, err = db.Exec("INSERT INTO stores (name,remark,country,task_type,created_at,updated_at) VALUES (?,?,?,?,?,?)",
-			in.Name, in.Remark, in.Country, in.TaskType, now, now)
+		_, err = colStores.InsertOne(c, storeDoc{
+			ID: nextSeq("stores"), Name: in.Name, Remark: in.Remark, Country: in.Country,
+			TaskType: in.TaskType, CreatedAt: now, UpdatedAt: now,
+		})
 	}
-	writeMu.Unlock()
 	if err != nil {
 		apiErr(w, err.Error())
 		return
@@ -285,12 +268,12 @@ func handleStoreDel(w http.ResponseWriter, r *http.Request) {
 		apiErr(w, "method not allowed")
 		return
 	}
-	id := r.URL.Query().Get("id")
-	writeMu.Lock()
-	_, _ = db.Exec("DELETE FROM store_numbers WHERE store_id=?", id)
-	_, _ = db.Exec("DELETE FROM store_jobs WHERE store_id=?", id)
-	_, err := db.Exec("DELETE FROM stores WHERE id=?", id)
-	writeMu.Unlock()
+	id, _ := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
+	c, cancel := ctx()
+	defer cancel()
+	_, _ = colNumbers.DeleteMany(c, bson.M{"storeId": id})
+	_, _ = colJobs.DeleteMany(c, bson.M{"storeId": id})
+	_, err := colStores.DeleteOne(c, bson.M{"_id": id})
 	if err != nil {
 		apiErr(w, err.Error())
 		return
@@ -305,12 +288,15 @@ func handleStoreUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, _ := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
-	var taskType string
-	if err := db.QueryRow("SELECT task_type FROM stores WHERE id=?", id).Scan(&taskType); err != nil {
+	c, cancel := ctx()
+	var store storeDoc
+	err := colStores.FindOne(c, bson.M{"_id": id}).Decode(&store)
+	cancel()
+	if err != nil {
 		apiErr(w, "云仓不存在")
 		return
 	}
-	def := taskTypes[taskType]
+	def := taskTypes[store.TaskType]
 	if err := r.ParseMultipartForm(128 << 20); err != nil {
 		apiErr(w, "表单解析失败")
 		return
@@ -331,72 +317,78 @@ func handleStoreUpload(w http.ResponseWriter, r *http.Request) {
 	hits := cacheLookup(def.kind, values, def.ttl)
 	now := time.Now().Unix()
 	added, fromCache := 0, 0
-	writeMu.Lock()
-	tx, err := db.Begin()
-	if err == nil {
-		ins, _ := tx.Prepare("INSERT OR IGNORE INTO store_numbers (store_id,value,status,extra,updated_at) VALUES (?,?,?,?,?)")
-		for _, v := range values {
-			st, extra := "pending", ""
-			if h, ok := hits[v]; ok {
-				fromCache++
-				extra = h.extra
-				if h.valid {
-					st = "valid"
-				} else {
-					st = "invalid"
-				}
-			}
-			if res, e := ins.Exec(id, v, st, extra, now); e == nil {
-				if n, _ := res.RowsAffected(); n > 0 {
-					added++
-				}
+	docs := make([]interface{}, 0, len(values))
+	for _, v := range values {
+		st, extra := "pending", ""
+		if h, ok := hits[v]; ok {
+			fromCache++
+			extra = h.extra
+			if h.valid {
+				st = "valid"
+			} else {
+				st = "invalid"
 			}
 		}
-		ins.Close()
-		_, _ = tx.Exec("UPDATE stores SET updated_at=? WHERE id=?", now, id)
-		err = tx.Commit()
+		docs = append(docs, numberDoc{StoreID: id, Value: v, Status: st, Extra: extra, UpdatedAt: now})
 	}
-	writeMu.Unlock()
-	if err != nil {
-		apiErr(w, err.Error())
-		return
+	// 无序批量插入：已存在的（唯一索引冲突）自动跳过，等价于原 INSERT OR IGNORE
+	for i := 0; i < len(docs); i += 5000 {
+		end := i + 5000
+		if end > len(docs) {
+			end = len(docs)
+		}
+		c2, cancel2 := ctx()
+		res, err := colNumbers.InsertMany(c2, docs[i:end], options.InsertMany().SetOrdered(false))
+		cancel2()
+		if res != nil {
+			added += len(res.InsertedIDs)
+		}
+		if err != nil && !mongo.IsDuplicateKeyError(err) {
+			if _, ok := err.(mongo.BulkWriteException); !ok {
+				apiErr(w, err.Error())
+				return
+			}
+		}
 	}
+	c3, cancel3 := ctx()
+	_, _ = colStores.UpdateOne(c3, bson.M{"_id": id}, bson.M{"$set": bson.M{"updatedAt": now}})
+	cancel3()
 	writeJSON(w, map[string]any{"code": 0, "message": "success",
 		"parsed": len(values), "added": added, "fromCache": fromCache})
 }
 
 // 导出：type=valid|invalid|pending
 func handleStoreExport(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
+	id, _ := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
 	typ := r.URL.Query().Get("type")
 	if typ != "valid" && typ != "invalid" && typ != "pending" {
 		apiErr(w, "type 应为 valid/invalid/pending")
 		return
 	}
-	var name string
-	_ = db.QueryRow("SELECT name FROM stores WHERE id=?", id).Scan(&name)
+	c, cancel := ctx()
+	defer cancel()
+	var store storeDoc
+	_ = colStores.FindOne(c, bson.M{"_id": id}).Decode(&store)
 	label := map[string]string{"valid": "有效", "invalid": "无效", "pending": "待检测"}[typ]
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename*=UTF-8''%s-%s.txt`,
-		strings.ReplaceAll(name, " ", "_"), label))
-	cond := "status=?"
-	args := []any{id, typ}
+		strings.ReplaceAll(store.Name, " ", "_"), label))
+	filter := bson.M{"storeId": id, "status": typ}
 	if typ == "pending" {
-		cond = "status IN ('pending','checking')"
-		args = []any{id}
+		filter = bson.M{"storeId": id, "status": bson.M{"$in": []string{"pending", "checking"}}}
 	}
-	rows, err := db.Query("SELECT value, extra FROM store_numbers WHERE store_id=? AND "+cond, args...)
+	cur, err := colNumbers.Find(c, filter)
 	if err != nil {
 		return
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var v, extra string
-		if rows.Scan(&v, &extra) == nil {
-			if extra != "" {
-				_, _ = io.WriteString(w, extra+"\n")
+	defer cur.Close(c)
+	for cur.Next(c) {
+		var n numberDoc
+		if cur.Decode(&n) == nil {
+			if n.Extra != "" {
+				_, _ = io.WriteString(w, n.Extra+"\n")
 			} else {
-				_, _ = io.WriteString(w, v+"\n")
+				_, _ = io.WriteString(w, n.Value+"\n")
 			}
 		}
 	}
@@ -482,44 +474,97 @@ func handleAdminBalance(w http.ResponseWriter, r *http.Request) {
 // ---------- 消耗统计（计费归属） ----------
 
 func handleBilling(w http.ResponseWriter, _ *http.Request) {
+	c, cancel := ctx()
+	defer cancel()
+
 	owners := []map[string]any{}
-	if rows, err := db.Query(`SELECT owner_id, owner_name, COUNT(*), COALESCE(SUM(total),0),
-		COALESCE(SUM(cached_count),0), COALESCE(SUM(deduction),0)
-		FROM tasks GROUP BY owner_id, owner_name ORDER BY SUM(deduction) DESC, COUNT(*) DESC`); err == nil {
-		for rows.Next() {
-			var oid, oname string
-			var n, total, cached int
-			var ded float64
-			if rows.Scan(&oid, &oname, &n, &total, &cached, &ded) == nil {
-				owners = append(owners, map[string]any{"ownerId": oid, "ownerName": oname,
-					"tasks": n, "total": total, "cached": cached, "forwarded": total - cached, "deduction": ded})
+	if cur, err := colTasks.Aggregate(c, []bson.M{
+		{"$group": bson.M{"_id": bson.M{"oid": "$ownerId", "oname": "$ownerName"},
+			"n": bson.M{"$sum": 1}, "total": bson.M{"$sum": "$total"},
+			"cached": bson.M{"$sum": "$cachedCount"}, "ded": bson.M{"$sum": "$deduction"}}},
+		{"$sort": bson.M{"ded": -1, "n": -1}},
+	}); err == nil {
+		var rows []struct {
+			ID struct {
+				Oid   string `bson:"oid"`
+				Oname string `bson:"oname"`
+			} `bson:"_id"`
+			N      int     `bson:"n"`
+			Total  int     `bson:"total"`
+			Cached int     `bson:"cached"`
+			Ded    float64 `bson:"ded"`
+		}
+		if cur.All(c, &rows) == nil {
+			for _, r := range rows {
+				owners = append(owners, map[string]any{"ownerId": r.ID.Oid, "ownerName": r.ID.Oname,
+					"tasks": r.N, "total": r.Total, "cached": r.Cached, "forwarded": r.Total - r.Cached, "deduction": r.Ded})
 			}
 		}
-		rows.Close()
 	}
+
 	storesAgg := []map[string]any{}
-	if rows, err := db.Query(`SELECT s.id, s.name, COUNT(j.id), COALESCE(SUM(j.count),0), COALESCE(SUM(j.deduction),0)
-		FROM store_jobs j JOIN stores s ON s.id=j.store_id GROUP BY s.id, s.name ORDER BY SUM(j.deduction) DESC`); err == nil {
-		for rows.Next() {
-			var id int64
-			var name string
-			var n, cnt int
-			var ded float64
-			if rows.Scan(&id, &name, &n, &cnt, &ded) == nil {
-				storesAgg = append(storesAgg, map[string]any{"id": id, "name": name,
-					"jobs": n, "count": cnt, "deduction": ded})
+	if cur, err := colJobs.Aggregate(c, []bson.M{
+		{"$group": bson.M{"_id": "$storeId", "jobs": bson.M{"$sum": 1},
+			"count": bson.M{"$sum": "$count"}, "ded": bson.M{"$sum": "$deduction"}}},
+		{"$sort": bson.M{"ded": -1}},
+	}); err == nil {
+		var rows []struct {
+			ID    int64   `bson:"_id"`
+			Jobs  int     `bson:"jobs"`
+			Count int     `bson:"count"`
+			Ded   float64 `bson:"ded"`
+		}
+		if cur.All(c, &rows) == nil {
+			for _, r := range rows {
+				var s storeDoc
+				name := fmt.Sprintf("云仓-%d", r.ID)
+				if colStores.FindOne(c, bson.M{"_id": r.ID}).Decode(&s) == nil {
+					name = s.Name
+				}
+				storesAgg = append(storesAgg, map[string]any{"id": r.ID, "name": name,
+					"jobs": r.Jobs, "count": r.Count, "deduction": r.Ded})
 			}
 		}
-		rows.Close()
 	}
+
 	var taskDed, jobDed float64
-	var taskCached, taskForwarded, jobForwarded, storeChecked int
-	_ = db.QueryRow("SELECT COALESCE(SUM(deduction),0), COALESCE(SUM(cached_count),0), COALESCE(SUM(total-cached_count),0) FROM tasks").Scan(&taskDed, &taskCached, &taskForwarded)
-	_ = db.QueryRow("SELECT COALESCE(SUM(deduction),0), COALESCE(SUM(count),0) FROM store_jobs").Scan(&jobDed, &jobForwarded)
-	_ = db.QueryRow("SELECT COUNT(*) FROM store_numbers WHERE status IN ('valid','invalid')").Scan(&storeChecked)
+	var taskCached, taskForwarded, jobForwarded int
+	if cur, err := colTasks.Aggregate(c, []bson.M{{"$group": bson.M{"_id": nil,
+		"ded": bson.M{"$sum": "$deduction"}, "cached": bson.M{"$sum": "$cachedCount"},
+		"fwd": bson.M{"$sum": bson.M{"$subtract": []any{"$total", "$cachedCount"}}}}}}); err == nil {
+		var rows []struct {
+			Ded    float64 `bson:"ded"`
+			Cached int     `bson:"cached"`
+			Fwd    int     `bson:"fwd"`
+		}
+		if cur.All(c, &rows) == nil && len(rows) > 0 {
+			taskDed, taskCached, taskForwarded = rows[0].Ded, rows[0].Cached, rows[0].Fwd
+		}
+	}
+	if cur, err := colJobs.Aggregate(c, []bson.M{{"$group": bson.M{"_id": nil,
+		"ded": bson.M{"$sum": "$deduction"}, "cnt": bson.M{"$sum": "$count"}}}}); err == nil {
+		var rows []struct {
+			Ded float64 `bson:"ded"`
+			Cnt int     `bson:"cnt"`
+		}
+		if cur.All(c, &rows) == nil && len(rows) > 0 {
+			jobDed, jobForwarded = rows[0].Ded, rows[0].Cnt
+		}
+	}
+	storeChecked := int(countDocs(colNumbers, bson.M{"status": bson.M{"$in": []string{"valid", "invalid"}}}))
 	// 云仓缓存直出 = 已出结果 - 经作业检测的（含进行中作业会轻微低估，可接受）
-	var jobIngested int
-	_ = db.QueryRow("SELECT COALESCE(SUM(count),0) FROM store_jobs WHERE state='Done'").Scan(&jobIngested)
+	jobIngested := 0
+	if cur, err := colJobs.Aggregate(c, []bson.M{
+		{"$match": bson.M{"state": "Done"}},
+		{"$group": bson.M{"_id": nil, "cnt": bson.M{"$sum": "$count"}}},
+	}); err == nil {
+		var rows []struct {
+			Cnt int `bson:"cnt"`
+		}
+		if cur.All(c, &rows) == nil && len(rows) > 0 {
+			jobIngested = rows[0].Cnt
+		}
+	}
 	storeCached := storeChecked - jobIngested
 	if storeCached < 0 {
 		storeCached = 0
@@ -551,42 +596,56 @@ func storeWorker() {
 }
 
 func submitPendingStores(token string) {
-	rows, err := db.Query(`SELECT s.id, s.country, s.task_type FROM stores s
-		WHERE EXISTS (SELECT 1 FROM store_numbers n WHERE n.store_id=s.id AND n.status='pending')
-		AND NOT EXISTS (SELECT 1 FROM store_jobs j WHERE j.store_id=s.id AND j.state NOT IN ('Done','Fail','Close'))`)
+	c, cancel := ctx()
+	// 有 pending 号码的仓
+	pendingIDs, err := colNumbers.Distinct(c, "storeId", bson.M{"status": "pending"})
 	if err != nil {
+		cancel()
 		return
 	}
-	type st struct {
-		id              int64
-		country, ttype  string
-	}
-	var list []st
-	for rows.Next() {
-		var s st
-		if rows.Scan(&s.id, &s.country, &s.ttype) == nil {
-			list = append(list, s)
+	// 有未完结作业的仓（跳过）
+	activeIDs, _ := colJobs.Distinct(c, "storeId", bson.M{"state": bson.M{"$nin": []string{"Done", "Fail", "Close"}}})
+	cancel()
+	active := map[int64]bool{}
+	for _, v := range activeIDs {
+		if id, ok := v.(int64); ok {
+			active[id] = true
 		}
 	}
-	rows.Close()
 
-	for _, s := range list {
-		def, ok := taskTypes[s.ttype]
-		if !ok {
+	for _, v := range pendingIDs {
+		storeID, ok := v.(int64)
+		if !ok || active[storeID] {
 			continue
 		}
-		vr, err := db.Query("SELECT value FROM store_numbers WHERE store_id=? AND status='pending' LIMIT 100000", s.id)
+		c1, cancel1 := ctx()
+		var s storeDoc
+		err := colStores.FindOne(c1, bson.M{"_id": storeID}).Decode(&s)
+		cancel1()
 		if err != nil {
 			continue
 		}
+		def, ok := taskTypes[s.TaskType]
+		if !ok {
+			continue
+		}
+
+		c2, cancel2 := context120()
+		cur, err := colNumbers.Find(c2, bson.M{"storeId": storeID, "status": "pending"},
+			options.Find().SetLimit(100000))
+		if err != nil {
+			cancel2()
+			continue
+		}
 		var values []string
-		for vr.Next() {
-			var v string
-			if vr.Scan(&v) == nil {
-				values = append(values, v)
+		for cur.Next(c2) {
+			var n numberDoc
+			if cur.Decode(&n) == nil {
+				values = append(values, n.Value)
 			}
 		}
-		vr.Close()
+		cur.Close(c2)
+		cancel2()
 		if len(values) == 0 {
 			continue
 		}
@@ -595,30 +654,30 @@ func submitPendingStores(token string) {
 		hits := cacheLookup(def.kind, values, def.ttl)
 		now := time.Now().Unix()
 		var misses []string
-		writeMu.Lock()
-		tx, _ := db.Begin()
-		if tx != nil {
-			upd, _ := tx.Prepare("UPDATE store_numbers SET status=?, extra=?, updated_at=? WHERE store_id=? AND value=?")
-			for _, v := range values {
-				if h, ok := hits[v]; ok {
-					st := "invalid"
-					if h.valid {
-						st = "valid"
-					}
-					_, _ = upd.Exec(st, h.extra, now, s.id, v)
-				} else {
-					misses = append(misses, v)
+		models := make([]mongo.WriteModel, 0)
+		for _, v := range values {
+			if h, ok := hits[v]; ok {
+				st := "invalid"
+				if h.valid {
+					st = "valid"
 				}
+				models = append(models, mongo.NewUpdateOneModel().
+					SetFilter(bson.M{"storeId": storeID, "value": v}).
+					SetUpdate(bson.M{"$set": bson.M{"status": st, "extra": h.extra, "updatedAt": now}}))
+			} else {
+				misses = append(misses, v)
 			}
-			upd.Close()
-			_ = tx.Commit()
 		}
-		writeMu.Unlock()
+		if len(models) > 0 {
+			c3, cancel3 := context120()
+			_, _ = colNumbers.BulkWrite(c3, models, options.BulkWrite().SetOrdered(false))
+			cancel3()
+		}
 		if len(misses) == 0 {
 			continue
 		}
 
-		ur, err := upstreamCreateWithToken(token, misses, s.country, s.ttype, fmt.Sprintf("云仓-%d", s.id))
+		ur, err := upstreamCreateWithToken(token, misses, s.Country, s.TaskType, fmt.Sprintf("云仓-%d", s.ID))
 		if err != nil || ur.Code != 0 || ur.Data.TaskID == "" {
 			msg := "提交检测失败"
 			if err != nil {
@@ -626,115 +685,128 @@ func submitPendingStores(token string) {
 			} else if ur.Message != "" {
 				msg += "：" + ur.Message
 			}
-			writeMu.Lock()
-			_, _ = db.Exec("UPDATE stores SET last_error=?, updated_at=? WHERE id=?", msg, time.Now().Unix(), s.id)
-			writeMu.Unlock()
-			log.Printf("store %d submit: %s", s.id, msg)
+			c4, cancel4 := ctx()
+			_, _ = colStores.UpdateOne(c4, bson.M{"_id": s.ID},
+				bson.M{"$set": bson.M{"lastError": msg, "updatedAt": time.Now().Unix()}})
+			cancel4()
+			log.Printf("store %d submit: %s", s.ID, msg)
 			continue
 		}
-		writeMu.Lock()
-		res, _ := db.Exec("INSERT INTO store_jobs (store_id,upstream_id,count,state,created_at,deduction) VALUES (?,?,?,?,?,?)",
-			s.id, ur.Data.TaskID, len(misses), "Waiting", time.Now().Unix(), consumeDeduction(ur.Consume))
-		jobID, _ := res.LastInsertId()
-		upd2, _ := db.Prepare("UPDATE store_numbers SET status='checking', job_id=?, updated_at=? WHERE store_id=? AND value=? AND status='pending'")
-		now2 := time.Now().Unix()
-		for _, v := range misses {
-			_, _ = upd2.Exec(jobID, now2, s.id, v)
-		}
-		upd2.Close()
-		_, _ = db.Exec("UPDATE stores SET last_error='', updated_at=? WHERE id=?", now2, s.id)
-		writeMu.Unlock()
-		log.Printf("store %d submitted %d numbers → %s (job %d)", s.id, len(misses), ur.Data.TaskID, jobID)
+		jobID := nextSeq("store_jobs")
+		c5, cancel5 := context120()
+		_, _ = colJobs.InsertOne(c5, jobDoc{
+			ID: jobID, StoreID: s.ID, UpstreamID: ur.Data.TaskID, Count: len(misses),
+			State: "Waiting", CreatedAt: time.Now().Unix(), Deduction: consumeDeduction(ur.Consume),
+		})
+		_, _ = colNumbers.UpdateMany(c5,
+			bson.M{"storeId": s.ID, "value": bson.M{"$in": misses}, "status": "pending"},
+			bson.M{"$set": bson.M{"status": "checking", "jobId": jobID, "updatedAt": time.Now().Unix()}})
+		_, _ = colStores.UpdateOne(c5, bson.M{"_id": s.ID},
+			bson.M{"$set": bson.M{"lastError": "", "updatedAt": time.Now().Unix()}})
+		cancel5()
+		log.Printf("store %d submitted %d numbers → %s (job %d)", s.ID, len(misses), ur.Data.TaskID, jobID)
 	}
 }
 
 func pollStoreJobs(token string) {
-	rows, err := db.Query("SELECT id, store_id, upstream_id FROM store_jobs WHERE state NOT IN ('Done','Fail','Close')")
+	c, cancel := ctx()
+	cur, err := colJobs.Find(c, bson.M{"state": bson.M{"$nin": []string{"Done", "Fail", "Close"}}})
 	if err != nil {
+		cancel()
 		return
 	}
-	type job struct {
-		id, storeID int64
-		upID        string
-	}
-	var jobs []job
-	for rows.Next() {
-		var j job
-		if rows.Scan(&j.id, &j.storeID, &j.upID) == nil {
-			jobs = append(jobs, j)
-		}
-	}
-	rows.Close()
+	var jobs []jobDoc
+	_ = cur.All(c, &jobs)
+	cancel()
 
 	for _, j := range jobs {
-		state, err := upstreamProgressWithToken(token, j.upID)
+		state, err := upstreamProgressWithToken(token, j.UpstreamID)
 		if err != nil {
 			continue // 网络抖动下轮再试
 		}
 		if state != "Finish" && state != "Fail" && state != "Close" {
-			writeMu.Lock()
-			_, _ = db.Exec("UPDATE store_jobs SET state=? WHERE id=?", state, j.id)
-			writeMu.Unlock()
+			c1, cancel1 := ctx()
+			_, _ = colJobs.UpdateOne(c1, bson.M{"_id": j.ID}, bson.M{"$set": bson.M{"state": state}})
+			cancel1()
 			continue
 		}
 		if state == "Fail" || state == "Close" {
 			// 平台失败已退款：号码退回待入仓，下轮重试
-			writeMu.Lock()
-			_, _ = db.Exec("UPDATE store_numbers SET status='pending', job_id=0 WHERE job_id=?", j.id)
-			_, _ = db.Exec("UPDATE store_jobs SET state=? WHERE id=?", state, j.id)
-			_, _ = db.Exec("UPDATE stores SET last_error=?, updated_at=? WHERE id=?",
-				"检测平台返回 "+state+"，已退回待入仓", time.Now().Unix(), j.storeID)
-			writeMu.Unlock()
+			c2, cancel2 := ctx()
+			_, _ = colNumbers.UpdateMany(c2, bson.M{"jobId": j.ID},
+				bson.M{"$set": bson.M{"status": "pending", "jobId": int64(0)}})
+			_, _ = colJobs.UpdateOne(c2, bson.M{"_id": j.ID}, bson.M{"$set": bson.M{"state": state}})
+			_, _ = colStores.UpdateOne(c2, bson.M{"_id": j.StoreID},
+				bson.M{"$set": bson.M{"lastError": "检测平台返回 " + state + "，已退回待入仓", "updatedAt": time.Now().Unix()}})
+			cancel2()
 			continue
 		}
 		// Finish：下载结果，沉淀有效/无效，同时写共享缓存
-		text, err := upstreamResultWithToken(token, j.upID)
+		text, err := upstreamResultWithToken(token, j.UpstreamID)
 		if err != nil {
-			log.Printf("store job %d download: %v", j.id, err)
+			log.Printf("store job %d download: %v", j.ID, err)
 			continue
 		}
-		var ttype string
-		_ = db.QueryRow("SELECT task_type FROM stores WHERE id=?", j.storeID).Scan(&ttype)
-		def := taskTypes[ttype]
+		c3, cancel3 := ctx()
+		var s storeDoc
+		_ = colStores.FindOne(c3, bson.M{"_id": j.StoreID}).Decode(&s)
+		cancel3()
+		def := taskTypes[s.TaskType]
 		validMap := parseResultText(text, def.input)
 		now := time.Now().Unix()
 
-		writeMu.Lock()
-		vr, _ := db.Query("SELECT value FROM store_numbers WHERE job_id=?", j.id)
+		c4, cancel4 := context120()
+		cur2, err := colNumbers.Find(c4, bson.M{"jobId": j.ID})
 		var vals []string
-		for vr.Next() {
-			var v string
-			if vr.Scan(&v) == nil {
-				vals = append(vals, v)
-			}
-		}
-		vr.Close()
-		tx, txErr := db.Begin()
-		if txErr == nil {
-			upd, _ := tx.Prepare("UPDATE store_numbers SET status=?, extra=?, job_id=0, updated_at=? WHERE job_id=? AND value=?")
-			ins, _ := tx.Prepare("INSERT OR REPLACE INTO cache (kind,value,valid,extra,checked_at) VALUES (?,?,?,?,?)")
-			for _, v := range vals {
-				lookup := v
-				if def.input != "phone" {
-					lookup = strings.ToLower(v)
+		if err == nil {
+			for cur2.Next(c4) {
+				var n numberDoc
+				if cur2.Decode(&n) == nil {
+					vals = append(vals, n.Value)
 				}
-				extra, ok := validMap[lookup]
-				st, b := "invalid", 0
-				if ok {
-					st, b = "valid", 1
-				}
-				_, _ = upd.Exec(st, extra, now, j.id, v)
-				_, _ = ins.Exec(def.kind, v, b, extra, now)
 			}
-			upd.Close()
-			ins.Close()
-			_, _ = tx.Exec("UPDATE store_jobs SET state='Done' WHERE id=?", j.id)
-			_, _ = tx.Exec("UPDATE stores SET last_error='', updated_at=? WHERE id=?", now, j.storeID)
-			_ = tx.Commit()
+			cur2.Close(c4)
 		}
-		writeMu.Unlock()
-		log.Printf("store %d job %d done: %d numbers ingested", j.storeID, j.id, len(vals))
+		cancel4()
+
+		cacheRows := map[string]struct {
+			Valid bool
+			Extra string
+		}{}
+		models := make([]mongo.WriteModel, 0, len(vals))
+		for _, v := range vals {
+			lookup := v
+			if def.input != "phone" {
+				lookup = strings.ToLower(v)
+			}
+			extra, okv := validMap[lookup]
+			st := "invalid"
+			if okv {
+				st = "valid"
+			}
+			models = append(models, mongo.NewUpdateOneModel().
+				SetFilter(bson.M{"jobId": j.ID, "value": v}).
+				SetUpdate(bson.M{"$set": bson.M{"status": st, "extra": extra, "jobId": int64(0), "updatedAt": now}}))
+			cacheRows[v] = struct {
+				Valid bool
+				Extra string
+			}{okv, extra}
+		}
+		for i := 0; i < len(models); i += 2000 {
+			end := i + 2000
+			if end > len(models) {
+				end = len(models)
+			}
+			c5, cancel5 := context120()
+			_, _ = colNumbers.BulkWrite(c5, models[i:end], options.BulkWrite().SetOrdered(false))
+			cancel5()
+		}
+		cachePutMany(def.kind, cacheRows, now)
+		c6, cancel6 := ctx()
+		_, _ = colJobs.UpdateOne(c6, bson.M{"_id": j.ID}, bson.M{"$set": bson.M{"state": "Done"}})
+		_, _ = colStores.UpdateOne(c6, bson.M{"_id": j.StoreID},
+			bson.M{"$set": bson.M{"lastError": "", "updatedAt": now}})
+		cancel6()
+		log.Printf("store %d job %d done: %d numbers ingested", j.StoreID, j.ID, len(vals))
 	}
 }
-
-var _ = sql.ErrNoRows

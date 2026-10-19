@@ -2,18 +2,19 @@
 //
 // 对外暴露与 th333 相同的接口：
 //   POST /api/task/create    GET /api/task/progress    GET /api/task/result    GET /api/user/balance
-// 面板只需把「接口地址」指到本服务。提交任务时先查本地 SQLite 缓存（按类型设有效期），
+// 面板只需把「接口地址」指到本服务。提交任务时先查本地 MongoDB 缓存（按类型设有效期），
 // 命中的直接出结果，只把未命中的转发给上游；上游结果回来后写入缓存，长期积累省积分。
 // 未知任务类型 / 未知任务编号一律原样透传，保证完全兼容。
 //
-// 环境变量：SAVER_PROXY_PORT(默认5090) SAVER_UPSTREAM(默认 https://api.th333.cc) SAVER_DATA_DIR(默认 ./data)
+// 存储：MongoDB（2026-10-19 由 SQLite 迁来，见 db.go；本机 127.0.0.1:27017，库 yuncang）
+// 环境变量：SAVER_PROXY_PORT(默认5090) SAVER_UPSTREAM(默认 https://api.th333.cc)
+//           SAVER_DATA_DIR(默认 ./data，结果txt落盘) YC_MONGO_URI YC_MONGO_DB
 package main
 
 import (
 	"archive/zip"
 	"bytes"
 	"crypto/subtle"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,12 +26,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // ---------- 任务类型目录：缓存命名空间 / 输入类型 / 缓存有效期 ----------
@@ -95,33 +95,11 @@ var taskTypes = map[string]typeDef{
 // ---------- 全局 ----------
 
 var (
-	db        *sql.DB
 	upstream  string
 	dataDir   string
 	adminPass string
-	writeMu   sync.Mutex // SQLite 单写者
 	client    = &http.Client{Timeout: 300 * time.Second}
 )
-
-const schema = `
-CREATE TABLE IF NOT EXISTS cache (
-  kind TEXT NOT NULL, value TEXT NOT NULL,
-  valid INTEGER NOT NULL, extra TEXT NOT NULL DEFAULT '',
-  checked_at INTEGER NOT NULL,
-  PRIMARY KEY (kind, value)
-);
-CREATE TABLE IF NOT EXISTS tasks (
-  id TEXT PRIMARY KEY, upstream_id TEXT NOT NULL DEFAULT '',
-  task_type TEXT NOT NULL, country TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '',
-  total INTEGER NOT NULL, cached_count INTEGER NOT NULL, cached_valid INTEGER NOT NULL,
-  state TEXT NOT NULL, ingested INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS task_items (
-  task_id TEXT NOT NULL, value TEXT NOT NULL, source TEXT NOT NULL,
-  valid INTEGER NOT NULL DEFAULT 0, extra TEXT NOT NULL DEFAULT ''
-);
-CREATE INDEX IF NOT EXISTS idx_items ON task_items(task_id);
-`
 
 func main() {
 	port := envOr("SAVER_PROXY_PORT", "5090")
@@ -131,35 +109,14 @@ func main() {
 	dataDir = envOr("SAVER_DATA_DIR", "./data")
 	_ = os.MkdirAll(filepath.Join(dataDir, "results"), 0o755)
 
-	var err error
-	db, err = sql.Open("sqlite", "file:"+filepath.Join(dataDir, "cache.db")+
-		"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
-	if err != nil {
-		log.Fatal(err)
-	}
-	db.SetMaxOpenConns(4)
-	if _, err := db.Exec(schema); err != nil {
-		log.Fatal(err)
-	}
-	if _, err := db.Exec(storeSchema); err != nil {
-		log.Fatal(err)
-	}
-	// 计费归属字段（已存在时报错忽略）
-	for _, stmt := range []string{
-		"ALTER TABLE tasks ADD COLUMN owner_id TEXT NOT NULL DEFAULT ''",
-		"ALTER TABLE tasks ADD COLUMN owner_name TEXT NOT NULL DEFAULT ''",
-		"ALTER TABLE tasks ADD COLUMN deduction REAL NOT NULL DEFAULT 0",
-		"ALTER TABLE store_jobs ADD COLUMN deduction REAL NOT NULL DEFAULT 0",
-	} {
-		_, _ = db.Exec(stmt)
-	}
+	initMongo()
 	go gcLoop()
 	go storeWorker()
 
 	mux := http.NewServeMux()
 	// SEC-YC：/api/* 只服务本机（面板经 127.0.0.1 调用）。服务对外监听是为了
 	// /admin 管理页远程可达，代理接口没理由暴露公网——否则陌生人可免 token
-	// 读缓存库、枚举下载结果文件、白嫖 SQLite 写入。
+	// 读缓存库、枚举下载结果文件、白嫖写入。
 	mux.HandleFunc("/api/task/create", loopbackOnly(handleCreate))
 	mux.HandleFunc("/api/task/progress", loopbackOnly(handleProgress))
 	mux.HandleFunc("/api/task/result", loopbackOnly(handleResult))
@@ -179,7 +136,7 @@ func main() {
 	mux.HandleFunc("/admin/api/balance", requireAdmin(handleAdminBalance))
 	mux.HandleFunc("/admin/api/billing", requireAdmin(handleBilling))
 
-	log.Printf("云仓中转管理 listening on %s:%s → %s (data: %s, admin: %v)", addr, port, upstream, dataDir, adminPass != "")
+	log.Printf("云仓中转管理 listening on %s:%s → %s (mongo, data: %s, admin: %v)", addr, port, upstream, dataDir, adminPass != "")
 	log.Fatal(http.ListenAndServe(addr+":"+port, mux))
 }
 
@@ -213,7 +170,8 @@ func toInt(v any) int {
 		n, _ := x.Int64()
 		return int(n)
 	case string:
-		n, _ := strconv.Atoi(x)
+		n := 0
+		fmt.Sscanf(x, "%d", &n)
 		return n
 	}
 	return 0
@@ -265,45 +223,9 @@ func parseValues(text, input string) []string {
 	return out
 }
 
-// ---------- 缓存 ----------
-
 type cacheHit struct {
 	valid bool
 	extra string
-}
-
-func cacheLookup(kind string, values []string, ttl time.Duration) map[string]cacheHit {
-	hits := map[string]cacheHit{}
-	minTime := time.Now().Add(-ttl).Unix()
-	for i := 0; i < len(values); i += 400 {
-		end := i + 400
-		if end > len(values) {
-			end = len(values)
-		}
-		chunk := values[i:end]
-		args := make([]any, 0, len(chunk)+2)
-		args = append(args, kind, minTime)
-		ph := make([]string, len(chunk))
-		for j, v := range chunk {
-			ph[j] = "?"
-			args = append(args, v)
-		}
-		rows, err := db.Query(
-			"SELECT value, valid, extra FROM cache WHERE kind=? AND checked_at>=? AND value IN ("+strings.Join(ph, ",")+")", args...)
-		if err != nil {
-			log.Printf("cacheLookup: %v", err)
-			continue
-		}
-		for rows.Next() {
-			var v, extra string
-			var valid int
-			if rows.Scan(&v, &valid, &extra) == nil {
-				hits[v] = cacheHit{valid == 1, extra}
-			}
-		}
-		rows.Close()
-	}
-	return hits
 }
 
 // ---------- 上游 ----------
@@ -468,28 +390,19 @@ func handleCreate(w http.ResponseWriter, r *http.Request) {
 		deduction = consumeDeduction(ur.Consume)
 	}
 
-	writeMu.Lock()
-	tx, err := db.Begin()
-	if err == nil {
-		_, _ = tx.Exec("INSERT INTO tasks (id,upstream_id,task_type,country,name,total,cached_count,cached_valid,state,created_at,owner_id,owner_name,deduction) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-			localID, upstreamID, taskType, country, taskName, len(values), len(values)-len(misses), cachedValid, state, time.Now().Unix(), ownerID, ownerName, deduction)
-		stmt, _ := tx.Prepare("INSERT INTO task_items (task_id,value,source,valid,extra) VALUES (?,?,?,?,?)")
-		for _, v := range values {
-			if h, ok := hits[v]; ok {
-				b := 0
-				if h.valid {
-					b = 1
-				}
-				_, _ = stmt.Exec(localID, v, "hit", b, h.extra)
-			} else {
-				_, _ = stmt.Exec(localID, v, "miss", 0, "")
-			}
+	items := make([]itemDoc, 0, len(values))
+	for _, v := range values {
+		if h, ok := hits[v]; ok {
+			items = append(items, itemDoc{TaskID: localID, Value: v, Source: "hit", Valid: h.valid, Extra: h.extra})
+		} else {
+			items = append(items, itemDoc{TaskID: localID, Value: v, Source: "miss"})
 		}
-		stmt.Close()
-		err = tx.Commit()
 	}
-	writeMu.Unlock()
-	if err != nil {
+	if err := insertTask(taskDoc{
+		ID: localID, UpstreamID: upstreamID, TaskType: taskType, Country: country, Name: taskName,
+		Total: len(values), CachedCount: len(values) - len(misses), CachedValid: cachedValid,
+		State: state, CreatedAt: time.Now().Unix(), OwnerID: ownerID, OwnerName: ownerName, Deduction: deduction,
+	}, items); err != nil {
 		apiErr(w, "本地存储失败："+err.Error())
 		return
 	}
@@ -507,16 +420,6 @@ func handleCreate(w http.ResponseWriter, r *http.Request) {
 type taskRow struct {
 	ID, UpstreamID, TaskType, Country, Name, State string
 	Total, CachedCount, CachedValid, Ingested      int
-}
-
-func getTask(id string) *taskRow {
-	var t taskRow
-	err := db.QueryRow("SELECT id,upstream_id,task_type,country,name,total,cached_count,cached_valid,state,ingested FROM tasks WHERE id=?", id).
-		Scan(&t.ID, &t.UpstreamID, &t.TaskType, &t.Country, &t.Name, &t.Total, &t.CachedCount, &t.CachedValid, &t.State, &t.Ingested)
-	if err != nil {
-		return nil
-	}
-	return &t
 }
 
 func handleProgress(w http.ResponseWriter, r *http.Request) {
@@ -555,9 +458,7 @@ func handleProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	st, _ := up.Data["taskState"].(string)
-	writeMu.Lock()
-	_, _ = db.Exec("UPDATE tasks SET state=? WHERE id=?", st, t.ID)
-	writeMu.Unlock()
+	updateTaskState(t.ID, st)
 	writeJSON(w, map[string]any{"code": 0, "message": "success", "data": map[string]any{
 		"taskId": t.ID, "taskName": t.Name, "country": t.Country, "taskTotal": t.Total,
 		"taskProgress":  t.CachedCount + toInt(up.Data["taskProgress"]),
@@ -657,45 +558,7 @@ func handleResult(w http.ResponseWriter, r *http.Request) {
 		}
 		text := resultToText(buf)
 		validMap := parseResultText(text, def.input)
-		now := time.Now().Unix()
-
-		writeMu.Lock()
-		tx, err := db.Begin()
-		if err == nil {
-			rows, _ := db.Query("SELECT value FROM task_items WHERE task_id=? AND source='miss'", t.ID)
-			var missVals []string
-			for rows.Next() {
-				var v string
-				if rows.Scan(&v) == nil {
-					missVals = append(missVals, v)
-				}
-			}
-			rows.Close()
-			upd, _ := tx.Prepare("UPDATE task_items SET valid=?, extra=? WHERE task_id=? AND value=? AND source='miss'")
-			ins, _ := tx.Prepare("INSERT OR REPLACE INTO cache (kind,value,valid,extra,checked_at) VALUES (?,?,?,?,?)")
-			for _, v := range missVals {
-				lookup := v
-				if def.input != "phone" {
-					lookup = strings.ToLower(v)
-				}
-				extra, ok := validMap[lookup]
-				b := 0
-				if ok {
-					b = 1
-				}
-				_, _ = upd.Exec(b, extra, t.ID, v)
-				_, _ = ins.Exec(def.kind, v, b, extra, now)
-			}
-			upd.Close()
-			ins.Close()
-			_, _ = tx.Exec("UPDATE tasks SET ingested=1 WHERE id=?", t.ID)
-			err = tx.Commit()
-		}
-		writeMu.Unlock()
-		if err != nil {
-			apiErr(w, "结果入库失败："+err.Error())
-			return
-		}
+		ingestTaskResult(t.ID, def.kind, taskMissValues(t.ID), validMap, def.input == "phone", time.Now().Unix())
 		_ = os.WriteFile(resultFile, []byte(text), 0o644)
 		t.Ingested = 1
 	}
@@ -708,20 +571,13 @@ func handleResult(w http.ResponseWriter, r *http.Request) {
 			sb.WriteByte('\n')
 		}
 	}
-	rows, err := db.Query("SELECT value, extra FROM task_items WHERE task_id=? AND source='hit' AND valid=1", t.ID)
-	if err == nil {
-		for rows.Next() {
-			var v, extra string
-			if rows.Scan(&v, &extra) == nil {
-				if extra != "" {
-					sb.WriteString(extra)
-				} else {
-					sb.WriteString(v)
-				}
-				sb.WriteByte('\n')
-			}
+	for _, it := range taskHitItems(t.ID) {
+		if it[1] != "" {
+			sb.WriteString(it[1])
+		} else {
+			sb.WriteString(it[0])
 		}
-		rows.Close()
+		sb.WriteByte('\n')
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+t.ID+`.txt"`)
@@ -729,16 +585,14 @@ func handleResult(w http.ResponseWriter, r *http.Request) {
 }
 
 // 红浪漫充值中心从这里获取 USDT(TRC20) 收款地址（地址在「设置」tab 维护；
-// 地址本身会展示给充值的商户，不属于敏感信息，故不要求 Basic Auth）
+// 地址本身会展示给充值的商户，不属于敏感信息）
 func handleUsdtAddress(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, map[string]any{"code": 0, "address": getSetting("usdtAddress")})
 }
 
 func handleHealth(w http.ResponseWriter, _ *http.Request) {
-	var cacheRows, taskRows int
-	_ = db.QueryRow("SELECT COUNT(*) FROM cache").Scan(&cacheRows)
-	_ = db.QueryRow("SELECT COUNT(*) FROM tasks").Scan(&taskRows)
-	writeJSON(w, map[string]any{"ok": true, "upstream": upstreamURL(), "cacheRows": cacheRows, "tasks": taskRows})
+	writeJSON(w, map[string]any{"ok": true, "upstream": upstreamURL(),
+		"cacheRows": countDocs(colCache, bson.M{}), "tasks": countDocs(colTasks, bson.M{}), "store": "mongodb"})
 }
 
 // ---------- 自带管理页 ----------
@@ -817,21 +671,18 @@ func handleClear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind := r.URL.Query().Get("kind")
-	writeMu.Lock()
-	var res sql.Result
-	var err error
-	if kind == "all" || kind == "" {
-		res, err = db.Exec("DELETE FROM cache")
-	} else {
-		res, err = db.Exec("DELETE FROM cache WHERE kind=?", kind)
+	filter := bson.M{}
+	if kind != "all" && kind != "" {
+		filter = bson.M{"kind": kind}
 	}
-	writeMu.Unlock()
+	c, cancel := ctx()
+	defer cancel()
+	res, err := colCache.DeleteMany(c, filter)
 	if err != nil {
 		apiErr(w, err.Error())
 		return
 	}
-	n, _ := res.RowsAffected()
-	writeJSON(w, map[string]any{"code": 0, "message": "success", "deleted": n})
+	writeJSON(w, map[string]any{"code": 0, "message": "success", "deleted": res.DeletedCount})
 }
 
 func handleAdminPage(w http.ResponseWriter, _ *http.Request) {
@@ -841,36 +692,48 @@ func handleAdminPage(w http.ResponseWriter, _ *http.Request) {
 
 // 管理页统计：缓存概况 / 累计命中节省 / 各类型缓存量 / 最近任务
 func handleStats(w http.ResponseWriter, _ *http.Request) {
-	var cacheRows, taskRows, savedTotal int
-	_ = db.QueryRow("SELECT COUNT(*) FROM cache").Scan(&cacheRows)
-	_ = db.QueryRow("SELECT COUNT(*) FROM tasks").Scan(&taskRows)
-	_ = db.QueryRow("SELECT COALESCE(SUM(cached_count),0) FROM tasks").Scan(&savedTotal)
+	c, cancel := ctx()
+	defer cancel()
+
+	savedTotal := 0
+	if cur, err := colTasks.Aggregate(c, []bson.M{{"$group": bson.M{"_id": nil, "s": bson.M{"$sum": "$cachedCount"}}}}); err == nil {
+		var rows []struct {
+			S int `bson:"s"`
+		}
+		if cur.All(c, &rows) == nil && len(rows) > 0 {
+			savedTotal = rows[0].S
+		}
+	}
 
 	kinds := []map[string]any{}
-	if rows, err := db.Query("SELECT kind, COUNT(*), COALESCE(SUM(valid),0) FROM cache GROUP BY kind ORDER BY COUNT(*) DESC"); err == nil {
-		for rows.Next() {
-			var kind string
-			var n, valid int
-			if rows.Scan(&kind, &n, &valid) == nil {
-				kinds = append(kinds, map[string]any{"kind": kind, "rows": n, "valid": valid})
+	if cur, err := colCache.Aggregate(c, []bson.M{
+		{"$group": bson.M{"_id": "$kind", "n": bson.M{"$sum": 1}, "valid": bson.M{"$sum": bson.M{"$cond": []any{"$valid", 1, 0}}}}},
+		{"$sort": bson.M{"n": -1}},
+	}); err == nil {
+		var rows []struct {
+			ID    string `bson:"_id"`
+			N     int    `bson:"n"`
+			Valid int    `bson:"valid"`
+		}
+		if cur.All(c, &rows) == nil {
+			for _, r := range rows {
+				kinds = append(kinds, map[string]any{"kind": r.ID, "rows": r.N, "valid": r.Valid})
 			}
 		}
-		rows.Close()
 	}
+
 	recent := []map[string]any{}
-	if rows, err := db.Query("SELECT id,task_type,total,cached_count,state,created_at FROM tasks ORDER BY created_at DESC LIMIT 10"); err == nil {
-		for rows.Next() {
-			var id, tt, state string
-			var total, cached, created int
-			if rows.Scan(&id, &tt, &total, &cached, &state, &created) == nil {
-				recent = append(recent, map[string]any{"id": id, "taskType": tt, "total": total,
-					"cached": cached, "state": state, "createdAt": created})
+	if cur, err := colTasks.Find(c, bson.M{}, optFindSortLimit("createdAt", -1, 10)); err == nil {
+		var rows []taskDoc
+		if cur.All(c, &rows) == nil {
+			for _, t := range rows {
+				recent = append(recent, map[string]any{"id": t.ID, "taskType": t.TaskType, "total": t.Total,
+					"cached": t.CachedCount, "state": t.State, "createdAt": t.CreatedAt})
 			}
 		}
-		rows.Close()
 	}
 	writeJSON(w, map[string]any{"ok": true, "upstream": upstreamURL(),
-		"cacheRows": cacheRows, "tasks": taskRows, "savedTotal": savedTotal,
+		"cacheRows": countDocs(colCache, bson.M{}), "tasks": countDocs(colTasks, bson.M{}), "savedTotal": savedTotal,
 		"kinds": kinds, "recent": recent})
 }
 
@@ -879,32 +742,29 @@ func gcLoop() {
 	for {
 		time.Sleep(24 * time.Hour)
 		now := time.Now()
-		writeMu.Lock()
 		seen := map[string]bool{}
 		for _, def := range taskTypes {
 			if def.ttl == 0 || seen[def.kind] {
 				continue
 			}
 			seen[def.kind] = true
-			_, _ = db.Exec("DELETE FROM cache WHERE kind=? AND checked_at < ?", def.kind, now.Add(-def.ttl).Unix())
+			c, cancel := ctx()
+			_, _ = colCache.DeleteMany(c, bson.M{"kind": def.kind, "checkedAt": bson.M{"$lt": now.Add(-def.ttl).Unix()}})
+			cancel()
 		}
 		cutoff := now.AddDate(0, 0, -35).Unix()
-		rows, err := db.Query("SELECT id FROM tasks WHERE created_at < ?", cutoff)
+		c, cancel := ctx()
+		cur, err := colTasks.Find(c, bson.M{"createdAt": bson.M{"$lt": cutoff}})
 		if err == nil {
-			var old []string
-			for rows.Next() {
-				var id string
-				if rows.Scan(&id) == nil {
-					old = append(old, id)
+			var old []taskDoc
+			if cur.All(c, &old) == nil {
+				for _, t := range old {
+					_, _ = colItems.DeleteMany(c, bson.M{"taskId": t.ID})
+					_, _ = colTasks.DeleteOne(c, bson.M{"_id": t.ID})
+					_ = os.Remove(filepath.Join(dataDir, "results", t.ID+".txt"))
 				}
 			}
-			rows.Close()
-			for _, id := range old {
-				_, _ = db.Exec("DELETE FROM task_items WHERE task_id=?", id)
-				_, _ = db.Exec("DELETE FROM tasks WHERE id=?", id)
-				_ = os.Remove(filepath.Join(dataDir, "results", id+".txt"))
-			}
 		}
-		writeMu.Unlock()
+		cancel()
 	}
 }
