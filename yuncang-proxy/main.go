@@ -139,7 +139,11 @@ func main() {
 	if _, err := db.Exec(schema); err != nil {
 		log.Fatal(err)
 	}
+	if _, err := db.Exec(storeSchema); err != nil {
+		log.Fatal(err)
+	}
 	go gcLoop()
+	go storeWorker()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/task/create", handleCreate)
@@ -151,6 +155,13 @@ func main() {
 	mux.HandleFunc("/admin", requireAdmin(handleAdminPage))
 	mux.HandleFunc("/admin/api/stats", requireAdmin(handleStats))
 	mux.HandleFunc("/admin/api/clear", requireAdmin(handleClear))
+	mux.HandleFunc("/admin/api/stores", requireAdmin(handleStores))
+	mux.HandleFunc("/admin/api/stores/save", requireAdmin(handleStoreSave))
+	mux.HandleFunc("/admin/api/stores/del", requireAdmin(handleStoreDel))
+	mux.HandleFunc("/admin/api/stores/upload", requireAdmin(handleStoreUpload))
+	mux.HandleFunc("/admin/api/stores/export", requireAdmin(handleStoreExport))
+	mux.HandleFunc("/admin/api/settings", requireAdmin(handleSettings))
+	mux.HandleFunc("/admin/api/balance", requireAdmin(handleAdminBalance))
 
 	log.Printf("云仓中转管理 listening on %s:%s → %s (data: %s, admin: %v)", addr, port, upstream, dataDir, adminPass != "")
 	log.Fatal(http.ListenAndServe(addr+":"+port, mux))
@@ -282,7 +293,7 @@ func cacheLookup(kind string, values []string, ttl time.Duration) map[string]cac
 // ---------- 上游 ----------
 
 func upstreamReq(r *http.Request, method, path, contentType string, body io.Reader, timeout time.Duration) (*http.Response, error) {
-	u := upstream + path
+	u := upstreamURL() + path
 	if method == http.MethodGet && r != nil && r.URL.RawQuery != "" {
 		u += "?" + r.URL.RawQuery
 	}
@@ -499,7 +510,7 @@ func handleProgress(w http.ResponseWriter, r *http.Request) {
 			"taskTotal": t.Total, "taskProgress": t.Total, "validQuantity": t.CachedValid, "taskState": "Finish"}})
 		return
 	}
-	req, _ := http.NewRequest(http.MethodGet, upstream+"/api/task/progress?taskId="+t.UpstreamID, nil)
+	req, _ := http.NewRequest(http.MethodGet, upstreamURL()+"/api/task/progress?taskId="+t.UpstreamID, nil)
 	req.Header.Set("token", r.Header.Get("token"))
 	c := &http.Client{Timeout: 30 * time.Second}
 	resp2, err := c.Do(req)
@@ -609,7 +620,7 @@ func handleResult(w http.ResponseWriter, r *http.Request) {
 
 	// 首次下载：取回上游结果，写入缓存并落盘
 	if t.UpstreamID != "" && t.Ingested == 0 {
-		req, _ := http.NewRequest(http.MethodGet, upstream+"/api/task/result?taskId="+t.UpstreamID, nil)
+		req, _ := http.NewRequest(http.MethodGet, upstreamURL()+"/api/task/result?taskId="+t.UpstreamID, nil)
 		req.Header.Set("token", r.Header.Get("token"))
 		resp, err := client.Do(req)
 		if err != nil {
@@ -699,7 +710,7 @@ func handleHealth(w http.ResponseWriter, _ *http.Request) {
 	var cacheRows, taskRows int
 	_ = db.QueryRow("SELECT COUNT(*) FROM cache").Scan(&cacheRows)
 	_ = db.QueryRow("SELECT COUNT(*) FROM tasks").Scan(&taskRows)
-	writeJSON(w, map[string]any{"ok": true, "upstream": upstream, "cacheRows": cacheRows, "tasks": taskRows})
+	writeJSON(w, map[string]any{"ok": true, "upstream": upstreamURL(), "cacheRows": cacheRows, "tasks": taskRows})
 }
 
 // ---------- 自带管理页 ----------
@@ -744,68 +755,9 @@ func handleClear(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"code": 0, "message": "success", "deleted": n})
 }
 
-const adminHTML = `<!doctype html>
-<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>云仓中转管理</title>
-<style>
-:root{color-scheme:light}
-body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f3f4f6;color:#111827;margin:0;padding:24px}
-.wrap{max-width:960px;margin:0 auto}
-h1{font-size:20px;margin:0 0 4px}
-.sub{color:#6b7280;font-size:13px;margin-bottom:20px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
-.card{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
-.card .k{font-size:12px;color:#9ca3af}.card .v{font-size:22px;font-weight:700;margin-top:2px;word-break:break-all}
-.panel{background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(0,0,0,.05);margin-bottom:20px}
-.panel h2{font-size:15px;margin:0 0 10px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;color:#9ca3af;font-weight:500;font-size:12px;padding:6px 8px;border-bottom:1px solid #f3f4f6}
-td{padding:6px 8px;border-bottom:1px solid #f9fafb}
-.r{text-align:right}.mono{font-family:ui-monospace,monospace;font-size:12px;color:#6b7280}
-.btn{border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;color:#374151}
-.btn:hover{background:#f9fafb}.btn.red{color:#dc2626;border-color:#fecaca}
-.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-.green{color:#059669;font-weight:600}
-</style></head><body><div class="wrap">
-<div class="top"><div><h1>云仓中转管理</h1><div class="sub" id="sub">加载中…</div></div>
-<div><button class="btn" onclick="load()">刷新</button>
-<button class="btn red" onclick="clearCache('all')">清空全部缓存</button></div></div>
-<div class="cards" id="cards"></div>
-<div class="panel"><h2>各类型缓存量</h2><table><thead><tr><th>类型</th><th class="r">缓存条数</th><th class="r">其中有效</th><th></th></tr></thead><tbody id="kinds"></tbody></table></div>
-<div class="panel"><h2>最近任务</h2><table><thead><tr><th>编号</th><th>类型</th><th class="r">总数</th><th class="r">缓存命中</th><th>状态</th><th>时间</th></tr></thead><tbody id="recent"></tbody></table></div>
-</div>
-<script>
-function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function load(){
-  fetch('/admin/api/stats').then(function(r){return r.json()}).then(function(d){
-    document.getElementById('sub').textContent = '上游：' + d.upstream;
-    var cards=[['缓存号码数',d.cacheRows],['累计免检条数',d.savedTotal],['经手任务数',d.tasks]];
-    document.getElementById('cards').innerHTML = cards.map(function(c){
-      return '<div class="card"><div class="k">'+c[0]+'</div><div class="v">'+c[1]+'</div></div>'}).join('');
-    var kinds = d.kinds || [];
-    document.getElementById('kinds').innerHTML = kinds.length ? kinds.map(function(k){
-      return '<tr><td>'+esc(k.kind)+'</td><td class="r">'+k.rows+'</td><td class="r green">'+k.valid+'</td>'+
-        '<td class="r"><button class="btn red" onclick="clearCache(\''+esc(k.kind)+'\')">清空</button></td></tr>'}).join('')
-      : '<tr><td colspan="4" style="color:#9ca3af;text-align:center;padding:20px">暂无缓存</td></tr>';
-    var rec = d.recent || [];
-    document.getElementById('recent').innerHTML = rec.length ? rec.map(function(t){
-      return '<tr><td class="mono">'+esc(t.id)+'</td><td>'+esc(t.taskType)+'</td><td class="r">'+t.total+
-        '</td><td class="r green">'+t.cached+'</td><td>'+esc(t.state)+'</td><td class="mono">'+
-        new Date(t.createdAt*1000).toLocaleString('zh-CN')+'</td></tr>'}).join('')
-      : '<tr><td colspan="6" style="color:#9ca3af;text-align:center;padding:20px">暂无任务</td></tr>';
-  }).catch(function(){document.getElementById('sub').textContent='加载失败'});
-}
-function clearCache(kind){
-  if(!confirm(kind==='all'?'清空全部缓存？之后所有号码都会重新提交上游检测':'清空类型 '+kind+' 的缓存？')) return;
-  fetch('/admin/api/clear?kind='+encodeURIComponent(kind),{method:'POST'})
-    .then(function(r){return r.json()}).then(function(d){alert('已删除 '+d.deleted+' 条');load()});
-}
-load();
-</script></body></html>`
-
 func handleAdminPage(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = io.WriteString(w, adminHTML)
+	_, _ = io.WriteString(w, adminPageHTML)
 }
 
 // 管理页统计：缓存概况 / 累计命中节省 / 各类型缓存量 / 最近任务
@@ -838,7 +790,7 @@ func handleStats(w http.ResponseWriter, _ *http.Request) {
 		}
 		rows.Close()
 	}
-	writeJSON(w, map[string]any{"ok": true, "upstream": upstream,
+	writeJSON(w, map[string]any{"ok": true, "upstream": upstreamURL(),
 		"cacheRows": cacheRows, "tasks": taskRows, "savedTotal": savedTotal,
 		"kinds": kinds, "recent": recent})
 }

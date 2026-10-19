@@ -165,7 +165,8 @@
       "部署": "pm2 进程 yuncang-proxy（已 pm2 save），二进制 yuncang-proxy/yuncang-proxy（go1.23 /usr/local/go 编译），数据 yuncang-proxy/data/（SQLite cache.db + results/，已 gitignore）",
       "缓存有效期": "筛开通类30天、性别年龄90天、筛活跃2天、用户名类7天、开关机状态不缓存；wsValid/wsSimpleValid 共享缓存，zaloGender/Quick 共享",
       "行为": "未知类型/未知任务编号/余额查询原样透传；上游结果（txt/zip）解析入库后与缓存命中合并输出为纯文本",
-      "管理页": "自带 /admin 网页「云仓中转管理」（Basic Auth，用户 admin，密码在 yuncang-proxy/admin-pass.txt，pm2 启动环境 SAVER_ADMIN_PASS）：概览/各类型缓存量/最近任务/清空缓存。绑定 0.0.0.0:5090，外部访问需放行 5090 端口"
+      "管理页": "自带 /admin 网页「云仓中转管理」（Basic Auth，用户 admin，密码在 yuncang-proxy/admin-pass.txt，pm2 启动环境 SAVER_ADMIN_PASS）：概览/各类型缓存量/最近任务/清空缓存。绑定 0.0.0.0:5090，外部访问需放行 5090 端口",
+      "云仓管理": "管理页新增云仓功能（/admin 三个tab：概览/云仓管理/设置）：云仓=按国家+检测类型的号码仓库，上传txt入仓（待入仓）→ 后台工作器每60s先对共享缓存再自动提交th333 → 沉淀有效/无效两池，可分别导出txt；检测结果同时写共享缓存。自动检测用「设置」tab保存的上游token（settings表），与面板的token互相独立。表：stores/store_numbers/store_jobs/settings"
     }
   },
   "backupArchive": "/www/backup/bapanel/manual-update-20260917/before-install.tar.gz",
