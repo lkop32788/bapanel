@@ -5,6 +5,9 @@ const SaverWallet = require('../models/SaverWallet');
 const SaverLedger = require('../models/SaverLedger');
 
 const round3 = (n) => Math.round(n * 1000) / 1000;
+// 单价精度：上游价目表到小数点后 8 位（如 0.00006 元/条），单价必须保留高精度，
+// 否则 round3 会把低价类型归零变免费；扣费总额仍按厘（round3）结算
+const round8 = (n) => Math.round(n * 1e8) / 1e8;
 
 async function getBillingConfig() {
   const s = await SystemSettings.findOne().select('saverApi').lean();
@@ -20,7 +23,7 @@ async function getBillingConfig() {
 
 const priceFor = (cfg, taskType) => {
   const p = cfg.priceOverrides?.[taskType];
-  return round3(Number(p) > 0 ? Number(p) : cfg.priceDefault);
+  return round8(Number(p) > 0 ? Number(p) : cfg.priceDefault);
 };
 
 async function getWallet(workspaceId) {

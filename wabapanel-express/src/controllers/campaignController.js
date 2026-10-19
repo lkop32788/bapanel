@@ -171,12 +171,16 @@ const updateCampaign = async (req, res) => {
 // @DELETE /api/campaigns/:id
 const deleteCampaign = async (req, res) => {
   try {
+    // SEC-CONC：运行中的任务不允许删除（请先暂停）——原先删除后发送循环仍继续
     const campaign = await Campaign.findOneAndDelete({
       _id: req.params.id,
       workspace: req.workspace._id,
+      status: { $ne: 'running' },
     });
 
     if (!campaign) {
+      const running = await Campaign.exists({ _id: req.params.id, workspace: req.workspace._id, status: 'running' });
+      if (running) return res.status(400).json({ success: false, message: '任务正在发送中，请先暂停再删除' });
       return res.status(404).json({ success: false, message: 'Campaign not found' });
     }
 
@@ -210,16 +214,24 @@ const emitCampaignMsg = (io, workspaceId, conversation, cMsg, seen) => {
 };
 
 const finishCampaign = async (campaign) => {
-  if (campaign.recurrence && campaign.recurrence !== 'none') {
-    campaign.status = 'scheduled';
-    campaign.scheduledAt = nextRunDate(campaign.recurrence);
-  } else {
-    campaign.status = 'completed';
-    campaign.completedAt = new Date();
-  }
-  await campaign.save();
-  if (campaign.status === 'completed') {
-    require('../services/ownerNotify').broadcastDone(campaign).catch(() => {});
+  // SEC-CONC：先持久化计数，再只从 running 原子收尾——
+  // 原先无条件 save()：会把并发 pause 的 paused 覆盖成 completed，
+  // 对已删除的任务还会抛未捕获的 DocumentNotFoundError
+  try {
+    await Campaign.updateOne({ _id: campaign._id }, { $set: {
+      'stats.sent': campaign.stats.sent, 'stats.failed': campaign.stats.failed,
+      'stats.skipped': campaign.stats.skipped, 'stats.totalRecipients': campaign.stats.totalRecipients,
+    } });
+    const isRecurring = campaign.recurrence && campaign.recurrence !== 'none';
+    const upd = isRecurring
+      ? { $set: { status: 'scheduled', scheduledAt: nextRunDate(campaign.recurrence) } }
+      : { $set: { status: 'completed', completedAt: new Date() } };
+    const done = await Campaign.findOneAndUpdate({ _id: campaign._id, status: 'running' }, upd, { new: true });
+    if (done && done.status === 'completed') {
+      require('../services/ownerNotify').broadcastDone(done).catch(() => {});
+    }
+  } catch (e) {
+    console.error('[Campaign] finish:', e.message);
   }
 };
 
@@ -484,7 +496,9 @@ const runCampaignCore = async (campaign, workspace, io) => {
         // Honor pause/stop requested while the campaign is running.
         if (contactIndex % 5 === 0) {
           const live = await Campaign.findById(campaign._id).select('status').lean();
-          if (live && live.status !== 'running') { campaign.status = live.status; await campaign.save(); return; }
+          // SEC-CONC：live=null（任务被删）也必须停——原先条件写反，删除后"幽灵发送"会发完全部受众
+          if (!live) return;
+          if (live.status !== 'running') { campaign.status = live.status; await campaign.save().catch(() => {}); return; }
           // Persist progress so a mid-run restart resumes with correct counts.
           try { await Campaign.updateOne({ _id: campaign._id }, { $set: { 'stats.sent': campaign.stats.sent, 'stats.failed': campaign.stats.failed, 'stats.skipped': campaign.stats.skipped } }); } catch (e) { /* noop */ }
         }
@@ -645,11 +659,29 @@ const startCampaign = async (req, res) => {
       if (!campaign.dripSteps || !campaign.dripSteps.length) {
         return res.status(400).json({ success: false, message: 'Drip campaign needs at least one step' });
       }
-      campaign.status = 'scheduled';
-      campaign.scheduledAt = new Date();
-      await campaign.save();
-      return res.json({ success: true, data: campaign });
+      // SEC-CONC：原子转 scheduled，运行中/已完成的不可重复排队
+      const q = await Campaign.findOneAndUpdate(
+        { _id: campaign._id, workspace: req.workspace._id, status: { $in: ['draft', 'paused', 'scheduled', 'failed'] } },
+        { $set: { status: 'scheduled', scheduledAt: new Date() } }, { new: true });
+      if (!q) return res.status(409).json({ success: false, message: '任务已在运行中或已完成' });
+      return res.json({ success: true, data: q });
     }
+
+    // 启动前置校验：没有模板也没有预设消息的任务直接拒绝
+    // （原先会在置为 running 之后 500，任务卡死在"运行中"）
+    if (!campaign.template && !(campaign.presetMessage && String(campaign.presetMessage.body || '').trim())) {
+      return res.status(400).json({ success: false, message: '任务缺少模板或预设消息，请先编辑后再启动' });
+    }
+
+    // SEC-CONC：原子抢占启动——只有 draft/paused/scheduled/failed 能转 running。
+    // 原先不筛状态也无抢占：并发点 N 次"开始"= 受众收到 N 遍重复消息（实测复现）
+    const claimed = await Campaign.findOneAndUpdate(
+      { _id: campaign._id, workspace: req.workspace._id, status: { $in: ['draft', 'paused', 'scheduled', 'failed'] } },
+      { $set: { status: 'running', startedAt: campaign.startedAt || new Date() } });
+    if (!claimed) {
+      return res.status(409).json({ success: false, message: '任务已在运行中或已完成，不能重复启动' });
+    }
+    campaign.status = 'running';
 
     await runCampaignCore(campaign, req.workspace, req.app.get('io'));
     res.json({ success: true, data: campaign });

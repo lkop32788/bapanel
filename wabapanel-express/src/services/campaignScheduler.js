@@ -20,7 +20,15 @@ class CampaignScheduler {
         const workspace = await Workspace.findById(campaign.workspace);
         if (!workspace) continue;
         const usesOwnChannel = campaign.sendChannel === 'whatsapp_qr' || campaign.sendChannel === 'whatsapp_chatapp';
-        if (!usesOwnChannel && !workspace.whatsapp?.isConnected) continue;
+        if (!usesOwnChannel && !workspace.whatsapp?.isConnected) {
+          // SEC-CONC：渠道未连接的到期任务不再静默永久重试——超时 24 小时置 failed，
+          // 商户在列表能看到失败状态（原先每分钟重查、永远停在"已定时"无人知晓）
+          if (campaign.scheduledAt && Date.now() - new Date(campaign.scheduledAt).getTime() > 24 * 3600 * 1000) {
+            await Campaign.updateOne({ _id: campaign._id, status: 'scheduled' }, { $set: { status: 'failed' } }).catch(() => {});
+            console.warn('[CampaignScheduler] scheduled campaign expired (channel not connected):', String(campaign._id), campaign.name);
+          }
+          continue;
+        }
         // Atomic claim: only one tick/process may start this campaign.
         const claimed = await Campaign.findOneAndUpdate({ _id: campaign._id, status: 'scheduled' }, { $set: { status: 'running' } });
         if (!claimed) continue;

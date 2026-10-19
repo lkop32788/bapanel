@@ -95,7 +95,7 @@ export default function SaverPricingPage() {
             {enabled ? <ToggleRight className="w-8 h-8 text-emerald-500 shrink-0" /> : <ToggleLeft className="w-8 h-8 text-gray-400 shrink-0" />}
           </button>
           <div className="w-44">
-            <Input label={'默认单价（元/条）'} type="number" step="0.001" value={priceDefault} onChange={e => setPriceDefault(e.target.value)} />
+            <Input label={'默认单价（元/条）'} type="number" step="0.000001" value={priceDefault} onChange={e => setPriceDefault(e.target.value)} />
           </div>
           <p className="text-xs text-gray-500 sm:ml-auto">
             已单独设价 <span className="font-semibold text-emerald-600">{overrideCount}</span> 个类型，其余走默认价 ￥{defNum || '—'}/条
@@ -112,7 +112,7 @@ export default function SaverPricingPage() {
               <h3 className="text-sm font-semibold text-gray-900">{g.name}</h3>
               <span className="text-xs text-gray-400">{g.types.length} 个类型</span>
               <div className="ml-auto flex items-center gap-1.5">
-                <input type="number" step="0.001" placeholder="整组设价"
+                <input type="number" step="0.000001" placeholder="整组设价"
                   className="w-24 px-2 py-1 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   onKeyDown={(e) => { if (e.key === 'Enter') { setGroup(g.slug, (e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ''; } }}
                   onBlur={(e) => { if (e.target.value !== '') { setGroup(g.slug, e.target.value); e.target.value = ''; } }} />
@@ -145,7 +145,7 @@ export default function SaverPricingPage() {
                       </td>
                       <td className="px-2 py-2 hidden sm:table-cell"><code className="text-xs text-gray-400">{t.value}</code></td>
                       <td className="px-2 py-2">
-                        <input type="number" step="0.001" value={v} placeholder={`默认 ${defNum || ''}`}
+                        <input type="number" step="0.000001" value={v} placeholder={`默认 ${defNum || ''}`}
                           onChange={(e) => setPrice(t.value, e.target.value)}
                           className="w-32 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                       </td>

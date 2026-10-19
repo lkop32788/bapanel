@@ -290,7 +290,8 @@
       "SEC-PUB 公开面批次": "公开表单：限频10/分/IP+字段白名单限长+提交$slice封顶1000+phone防注入+联系人仅新建写入；短链/轮询打点原子$push+$slice1000+截断+限频、创建更新白名单+http(s)；ext/lead未配密钥一律拒(常数时间)；bot flow外部触发补齐webhookKey机制(生成密钥按钮可用了,BotFlow.webhookKey)；TG webhook secret_token注册+强制验签(secretSynced,启动Fixup补注册)；ChatApp可选CHATAPP_WEBHOOK_SECRET；installed.lock自愈；邮件HTML转义(adminNotify/systemMailer)；KB搜索regex转义；getUser不回传2FA密钥；CSV防公式注入；listAgents未挂靠账号仅管理者；bulk-assign归属过滤",
       "SEC-SSRF 出站限制": "utils/safeOutboundUrl（http/https+DNS解析禁内网段含IPv6）应用于bot-flows webhook(禁重定向)/AI自定义工具2处/模板头图/集成(webhook系列+WooCommerce+Salesforce+Zoho)/Baileys媒体url(顺带封本地路径LFI)。残差:DNS rebinding TOCTOU",
       "SEC-YC 云仓加固": "/api/*仅限127.0.0.1回环（0.0.0.0监听只为/admin远程用）；BasicAuth常数时间比较+每IP10分钟20次失败429+失败延时300ms",
-      "cleanup_20261019": "文件权限：两个.env改600、wa_sessions改700；删真孤儿 services/auditService.js、services/emailService.js、config/worldCurrencies.js、middleware/licenseGate.js（models/index.js仍被chatRouter/dailyDigest引用，保留）；卸载无用依赖：后端slugify/patch-package，前端@tanstack/react-query/@xyflow/react/date-fns/react-dropzone"
+      "cleanup_20261019": "文件权限：两个.env改600、wa_sessions改700；删真孤儿 services/auditService.js、services/emailService.js、config/worldCurrencies.js、middleware/licenseGate.js（models/index.js仍被chatRouter/dailyDigest引用，保留）；卸载无用依赖：后端slugify/patch-package，前端@tanstack/react-query/@xyflow/react/date-fns/react-dropzone",
+      "SEC-CONC 群发并发竞态": "并发检测实锤后修复：①startCampaign 原子抢占（draft/paused/scheduled/failed→running，并发/重复启动 409——原先 10 并发启动=每人收 10 条重复消息实测复现）+启动前置校验缺模板/预设直接 400；②finishCampaign 先持久化计数再只从 running 原子收尾（不再覆盖 paused、不再对已删任务 save 抛异常）；③运行中任务禁止删除(400 提示先暂停)+发送循环 live=null 即停（原先删除后幽灵发送发完全部受众）；④定时任务渠道未连接超 24h 置 failed（原先静默永久重试）；⑤滴灌：步骤级原子抢占 currentStep 防 cron 重入双发、stepSentAt/contactIds 缺失拒绝处理（修 Invalid Date 跳步）、API startDrip 改走调度器初始化（修漏发第 0 步）、paused 恢复走原子 paused→running 不重发第 0 步。单跑者保证后内存计数一致，进度每 5 人+收尾持久化"
     },
     "patchRisk": "供应商补丁若覆盖 routes/admin.js、routes/kkhsLicense.js、controllers/adminController.js 需重新应用本修复"
   },

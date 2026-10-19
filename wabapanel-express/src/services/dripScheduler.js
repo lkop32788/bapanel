@@ -153,14 +153,17 @@ class DripScheduler {
     try {
       if (!campaign.variables || !campaign.dripSteps || campaign.dripSteps.length === 0) return;
 
+      // SEC-CONC：stepSentAt 缺失时 new Date(undefined) 的比较恒为 false，会跳过
+      // 延迟检查直接执行下一步——这里直接拒绝处理（_startDrip 必定会初始化它）
+      if (!campaign.variables.stepSentAt || !campaign.variables.contactIds) return;
+
       const currentStep = campaign.variables.currentStep || 0;
       const nextStep = currentStep + 1;
 
       if (nextStep >= campaign.dripSteps.length) {
-        // All steps completed
-        campaign.status = 'completed';
-        campaign.completedAt = new Date();
-        await campaign.save();
+        // All steps completed（只从 running 原子收尾）
+        await Campaign.updateOne({ _id: campaign._id, status: 'running' },
+          { $set: { status: 'completed', completedAt: new Date() } });
         return;
       }
 
@@ -176,6 +179,15 @@ class DripScheduler {
 
       const workspace = await Workspace.findById(campaign.workspace);
       if (!workspace?.whatsapp?.isConnected) return;
+
+      // SEC-CONC：步骤级原子抢占——先把 currentStep 推进到 nextStep，抢到的 tick
+      // 才执行发送。原先无任何重入保护：单步发送超过 1 分钟（约 1200 人以上）时
+      // 下一个 cron tick 会对同一步骤再次并发执行 = 滴灌双发
+      const claimed = await Campaign.findOneAndUpdate(
+        { _id: campaign._id, status: 'running', 'variables.currentStep': campaign.variables.currentStep },
+        { $set: { 'variables.currentStep': nextStep, 'variables.stepSentAt': new Date().toISOString() } });
+      if (!claimed) return;
+      campaign.variables.currentStep = nextStep;
 
       const contactIds = campaign.variables.contactIds || [];
       const contacts = await Contact.find({ _id: { $in: contactIds }, status: 'active' });

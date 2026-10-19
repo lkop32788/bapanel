@@ -120,23 +120,24 @@ const startDrip = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No drip steps configured' });
     }
 
-    let contacts;
-    if (drip.targetType === 'all') {
-      contacts = await Contact.find({ workspace: req.workspace._id, status: 'active' });
-    } else if (drip.targetType === 'segment') {
-      contacts = await Contact.find({ workspace: req.workspace._id, segments: { $in: drip.targetSegments }, status: 'active' });
-    } else if (drip.targetType === 'tag') {
-      contacts = await Contact.find({ workspace: req.workspace._id, tags: { $in: drip.targetTags }, status: 'active' });
-    } else {
-      contacts = await Contact.find({ _id: { $in: drip.targetContacts }, workspace: req.workspace._id, status: 'active' });
+    // SEC-CONC：暂停且已初始化过的滴灌 = 恢复（原子 paused→running，从当前步继续，
+    // 不重发第 0 步）；其余状态统一走调度器启动（原子转 scheduled，由 _startDrip
+    // 初始化 contactIds/currentStep/stepSentAt 并执行第 0 步）。原先直接置 running
+    // 但不初始化 variables——步骤处理器会因 stepSentAt 缺失跳过延迟检查且漏发第 0 步
+    if (drip.status === 'paused' && drip.variables && drip.variables.contactIds) {
+      const resumed = await Campaign.findOneAndUpdate(
+        { _id: drip._id, workspace: req.workspace._id, status: 'paused' },
+        { $set: { status: 'running' } }, { new: true });
+      if (!resumed) return res.status(409).json({ success: false, message: '滴灌任务状态已变化，请刷新' });
+      return res.json({ success: true, data: resumed, message: 'Drip campaign resumed' });
     }
+    const q = await Campaign.findOneAndUpdate(
+      { _id: drip._id, workspace: req.workspace._id, status: { $in: ['draft', 'paused', 'scheduled', 'failed'] } },
+      { $set: { status: 'scheduled', scheduledAt: new Date(), startedAt: drip.startedAt || new Date() } },
+      { new: true });
+    if (!q) return res.status(409).json({ success: false, message: '滴灌任务已在运行中或已完成' });
 
-    drip.status = 'running';
-    drip.startedAt = new Date();
-    drip.stats.totalRecipients = contacts.length;
-    await drip.save();
-
-    res.json({ success: true, data: drip, message: 'Drip campaign started' });
+    res.json({ success: true, data: q, message: 'Drip campaign started' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
