@@ -71,6 +71,7 @@ const submitForm = async (req, res) => {
     // （原先整个 body 原样入库——可灌任意对象、把文档刷向 16MB 上限）
     const allowed = new Set(['name', 'phone', 'email']);
     for (const f of (form.fields || [])) {
+      if (f && f.id) allowed.add(String(f.id)); // Form schema 字段键是 id（回归冒烟发现：按 id 提交的集成会丢字段）
       if (f && f.name) allowed.add(String(f.name));
       if (f && f.label) allowed.add(String(f.label));
     }
