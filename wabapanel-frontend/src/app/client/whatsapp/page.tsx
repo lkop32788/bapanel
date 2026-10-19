@@ -76,7 +76,6 @@ export default function WhatsAppPage() {
     businessAccountId: wa?.businessAccountId || '', accessToken: wa?.accessToken || '',
   });
   const [saving, setSaving] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [extraNumbers, setExtraNumbers] = useState<ExtraNumber[]>((wa?.extraNumbers || []) as ExtraNumber[]);
   const nh = (wa as unknown as { numberHealth?: NumberHealth } | undefined)?.numberHealth;
   const [newNum, setNewNum] = useState({ phoneNumberId: '', phoneNumber: '', displayName: '', accessToken: '', wabaId: '' });
@@ -126,47 +125,6 @@ export default function WhatsAppPage() {
     setDiagLoading(false);
   };
 
-  interface SendingLimits {
-    qualityRating: string;
-    messagingLimitTier: string;
-    dailyUniqueCap: number;
-    dailyUniqueCapSource: 'manual' | 'meta';
-    used24h: number;
-    remaining24h: number;
-    throughputLevel: string;
-    maxMessagesPerSecond: number;
-    metaThroughputMps?: number;
-    settings: {
-      enabled: boolean; marketingCooldownHours: number; failCooldownHours: number;
-      respectTier: boolean; messagesPerSecond: number; dailyUniqueCapOverride: number;
-    };
-  }
-  const [limits, setLimits] = useState<SendingLimits | null>(null);
-  const [limitsSaving, setLimitsSaving] = useState(false);
-
-  const loadLimits = async () => {
-    if (!currentWorkspace?._id) return;
-    try {
-      const r = await workspaceApi.getSendingLimits(currentWorkspace._id);
-      setLimits(r.data.data);
-    } catch { setLimits(null); }
-  };
-
-  const saveLimits = async () => {
-    if (!currentWorkspace?._id || !limits) return;
-    setLimitsSaving(true);
-    try {
-      await workspaceApi.updateSendingLimits(currentWorkspace._id, limits.settings);
-      toast.success(translateApiMessage("交货保护已保存"));
-      await loadLimits();
-    } catch { toast.error(translateApiMessage("保存失败")); }
-    setLimitsSaving(false);
-  };
-
-  const setLimitSetting = <K extends keyof SendingLimits['settings']>(key: K, value: SendingLimits['settings'][K]) => {
-    setLimits(l => (l ? { ...l, settings: { ...l.settings, [key]: value } } : l));
-  };
-
   const loadHealth = async () => {
     if (!currentWorkspace?._id) return;
     setHealthLoading(true);
@@ -178,7 +136,7 @@ export default function WhatsAppPage() {
   };
 
   useEffect(() => {
-    if (wa?.isConnected && currentWorkspace?._id) { loadHealth(); loadLimits(); }
+    if (wa?.isConnected && currentWorkspace?._id) { loadHealth(); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wa?.isConnected, currentWorkspace?._id]);
 
@@ -396,22 +354,6 @@ export default function WhatsAppPage() {
     } catch { toast.error(translateApiMessage("操作失败")); } finally { setSubmitting(false); }
   };
 
-  // Coexistence numbers only receive their WhatsApp Business App contacts and chats
-  // after the panel asks Meta for the one-time sync.
-  const handleImportAppChats = async () => {
-    if (!currentWorkspace) return;
-    setImporting(true);
-    try {
-      const res = await workspaceApi.coexistenceSync(currentWorkspace._id);
-      toast.success(translateApiMessage((res.data as { message?: string }).message || "导入开始"), { duration: 8000 });
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      toast.error(translateApiMessage(e.response?.data?.message || "无法开始导入"), { duration: 10000 });
-    } finally {
-      setImporting(false);
-    }
-  };
-
   // Launch WhatsApp Embedded Signup. coexistence=true onboards an existing
   // WhatsApp Business App number (usable on both the app and Cloud API).
   const launchSignup = (coexistence: boolean) => {
@@ -504,14 +446,6 @@ export default function WhatsAppPage() {
           )}
           <div className="flex items-center justify-end gap-2 mb-3">
             {nh?.lastSyncedAt && <span className="text-[11px] text-gray-400">上次与 Meta 同步 {new Date(nh.lastSyncedAt).toLocaleString()}</span>}
-            {wa.connectionMethod === 'coexistence' && (
-              <button onClick={handleImportAppChats} disabled={importing}
-                title={"要求 WhatsApp 从 WhatsApp Business 应用程序发送联系人和聊天记录"}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors">
-                <RefreshCw className={`w-3.5 h-3.5 ${importing ? 'animate-spin' : ''}`} />
-                {importing ? "开始导入..." : "导入应用程序聊天和联系人"}
-              </button>
-            )}
             <button onClick={handleRefreshDetails} disabled={refreshing}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} /> {refreshing ? "令人耳目一新..." : "从元刷新"}
@@ -647,15 +581,10 @@ export default function WhatsAppPage() {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500 mb-1">消息发送限制</p>
                   <p className="font-semibold text-sm">
-                    {limits?.dailyUniqueCapSource === 'manual'
-                      ? `${limits.dailyUniqueCap.toLocaleString()} / 24 小时`
-                      : limitLabel((nh?.messagingLimitScope === 'portfolio' && nh.messagingLimitTier) || health.phone?.messaging_limit_tier)}
+                    {limitLabel((nh?.messagingLimitScope === 'portfolio' && nh.messagingLimitTier) || health.phone?.messaging_limit_tier)}
                   </p>
                   <p className="text-[10px] text-gray-400">
                     {nh?.messagingLimitScope === 'portfolio' ? "整个投资组合，" : ''}独特客户/24小时（营销）
-                    {limits?.dailyUniqueCapSource === 'manual'
-                      ? ` ——手动设置；云API报告 ${limitLabel(health.phone?.messaging_limit_tier)}`
-                      : ''}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
@@ -757,83 +686,6 @@ export default function WhatsAppPage() {
             </>
           )}
         </Card>
-
-        {limits && (
-          <Card>
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-600" /> 传送保护和发送速度</h3>
-              <button onClick={loadLimits} className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg">刷新</button>
-            </div>
-            <p className="text-sm text-gray-500 mb-4">WhatsApp limits how many marketing messages one person receives and how many unique people this number may message per day. Staying inside those limits is what keeps the delivery rate high.</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">每日独特客户</p>
-                <p className="font-semibold text-sm">{limits.dailyUniqueCap < 0 ? "无限" : limits.dailyUniqueCap === 0 ? "未知" : limits.dailyUniqueCap.toLocaleString()}</p>
-                <p className="text-[10px] text-gray-400">{limits.dailyUniqueCapSource === 'manual' ? "下面手动设置" : limitLabel(limits.messagingLimitTier)}</p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">过去 24 小时内使用过</p>
-                <p className="font-semibold text-sm">{limits.used24h.toLocaleString()}</p>
-                <p className="text-[10px] text-gray-400">
-                  {limits.remaining24h < 0
-                    ? (limits.dailyUniqueCap < 0 ? "无每日上限" : "Meta 尚未报告每日上限")
-                    : `${limits.remaining24h.toLocaleString()} 今天离开`}
-                </p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">最大速度（元）</p>
-                <p className="font-semibold text-sm">{limits.metaThroughputMps || limits.maxMessagesPerSecond} 消息/秒</p>
-                <p className="text-[10px] text-gray-400">吞吐量： {limits.throughputLevel || 'STANDARD'}</p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-1">质量评级</p>
-                <Badge variant={limits.qualityRating === 'GREEN' ? 'success' : limits.qualityRating === 'YELLOW' ? 'warning' : limits.qualityRating === 'RED' ? 'danger' : 'default'}>
-                  {limits.qualityRating || 'N/A'}
-                </Badge>
-                <p className="text-[10px] text-gray-400 mt-1">保持绿色即可升级</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <label className="flex items-start gap-2 text-sm text-gray-700">
-                <input type="checkbox" className="mt-0.5 h-4 w-4" checked={limits.settings.enabled}
-                  onChange={e => setLimitSetting('enabled', e.target.checked)} />
-                <span>
-                  保护广播免受 WhatsApp 每用户营销上限的影响
-                  <span className="block text-xs text-gray-500">冷却时间内的收件人会被跳过，而不是因错误 131049 而失败。不会删除任何内容 — 它们会在下一次广播中收到消息。</span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2 text-sm text-gray-700">
-                <input type="checkbox" className="mt-0.5 h-4 w-4" checked={limits.settings.respectTier}
-                  onChange={e => setLimitSetting('respectTier', e.target.checked)} />
-                <span>
-                  切勿超过每日唯一客户限制
-                  <span className="block text-xs text-gray-500">额外的收件人将在接下来的 24 小时内自动继续，而不是失败。</span>
-                </span>
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Input type="number" label={"向一个人发送营销信息之间的差距（小时）"}
-                  value={String(limits.settings.marketingCooldownHours)}
-                  onChange={e => setLimitSetting('marketingCooldownHours', Number(e.target.value))} />
-                <Input type="number" label={"WhatsApp 限制收件人后的冷却时间（小时）"}
-                  value={String(limits.settings.failCooldownHours)}
-                  onChange={e => setLimitSetting('failCooldownHours', Number(e.target.value))} />
-                <Input type="number" label={`发送速度（消息/秒，最大 ${limits.maxMessagesPerSecond})`}
-                  value={String(limits.settings.messagesPerSecond)}
-                  onChange={e => setLimitSetting('messagesPerSecond', Number(e.target.value))} />
-                <Input type="number" label={"每日唯一客户 — 手动设置（0 = 使用元）"}
-                  value={String(limits.settings.dailyUniqueCapOverride)}
-                  onChange={e => setLimitSetting('dailyUniqueCapOverride', Number(e.target.value))} />
-              </div>
-              <p className="text-[11px] text-gray-500">
-                WhatsApp 管理器 → 账户工具 → 消息传递限制有时显示的限制（例如 2,000）比云 API 报告的相同数量的层更高。将该数字放在上面的字段中，以便广播使用实际限制；保留 0 以遵循 Meta 的报告等级（{limitLabel(limits.messagingLimitTier) || "未知"}).
-              </p>
-              <Button onClick={saveLimits} loading={limitsSaving}>保存</Button>
-            </div>
-            <p className="text-[11px] text-gray-500 mt-4">
-              提高每日限额：保持质量评级为绿色，并向当前级别内的更多独特客户发送消息 — Meta 升级自动为 250 → 1K/2K → 10K → 100K → 无限制。实用程序模板（订单、预约、服务更新）不受营销上限的影响。
-            </p>
-          </Card>
-        )}
 
         <Card>
           <h3 className="text-base font-semibold text-gray-900 mb-1">附加号码</h3>

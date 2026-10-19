@@ -44,6 +44,45 @@ router.use(protect, workspaceAccess);
 router.use(requireFeature('forms'));
 router.get('/', getForms);
 router.post('/', createForm);
+
+// 表单模板库（本地定制）：必须注册在 '/:id' 之前，否则 'library' 会被当成表单 id
+const formLibrary = require('../services/formLibrary');
+
+// GET /api/forms/library — 返回内置模板目录与分类
+router.get('/library', (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        templates: formLibrary.listTemplates(),
+        categories: formLibrary.listCategories(),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/forms/library/:templateId/use — 按模板为当前 workspace 创建表单
+router.post('/library/:templateId/use', async (req, res) => {
+  try {
+    const template = formLibrary.getTemplate(req.params.templateId);
+    if (!template) return res.status(404).json({ success: false, message: '模板不存在' });
+
+    const Form = require('../models/Form');
+    const form = await Form.create({
+      workspace: req.workspace._id,
+      name: (req.body && req.body.name && String(req.body.name).trim()) || template.name,
+      description: template.description,
+      fields: template.fields,
+      // isActive/状态等其余字段按模型默认值（status: 'active'、autoCreateContact: true）
+    });
+    res.status(201).json({ success: true, data: form });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.get('/:id', getForm);
 router.put('/:id', updateForm);
 router.post('/:id/publish-flow', publishFlow);

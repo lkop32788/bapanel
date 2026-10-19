@@ -82,20 +82,6 @@ function LoginForm() {
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-  const googleError = searchParams.get('google_error');
-  const googleErrorText: Record<string, string> = {
-    disabled: "尚未在此面板上配置 Google 登录。",
-    nouser: `未找到 ${searchParams.get('email') || '此 Google 账户'} 对应的账户，请使用已有账户登录或联系管理员。`,
-    suspended: "该账户已被暂停。请联系支持人员。",
-    twofa: "此账户已启用两步验证 - 请使用您的密码登录。",
-    cancelled: "Google 登录已取消。",
-  };
-
-  const startGoogleLogin = () => {
-    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'https://api.wabapanel.com/api').replace(/\/$/, '');
-    window.location.href = `${apiBase}/auth/google`;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -242,11 +228,6 @@ function LoginForm() {
                 <p className="mt-1">失败的尝试太多。它将自动解锁 <span className="font-semibold">{fmt(blockRemaining)}</span>.</p>
               </div>
             )}
-            {googleError && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                {googleErrorText[googleError] || "Google 登录失败。请重试或使用您的密码。"}
-              </div>
-            )}
             {needsVerification && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
                 您的电子邮件尚未验证。{' '}
@@ -256,20 +237,6 @@ function LoginForm() {
             <Button type="submit" className="w-full" loading={loading} disabled={blocked}>
               {blocked ? `被阻止（${fmt(blockRemaining)})` : "登录"}
             </Button>
-            {brand.googleLogin && (
-              <>
-                <div className="flex items-center gap-3 pt-1">
-                  <span className="h-px flex-1 bg-gray-200" />
-                  <span className="text-xs text-gray-400">or</span>
-                  <span className="h-px flex-1 bg-gray-200" />
-                </div>
-                <button type="button" onClick={startGoogleLogin}
-                  className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  <img src="https://www.google.com/favicon.ico" alt="" className="w-4 h-4" />
-                  继续使用 Google
-                </button>
-              </>
-            )}
           </form>
           )}
         </div>

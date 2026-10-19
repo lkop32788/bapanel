@@ -91,7 +91,7 @@ export default function ChannelsPage() {
     api.get('/facebook-connect/config')
       .then(r => setFbCfg(r.data.data))
       .catch(() => {});
-    api.get('/facebook-connect/instagram/config')
+    api.get('/instagram-auto-dm/connect/config')
       .then(r => setIgCfg(r.data.data))
       .catch(() => {});
     workspaceApi.getWhatsAppSignupConfig(currentWorkspace._id)
@@ -193,20 +193,21 @@ export default function ChannelsPage() {
     setIgBusy(true);
     try {
       await loadFbSdk(igCfg.appId);
+      // 后端 /instagram-auto-dm/connect/one-click 只接受授权 code（不支持 accessToken），
+      // 所以无 configId 的 scope 登录也强制要求返回 code。
       const opts: Record<string, unknown> = igCfg.configId
         ? { response_type: 'code', override_default_response_type: true, config_id: igCfg.configId }
-        : { scope: 'pages_show_list,pages_messaging,pages_manage_metadata,instagram_basic,instagram_manage_messages' };
+        : { response_type: 'code', override_default_response_type: true, scope: 'pages_show_list,pages_messaging,pages_manage_metadata,instagram_basic,instagram_manage_messages' };
       (window as FbWindow).FB!.login((resp) => {
         const code = resp?.authResponse?.code;
-        const accessToken = resp?.authResponse?.accessToken;
-        if (!code && !accessToken) { setIgBusy(false); toast.error(translateApiMessage("Facebook 登录已取消")); return; }
+        if (!code) { setIgBusy(false); toast.error(translateApiMessage("Facebook 登录已取消")); return; }
         const redirectUri = window.location.origin + window.location.pathname;
-        api.post('/facebook-connect/instagram/one-click', code ? { code, redirectUri } : { accessToken, redirectUri })
+        api.post('/instagram-auto-dm/connect/one-click', { code, redirectUri })
           .then(r => {
             const d = r.data.data;
             toast.success(translateApiMessage("Instagram 已连接"));
             if (d?.igAccountId) setMetaChat(m => ({ ...m, igAccountId: String(d.igAccountId), igEnabled: true }));
-            api.get('/facebook-connect/instagram/config').then(res => setIgCfg(res.data.data)).catch(() => {});
+            api.get('/instagram-auto-dm/connect/config').then(res => setIgCfg(res.data.data)).catch(() => {});
           })
           .catch(err => toast.error(translateApiMessage(err.response?.data?.message || "连接失败")))
           .finally(() => setIgBusy(false));

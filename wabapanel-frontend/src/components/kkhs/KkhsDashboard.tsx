@@ -33,7 +33,7 @@ const QUICK = [
   { l: "打开收件箱", h: '/client/chat', I: Inbox, c: 'k-purple' },
   { l: "新的机器人流程", h: '/client/bot-flows', I: GitBranch, c: 'k-warn' },
   { l: "模板", h: '/client/templates', I: FileText, c: 'k-info' },
-  { l: "团队", h: '/client/team', I: Users, c: 'k-ok' },
+  { l: "团队", h: '/client/teams', I: Users, c: 'k-ok' },
 ];
 
 const CHC: Record<string, string> = {
@@ -155,9 +155,9 @@ export default function KkhsDashboard(p: Props) {
         </section>
 
         <section className="kd-panel">
-          <header className="kd-ph2"><h3>代理工作负载</h3><Link href="/client/team" className="kd-link">团队</Link></header>
+          <header className="kd-ph2"><h3>代理工作负载</h3><Link href="/client/teams" className="kd-link">团队</Link></header>
           {agents.length === 0 ? (
-            <div className="kd-empty">还没有代理。 <Link href="/client/team" className="kd-link">添加代理</Link></div>
+            <div className="kd-empty">还没有代理。 <Link href="/client/agents" className="kd-link">添加代理</Link></div>
           ) : agents.map(a => (
             <div key={a._id} className="kd-row">
               <span className={`kd-av ${a.online ? 'on' : ''}`}>{(a.name || '?').slice(0, 1).toUpperCase()}</span>

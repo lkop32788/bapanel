@@ -135,12 +135,9 @@ export const workspaceApi = {
   refreshWhatsAppDetails: (id: string) => api.post(`/workspaces/${id}/whatsapp/refresh`),
   getWhatsAppHealth: (id: string) => api.get(`/workspaces/${id}/whatsapp/health`),
   diagnoseWhatsApp: (id: string, fix = false) => api.get(`/workspaces/${id}/whatsapp/diagnose${fix ? '?fix=1' : ''}`),
-  getSendingLimits: (id: string) => api.get(`/workspaces/${id}/whatsapp/sending-limits`),
-  updateSendingLimits: (id: string, data: object) => api.put(`/workspaces/${id}/whatsapp/sending-limits`, data),
   embeddedSignup: (id: string, data: object) => api.post(`/workspaces/${id}/whatsapp/embedded-signup`, data),
   // ADM-21: full disconnect (unsubscribes the app from the WABA + local reset), owner only
   disconnectWhatsApp: (id: string) => api.post(`/workspaces/${id}/whatsapp/disconnect`),
-  coexistenceSync: (id: string) => api.post(`/workspaces/${id}/whatsapp/coexistence-sync`),
 };
 
 // Contacts
@@ -178,13 +175,11 @@ export const tagApi = {
 // Templates
 export const templateApi = {
   list: (params?: Record<string, unknown>) => api.get('/templates', { params }),
-  get: (id: string) => api.get(`/templates/${id}`),
   create: (data: object) => api.post('/templates', data),
   update: (id: string, data: object) => api.put(`/templates/${id}`, data),
   delete: (id: string) => api.delete(`/templates/${id}`),
   syncFromWhatsApp: () => api.post('/templates/sync'),
   library: (params?: Record<string, unknown>) => api.get('/templates/library', { params }),
-  useFromLibrary: (presetId: string) => api.post(`/templates/library/${presetId}`, {}),
   flagForReview: (id: string, body?: { category?: string; createCopy?: boolean; copyName?: string }) => api.post(`/templates/${id}/flag-review`, body || {}),
 };
 
@@ -552,7 +547,6 @@ export const adminApi = {
   loginAsVendor: (id: string) => api.post(`/admin/vendors/${id}/login-as`),
   getVendorDetail: (id: string) => api.get(`/admin/vendors/${id}/detail`),
   // Feature controls and vendor administration
-  getFeatureCatalog: () => api.get('/admin/feature-catalog'),
   getFeatureControls: () => api.get('/admin/feature-controls'),
   updateFeatureControls: (vendorId: string, features: Record<string, boolean>) => api.put(`/admin/feature-controls/${vendorId}`, { features }),
   getVendorAiAssignments: () => api.get('/admin/vendor-ai'),
@@ -640,8 +634,6 @@ export const auditLogApi = {
 export const platformApi = {
   publicBranding: () => cachedGet('/public/branding', 60000),
   activeAnnouncements: () => api.get('/platform/announcements/active'),
-  // Support tickets (vendor)
-  myTickets: () => api.get('/platform/support'),
   // Admin
   adminBackups: () => api.get('/platform/admin/backups'),
   adminRunBackup: () => api.post('/platform/admin/backups'),

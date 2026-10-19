@@ -48,7 +48,6 @@ export default function Header({ isAdmin }: { isAdmin?: boolean } = {}) {
       if ("caches" in window) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); }
       if ("serviceWorker" in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); }
       localStorage.removeItem("next-cache");
-      if (isAdmin) { try { await api.post("/admin/cache/flush"); } catch { /* browser cache is cleared anyway */ } }
       window.location.reload();
     } catch { window.location.reload(); }
   };

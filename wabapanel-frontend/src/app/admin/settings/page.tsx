@@ -17,7 +17,6 @@ interface SystemSettings {
   whatsapp: { enableEmbeddedSignup: boolean; enableManualSignup: boolean; apiVersion: string; webhookVerifyToken: string; appId: string; appSecret: string; configId: string; businessId: string; };
   facebook: { appId: string; appSecret: string; webhookUrl: string; };
   email: { host: string; port: string; user: string; password: string; from: string; fromName: string; encryption: string; templates: Record<string, { enabled: boolean; subject: string; body: string }>; };
-  google: { clientId: string; clientSecret: string; analyticsId: string; };
   aws: { accessKeyId: string; secretAccessKey: string; region: string; bucket: string; };
   limits: { maxFileSize: string; maxGroupSize: string; maxBroadcastSize: string; };
 
@@ -33,7 +32,6 @@ const defaultSettings: SystemSettings = {
   whatsapp: { enableEmbeddedSignup: false, enableManualSignup: true, apiVersion: 'v21.0', webhookVerifyToken: '', appId: '', appSecret: '', configId: '', businessId: '' },
   facebook: { appId: '', appSecret: '', webhookUrl: '' },
   email: { host: '', port: '587', user: '', password: '', from: '', fromName: '', encryption: 'tls', templates: {} },
-  google: { clientId: '', clientSecret: '', analyticsId: '' },
   aws: { accessKeyId: '', secretAccessKey: '', region: 'ap-south-1', bucket: '' },
   limits: { maxFileSize: '16', maxGroupSize: '256', maxBroadcastSize: '10000' },
   
@@ -240,23 +238,6 @@ export default function AdminSettingsPage() {
           </div>
         </Card>
       </div>
-    )},
-    { key: 'google', label: "谷歌登录", content: (
-      <Card>
-        <div className="space-y-4 max-w-xl">
-          <p className="text-sm text-gray-500">
-            在此处粘贴 Google OAuth 客户端，以在登录页面上显示“继续使用 Google”按钮。             将这两个字段留空以关闭 Google 登录。只有此面板上已存在的账户才能使用 Google 登录 - 它永远不会创建新账户。
-          </p>
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600">
-            <p className="font-medium text-gray-700 mb-1">授权重定向 URI（将其粘贴到 Google Cloud Console 中）</p>
-            <code className="break-all">{(process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')}/auth/google/callback</code>
-          </div>
-          <Input label={"Google 客户端 ID"} value={settings.google.clientId} onChange={e => updateField('google', 'clientId', e.target.value)} autoComplete="off" />
-          <Input label={"Google 客户端秘密"} type="password" value={settings.google.clientSecret} onChange={e => updateField('google', 'clientSecret', e.target.value)} autoComplete="off" />
-          <Input label={"Google Analytics ID（可选）"} value={settings.google.analyticsId} onChange={e => updateField('google', 'analyticsId', e.target.value)} autoComplete="off" />
-          <Button onClick={() => handleSave('google')} loading={saving} icon={<Save className="w-4 h-4" />}>保存</Button>
-        </div>
-      </Card>
     )},
     { key: 'aws', label: 'AWS S3', content: (
       <Card>

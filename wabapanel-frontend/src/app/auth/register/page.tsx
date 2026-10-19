@@ -32,11 +32,6 @@ export default function RegisterPage() {
     }
   }, []);
 
-  const startGoogleSignup = () => {
-    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'https://api.wabapanel.com/api').replace(/\/$/, '');
-    window.location.href = `${apiBase}/auth/google`;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
@@ -92,20 +87,6 @@ export default function RegisterPage() {
             <Input label={"密码"} type="password" placeholder={"创建密码"} value={password} onChange={(e) => setPassword(e.target.value)} required icon={<Lock className="w-4 h-4" />} />
             <Input label={"确认密码"} type="password" placeholder={"确认密码"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required icon={<Lock className="w-4 h-4" />} />
             <Button type="submit" className="w-full" loading={loading}>创建账户</Button>
-            {brand.googleLogin && (
-              <>
-                <div className="flex items-center gap-3 pt-1">
-                  <span className="h-px flex-1 bg-gray-200" />
-                  <span className="text-xs text-gray-400">or</span>
-                  <span className="h-px flex-1 bg-gray-200" />
-                </div>
-                <button type="button" onClick={startGoogleSignup}
-                  className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  <img src="https://www.google.com/favicon.ico" alt="" className="w-4 h-4" />
-                  使用 Google 注册
-                </button>
-              </>
-            )}
           </form>
           )}
           <p className="text-center text-sm text-gray-500 mt-6">

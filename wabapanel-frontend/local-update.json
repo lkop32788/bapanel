@@ -250,6 +250,15 @@
       "services/botFlowEngine.js": "saveOutbound 的 metadata 增加 flowId/flowName（报表按流程分组的数据源，历史消息显示“(未标记)”）",
       "简易编辑器": "新增 /client/bot-flows/[id]/easy：傻瓜式步骤卡片（发文字/图片/图文按钮/列表/提问/等待/打标签）+ 右侧手机实时预览（FlowPhonePreview 公共组件，点气泡定位步骤）；按钮/列表项可跳转任意步骤；新建流程和装模板默认进简易编辑器，高级画布保留；含复杂分支（nextTimeout 等）的流程显示提示",
       "src/components/FlowPhonePreview.tsx(新增)": "WhatsApp 手机模拟预览公共组件（市场预览+简易编辑器共用），支持高亮/点击联动"
+    },
+    "死功能第三批_20261019": {
+      "补后端": {
+        "templates flag-review": "POST /templates/:id/flag-review：重新向 Meta 送审（支持换类别、approved 改类别时 409 category_locked 建议副本、createCopy 复制提审），Template 模型加 flagReview 字段，whatsappService 加 updateTemplateOnMeta/_prepareTemplateMedia，controller 抽 buildMetaComponents",
+        "contacts delete-all": "POST /contacts/delete-all + GET /delete-all/status：按当前过滤器全量删除（级联消息/会话/笔记），每批500，socket contacts_delete_progress 进度，owner/工作区admin/super_admin 限定，expectedCount 不符 409，删后重算标签计数",
+        "workspaces email/sync": "POST /workspaces/:id/email/sync：手动触发一次 IMAP 轮询（emailInboxPoller.pollWorkspace 返回 imported 数），emailChannel 加 lastError 字段，防并发",
+        "forms library": "GET /forms/library + POST /forms/library/:id/use：services/formLibrary.js 内置4个中文表单模板（询价/报名/售后含file字段/资料补全），路由注册在 /:id 之前"
+      },
+      "前端清删": "KkhsDashboard 3处 /client/team 死链改 /client/teams(/agents)；api.ts 删4个死方法+sending-limits/coexistenceSync；whatsapp 页删交货保护卡片与导入App聊天按钮；channels 页 IG 一键连接改指 /instagram-auto-dm/connect/*（FB.login 强制 code 模式）；admin/system 删 Google Drive 备份配置块（本地备份保留）；Header 删 /admin/cache/flush 调用；删 Google 登录按钮与管理后台谷歌登录tab；bot-flows 页删 trackedLinks 残留"
     }
   }
 }

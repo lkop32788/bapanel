@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { requireFeature } = require('../middleware/featureGate');
 const { protect, workspaceAccess } = require('../middleware/auth');
-const { getTemplates, createTemplate, updateTemplate, deleteTemplate, syncTemplates } = require('../controllers/templateController');
+const { getTemplates, createTemplate, updateTemplate, deleteTemplate, syncTemplates, flagForReview } = require('../controllers/templateController');
 
 router.use(protect, workspaceAccess);
 router.use(requireFeature('templates'));
@@ -26,6 +26,8 @@ router.get('/library', async (req, res) => {
 router.get('/', getTemplates);
 router.post('/', createTemplate);
 router.post('/sync', syncTemplates);
+// 模板送审标记：重新提交 Meta 审核（可换类别 / 创建副本提交）
+router.post('/:id/flag-review', flagForReview);
 router.put('/:id', updateTemplate);
 router.delete('/:id', deleteTemplate);
 

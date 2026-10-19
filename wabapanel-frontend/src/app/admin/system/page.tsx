@@ -2,8 +2,8 @@
 import { translateDisplay } from '@/lib/zhDisplay';
 import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from "react";
-import { Activity, Database, Download, Trash2, RefreshCw, AlertTriangle, HeartPulse, Lightbulb, Globe, Cloud } from "lucide-react";
-import api, { platformApi } from "@/lib/api";
+import { Activity, Database, Download, Trash2, RefreshCw, AlertTriangle, HeartPulse, Lightbulb, Globe } from "lucide-react";
+import { platformApi } from "@/lib/api";
 import toast from "react-hot-toast";
 
 interface Health {
@@ -13,16 +13,6 @@ interface Health {
   pm2: { name: string; status: string; uptime: number; restarts: number; memory: number; cpu: number }[];
 }
 interface Backup { name: string; size: number; createdAt: string; }
-// FEAT-04: off-site backup status (secrets are never returned: masked strings / booleans only)
-interface BackupCfg {
-  enabled: boolean; target: string; time: string; keepLocal: number; keepRemote: number;
-  encryptBackups: boolean; encryptionPassphrase: string; alertEmail: string;
-  google: { connected: boolean; clientId: string; clientSecret: string; usesLoginClient: boolean; folderId: string; connectedAt: string | null; redirectUri: string };
-  running: boolean; lastRunStartedAt: string | null; lastSuccessAt: string | null;
-  lastRun: { status: string; target: string; startedAt: string | null; finishedAt: string | null; sizeBytes: number; remoteFileId: string; error: string };
-  stale: boolean;
-}
-const errMsg = (e: unknown, d: string) => (e as { response?: { data?: { message?: string } } })?.response?.data?.message || d;
 interface HealthReport {
   generated: string;
   version: string;
@@ -84,18 +74,8 @@ export default function AdminSystemPage() {
   const [report, setReport] = useState<HealthReport | null>(null);
   const [repLoading, setRepLoading] = useState(true);
   const [repErr, setRepErr] = useState("");
-  const [bcfg, setBcfg] = useState<BackupCfg | null>(null);
-  const [bform, setBform] = useState({ enabled: false, time: "02:30", keepLocal: "10", keepRemote: "14", encryptBackups: false, encryptionPassphrase: "", alertEmail: "", clientId: "", clientSecret: "" });
-  const [savingB, setSavingB] = useState(false);
-
-  const loadBackup = () => api.get("/platform/admin/backup/settings").then(r => {
-    const d: BackupCfg = r.data.data;
-    setBcfg(d);
-    setBform({ enabled: d.enabled && d.target === "gdrive", time: d.time || "02:30", keepLocal: String(d.keepLocal ?? 10), keepRemote: String(d.keepRemote ?? 14), encryptBackups: !!d.encryptBackups, encryptionPassphrase: "", alertEmail: d.alertEmail || "", clientId: d.google.clientId || "", clientSecret: "" });
-  }).catch(() => {});
 
   const load = () => {
-    loadBackup();
     Promise.all([
       platformApi.adminHealth().then(r => setHealth(r.data.data)).catch(() => {}),
       platformApi.adminBackups().then(r => setBackups(r.data.data || [])).catch(() => {}),
@@ -111,40 +91,6 @@ export default function AdminSystemPage() {
   };
 
   useEffect(() => { load(); loadReport(false); }, []);
-
-  // Result of the Google OAuth round trip (the callback redirects back here).
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    const d = q.get("drive");
-    if (d === "connected") toast.success(translateApiMessage("Google 云端硬盘已连接"));
-    else if (d === "error") toast.error(translateApiMessage(q.get("message") || "Google 云端硬盘连接失败"));
-    if (d) window.history.replaceState(null, "", window.location.pathname);
-  }, []);
-
-  const saveBackupCfg = async () => {
-    setSavingB(true);
-    try {
-      await api.put("/platform/admin/backup/settings", {
-        enabled: bform.enabled, target: bform.enabled ? "gdrive" : "local", time: bform.time,
-        keepLocal: Number(bform.keepLocal), keepRemote: Number(bform.keepRemote), alertEmail: bform.alertEmail,
-        encryptBackups: bform.encryptBackups, encryptionPassphrase: bform.encryptionPassphrase,
-        clientId: bform.clientId, clientSecret: bform.clientSecret,
-      });
-      toast.success(translateApiMessage("已保存备份设置")); loadBackup();
-    } catch (e: unknown) { toast.error(translateApiMessage(errMsg(e, "Save failed"))); }
-    finally { setSavingB(false); }
-  };
-
-  const connectDrive = async () => {
-    try { const r = await api.post("/platform/admin/backup/google/connect"); window.location.assign(r.data.data.url); }
-    catch (e: unknown) { toast.error(translateApiMessage(errMsg(e, "Could not start Google sign-in"))); }
-  };
-
-  const disconnectDrive = async () => {
-    if (!confirm("断开 Google 云端硬盘连接？云端硬盘中的现有文件将被保留。")) return;
-    try { await api.post("/platform/admin/backup/google/disconnect"); toast.success(translateApiMessage("已断开连接")); loadBackup(); }
-    catch (e: unknown) { toast.error(translateApiMessage(errMsg(e, "Failed"))); }
-  };
 
   const runBackup = async () => {
     setRunning(true);
@@ -312,7 +258,7 @@ export default function AdminSystemPage() {
           {/* Backups */}
           <div className="bg-white rounded-xl border overflow-hidden">
             <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
-              <div className="flex items-center gap-2"><Database className="w-4 h-4 text-emerald-600" /><h2 className="text-sm font-semibold text-gray-800">数据库备份</h2><span className="text-xs text-gray-400">（汽车日报{bcfg ? ` 在 ${bcfg.time}，最后 ${bcfg.keepLocal} 保留` : ""})</span></div>
+              <div className="flex items-center gap-2"><Database className="w-4 h-4 text-emerald-600" /><h2 className="text-sm font-semibold text-gray-800">数据库备份</h2><span className="text-xs text-gray-400">（每日自动）</span></div>
               <button onClick={runBackup} disabled={running} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-50">{running ? "正在运行..." : "立即备份"}</button>
             </div>
             {backups.length === 0 ? <p className="text-sm text-gray-400 p-4">尚无备份 — 单击“立即备份”创建第一个备份</p> : (
@@ -329,47 +275,6 @@ export default function AdminSystemPage() {
               </div>
             )}
           </div>
-
-          {/* Off-site backup to Google Drive (FEAT-04) */}
-          {bcfg && (
-            <div className="bg-white rounded-xl border overflow-hidden">
-              <div className="px-4 py-3 border-b bg-gray-50 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2"><Cloud className="w-4 h-4 text-emerald-600" /><h2 className="text-sm font-semibold text-gray-800">异地备份（Google 云端硬盘）</h2></div>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${bcfg.running ? "bg-blue-100 text-blue-700" : bcfg.stale ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
-                  {bcfg.running ? "备份正在运行..." : bcfg.stale ? "过去26小时内没有成功备份" : "健康"}
-                </span>
-              </div>
-              <div className="p-4 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                  <div><p className="text-xs text-gray-500">上次成功备份</p><p className="font-medium text-gray-800">{bcfg.lastSuccessAt ? new Date(bcfg.lastSuccessAt).toLocaleString() : "从来没有"}</p></div>
-                  <div>
-                    <p className="text-xs text-gray-500">上次运行</p>
-                    <p className={`font-medium ${bcfg.lastRun.status === "failed" ? "text-red-600" : "text-gray-800"}`}>{bcfg.lastRun.status || "—"}{bcfg.lastRun.target ? ` · ${bcfg.lastRun.target === "gdrive" ? "Google Drive" : "local only"}` : ""}{bcfg.lastRun.sizeBytes ? ` · ${fmtBytes(bcfg.lastRun.sizeBytes)}` : ""}</p>
-                    {bcfg.lastRun.error && <p className="text-xs text-red-600 break-words">{bcfg.lastRun.error}</p>}
-                  </div>
-                  <div><p className="text-xs text-gray-500">谷歌云端硬盘</p><p className={`font-medium ${bcfg.google.connected ? "text-emerald-600" : "text-gray-500"}`}>{bcfg.google.connected ? `已连接${bcfg.google.connectedAt ? " · " + new Date(bcfg.google.connectedAt).toLocaleDateString() : ""}` : "未连接"}</p></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <label className="flex items-center gap-2 text-sm md:col-span-3"><input type="checkbox" checked={bform.enabled} onChange={e => setBform({ ...bform, enabled: e.target.checked })} className="rounded text-emerald-600" /> 将每个备份上传到 Google 云端硬盘</label>
-                  <div><label className="text-xs text-gray-500 block mb-1">每日备份时间（服务器时间）</label><input type="time" value={bform.time} onChange={e => setBform({ ...bform, time: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-                  <div><label className="text-xs text-gray-500 block mb-1">保留在此服务器上</label><input type="number" min={1} max={365} value={bform.keepLocal} onChange={e => setBform({ ...bform, keepLocal: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-                  <div><label className="text-xs text-gray-500 block mb-1">保留在 Google 云端硬盘中</label><input type="number" min={1} max={365} value={bform.keepRemote} onChange={e => setBform({ ...bform, keepRemote: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-                  <div><label className="text-xs text-gray-500 block mb-1">Google OAuth 客户端 ID</label><input value={bform.clientId} onChange={e => setBform({ ...bform, clientId: e.target.value })} placeholder={bcfg.google.usesLoginClient ? "使用 Google 登录客户端" : "xxxx.apps.googleusercontent.com"} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-                  <div><label className="text-xs text-gray-500 block mb-1">客户端秘密</label><input type="password" autoComplete="new-password" value={bform.clientSecret} onChange={e => setBform({ ...bform, clientSecret: e.target.value })} placeholder={bcfg.google.clientSecret || "客户端秘密"} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-                  <div><label className="text-xs text-gray-500 block mb-1">失败警报电子邮件（默认：超级管理员）</label><input type="email" value={bform.alertEmail} onChange={e => setBform({ ...bform, alertEmail: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={bform.encryptBackups} onChange={e => setBform({ ...bform, encryptBackups: e.target.checked })} className="rounded text-emerald-600" /> 加密云端硬盘副本 (AES-256)</label>
-                  <div className="md:col-span-2"><label className="text-xs text-gray-500 block mb-1">加密密码（保证安全 - 需要恢复）</label><input type="password" autoComplete="new-password" value={bform.encryptionPassphrase} onChange={e => setBform({ ...bform, encryptionPassphrase: e.target.value })} placeholder={bcfg.encryptionPassphrase ? "••••（不变）" : "至少 8 个字符"} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-                </div>
-                <p className="text-xs text-gray-500">Google Cloud OAuth 客户端的授权重定向 URI： <code className="break-all bg-gray-100 px-1 rounded">{bcfg.google.redirectUri}</code>。发布同意屏幕（在“测试”中，Google 会在 7 天后使连接过期）。</p>
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={saveBackupCfg} disabled={savingB} className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap">{savingB ? "保存中…" : "保存设置"}</button>
-                  {bcfg.google.connected
-                    ? <button onClick={disconnectDrive} className="px-3 py-2 border rounded-lg text-sm text-red-600 hover:bg-red-50 whitespace-nowrap">断开 Google 云端硬盘连接</button>
-                    : <button onClick={connectDrive} className="px-3 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50 whitespace-nowrap">连接 Google 云端硬盘</button>}
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

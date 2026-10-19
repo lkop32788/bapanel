@@ -283,11 +283,8 @@ class WhatsAppService {
     }
   }
 
-  async createTemplate(name, category, language, components, wabaId = null) {
-    const businessId = wabaId || process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
-    if (!businessId) throw new Error('WhatsApp Business Account ID not configured');
-
-    // Handle media headers - upload to Meta first
+  // Handle media headers - upload to Meta first（创建 / 编辑模板共用）
+  async _prepareTemplateMedia(components) {
     for (const comp of components) {
       if (comp.type === 'CAROUSEL' && Array.isArray(comp.cards)) {
         for (const card of comp.cards) {
@@ -329,10 +326,27 @@ class WhatsAppService {
         }
       }
     }
+  }
+
+  async createTemplate(name, category, language, components, wabaId = null) {
+    const businessId = wabaId || process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
+    if (!businessId) throw new Error('WhatsApp Business Account ID not configured');
+
+    await this._prepareTemplateMedia(components);
 
     const url = `${this.baseUrl}/${businessId}/message_templates`;
     const data = { name, category, language, components };
     console.log('[Template] Sending to Meta:', name, 'components count:', components.length);
+    return this._makeRequest(url, data);
+  }
+
+  // 按 Meta 模板 ID 编辑已存在的模板（重新送审 / 改类别时使用）
+  // data 形如 { components, category? }；编辑成功后 Meta 会把模板置回 PENDING（审核中）
+  async updateTemplateOnMeta(templateId, data) {
+    if (!templateId) throw new Error('Meta template ID missing');
+    if (Array.isArray(data.components)) await this._prepareTemplateMedia(data.components);
+    const url = `${this.baseUrl}/${templateId}`;
+    console.log('[Template] Editing on Meta:', templateId);
     return this._makeRequest(url, data);
   }
 

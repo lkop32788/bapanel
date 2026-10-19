@@ -3,9 +3,10 @@ const { simpleParser } = require('mailparser');
 
 // Polls IMAP inboxes of workspaces with the email channel enabled and
 // turns new emails into inbox conversations (channel: 'email').
+// 返回本次拉取新建的消息条数（手动同步接口用来向前端反馈结果）
 async function pollWorkspace(workspace, io) {
   const ec = workspace.emailChannel;
-  if (!ec?.enabled || !ec.imapHost || !ec.user || !ec.pass) return;
+  if (!ec?.enabled || !ec.imapHost || !ec.user || !ec.pass) return 0;
 
   const client = new ImapFlow({
     host: ec.imapHost, port: ec.imapPort || 993, secure: true,
@@ -18,6 +19,7 @@ async function pollWorkspace(workspace, io) {
   client.on('error', (err) => console.error('[EmailInbox] client error', String(workspace._id), err.message));
 
   const since = ec.lastPolledAt || new Date(Date.now() - 24 * 60 * 60 * 1000);
+  let imported = 0;
   await client.connect();
   try {
     await client.mailboxOpen('INBOX');
@@ -59,6 +61,7 @@ async function pollWorkspace(workspace, io) {
         text: (parsed.subject ? `Subject: ${parsed.subject}\n\n` : '') + bodyText,
         status: 'delivered', metadata: { source: 'email', messageId: parsed.messageId || '', html: parsed.html ? String(parsed.html).slice(0, 300000) : '' },
       });
+      imported++;
 
       if (io) {
         const populated = await Conversation.findById(conversation._id)
@@ -72,7 +75,8 @@ async function pollWorkspace(workspace, io) {
   }
 
   const Workspace = require('../models/Workspace');
-  await Workspace.updateOne({ _id: workspace._id }, { 'emailChannel.lastPolledAt': new Date() });
+  await Workspace.updateOne({ _id: workspace._id }, { 'emailChannel.lastPolledAt': new Date(), 'emailChannel.lastError': '' });
+  return imported;
 }
 
 function start(io) {

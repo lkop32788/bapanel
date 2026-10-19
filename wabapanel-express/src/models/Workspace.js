@@ -77,6 +77,8 @@ const workspaceSchema = new mongoose.Schema({
     pass: { type: String, default: '' },
     fromName: { type: String, default: '' },
     lastPolledAt: { type: Date },
+    // 最近一次同步失败的原因（成功时清空；前端渠道页展示用）
+    lastError: { type: String, default: '' },
   },
   metaChat: {
     pageId: { type: String, default: '' },

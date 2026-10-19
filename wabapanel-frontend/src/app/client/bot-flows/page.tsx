@@ -89,7 +89,6 @@ export default function BotFlowsPage() {
   const [tags, setTags] = useState<{ _id: string; name: string }[]>([]);
   
   const [forms, setForms] = useState<{ _id: string; title?: string; name?: string }[]>([]);
-  const [trackedLinks, setTrackedLinks] = useState<{ _id: string; title: string }[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [statsFlow, setStatsFlow] = useState<BotFlow | null>(null);
   const [showPreset, setShowPreset] = useState(false);
@@ -329,10 +328,6 @@ export default function BotFlowsPage() {
           {form.eventTrigger === 'form_submitted' && (
             <Select label={"哪种形式？ （空白=任何形式）"} value={form.eventValue} onChange={e => setForm({ ...form, eventValue: e.target.value })}
               options={[{ value: '', label: "任何形式" }, ...forms.map(f => ({ value: f._id, label: f.title || f.name || 'Form' }))]} />
-          )}
-          {form.eventTrigger === 'link_qr' && (
-            <Select label={"哪个链接/QR？ （空白 = 任何跟踪链接）"} value={form.eventValue} onChange={e => setForm({ ...form, eventValue: e.target.value })}
-              options={[{ value: '', label: "任何跟踪链接" }, ...trackedLinks.map(l => ({ value: l._id, label: l.title }))]} />
           )}
           {form.eventTrigger === 'contact_date' && (
             <div className="grid grid-cols-3 gap-3">

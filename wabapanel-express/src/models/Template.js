@@ -45,6 +45,12 @@ const templateSchema = new mongoose.Schema({
     codeExpirationMinutes: { type: Number, default: 0 },
     addSecurityRecommendation: { type: Boolean, default: true },
   },
+  // 送审标记（flag for review）：记录最近一次由谁、何时、因何将模板重新送审
+  flagReview: {
+    reason: { type: String, default: '' },
+    by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    at: { type: Date },
+  },
   isGlobal: { type: Boolean, default: false },
   // Smart Broadcast: utility template whose body variables are filled with the
   // user's message at send time (advanced, admin-gated feature).
