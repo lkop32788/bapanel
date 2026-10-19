@@ -96,7 +96,7 @@ export default function SaverBillingPage() {
         <Coins className="w-7 h-7 text-amber-500 shrink-0" />
         <div>
           <h1 className="text-2xl font-bold text-gray-900">商家计费</h1>
-          <p className="text-gray-500 text-sm mt-1">省钱专家检测的商家积分：充值、扣减、消费流水。单价和计费开关在 系统偏好设置 → 省钱专家</p>
+          <p className="text-gray-500 text-sm mt-1">商家余额（人民币）：充值、扣减、消费流水。单价和计费开关在 系统偏好设置 → 省钱专家</p>
         </div>
       </div>
 
@@ -116,8 +116,8 @@ export default function SaverBillingPage() {
               <tr className="text-left text-xs text-gray-400 border-b border-gray-100 bg-gray-50/60">
                 <th className="px-4 py-3 font-medium">商家</th>
                 <th className="px-3 py-3 font-medium">所有者</th>
-                <th className="px-3 py-3 font-medium text-right">积分余额</th>
-                <th className="px-3 py-3 font-medium text-right">累计消费</th>
+                <th className="px-3 py-3 font-medium text-right">余额(元)</th>
+                <th className="px-3 py-3 font-medium text-right">累计消费(元)</th>
                 <th className="px-3 py-3 font-medium text-right">扣费任务数</th>
                 <th className="px-4 py-3 font-medium text-right">操作</th>
               </tr>
@@ -151,9 +151,9 @@ export default function SaverBillingPage() {
       {/* 充值/扣减 */}
       <Modal isOpen={!!topupWs} onClose={() => setTopupWs(null)} title={`${minus ? '扣减' : '充值'} — ${topupWs?.name || ''}`} size="sm" guard={false}>
         <div className="space-y-4">
-          <p className="text-sm text-gray-500">当前余额 <span className="font-semibold text-gray-900">{round3(topupWs?.balance || 0)}</span> 积分</p>
+          <p className="text-sm text-gray-500">当前余额 <span className="font-semibold text-gray-900">￥{round3(topupWs?.balance || 0)}</span></p>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">{minus ? '扣减' : '充值'}金额（积分）</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{minus ? '扣减' : '充值'}金额（元）</label>
             <input type="number" min="0" step="0.001" value={amount} onChange={e => setAmount(e.target.value)} autoFocus
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
@@ -170,15 +170,15 @@ export default function SaverBillingPage() {
       </Modal>
 
       {/* 流水 */}
-      <Modal isOpen={!!ledgerWs} onClose={() => setLedgerWs(null)} title={`积分流水 — ${ledgerWs?.name || ''}`} size="xl" guard={false}>
+      <Modal isOpen={!!ledgerWs} onClose={() => setLedgerWs(null)} title={`余额明细 — ${ledgerWs?.name || ''}`} size="xl" guard={false}>
         <div className="space-y-3">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
                 <th className="pb-2 font-medium">时间</th>
                 <th className="pb-2 font-medium">类型</th>
-                <th className="pb-2 font-medium text-right">变动</th>
-                <th className="pb-2 font-medium text-right">余额</th>
+                <th className="pb-2 font-medium text-right">变动(元)</th>
+                <th className="pb-2 font-medium text-right">余额(元)</th>
                 <th className="pb-2 font-medium">关联任务 / 备注</th>
               </tr>
             </thead>

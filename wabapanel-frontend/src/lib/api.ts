@@ -324,6 +324,12 @@ export const saverCheckApi = {
   create: (data: { channel: string; country?: { name: string; dial: string; code: string }; numbers: string[]; fileName?: string; taskType?: string }) =>
     api.post('/saver/checks', data),
   wallet: () => api.get('/saver/wallet'),
+  walletLedger: (params: { page?: number; limit?: number }) => api.get('/saver/wallet/ledger', { params }),
+  topupRequest: (data: { amount: number; note?: string }) => api.post('/saver/wallet/topup-request', data),
+  topupRequests: () => api.get('/saver/wallet/topup-requests'),
+  usdtOrder: (data: { usdt: number }) => api.post('/saver/wallet/usdt-order', data),
+  usdtOrderStatus: (orderNo: string) => api.get(`/saver/wallet/usdt-order/${orderNo}`),
+  usdtOrders: () => api.get('/saver/wallet/usdt-orders'),
   list: (params: { channel?: string; type?: string; name?: string; country?: string; page?: number; limit?: number }) =>
     api.get('/saver/checks', { params }),
   get: (id: string) => api.get(`/saver/checks/${id}`),
@@ -506,6 +512,10 @@ export const adminApi = {
     api.post('/admin/saver-billing/topup', data),
   saverLedger: (params: { workspace?: string; page?: number; limit?: number }) =>
     api.get('/admin/saver-billing/ledger', { params }),
+  saverTopupRequests: (status?: string) =>
+    api.get('/admin/saver-billing/topup-requests', { params: status ? { status } : {} }),
+  saverHandleTopupRequest: (id: string, data: { action: 'approve' | 'reject'; adminNote?: string }) =>
+    api.post(`/admin/saver-billing/topup-requests/${id}`, data),
   updateSettings: (data: object) => api.put('/admin/settings', data),
   sendTestEmail: (data: object) => api.post('/admin/settings/test-email', data),
   // Landing Page

@@ -50,7 +50,7 @@ router.post('/checks', async (req, res) => {
       if (cost > 0) {
         const charged = await billing.charge(req.workspace._id, cost, `检测 ${results.length} 条 × ${unitPrice}`);
         if (!charged) {
-          return res.status(402).json({ success: false, message: `积分不足：本次需 ${cost} 积分，请联系管理员充值` });
+          return res.status(402).json({ success: false, message: `余额不足：本次需 ￥${cost}，请先到充值中心充值` });
         }
         chargeLedgerId = charged.ledgerId;
       }
@@ -90,12 +90,110 @@ router.get('/wallet', async (req, res) => {
     const cfg = await billing.getBillingConfig();
     if (!cfg.enabled) return res.json({ success: true, data: { enabled: false } });
     const w = await billing.getWallet(req.workspace._id);
+    const usdt = await require('../services/saverUsdtService').getUsdtConfig();
     res.json({ success: true, data: {
       enabled: true,
       balance: billing.round3(w.balance || 0),
       priceDefault: cfg.priceDefault,
       priceOverrides: cfg.priceOverrides,
+      usdt: { enabled: usdt.enabled, rate: usdt.rate },
     } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/saver/wallet/ledger — 商家自己的积分流水（分页）
+router.get('/wallet/ledger', async (req, res) => {
+  try {
+    const SaverLedger = require('../models/SaverLedger');
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const q = { workspace: req.workspace._id };
+    const [rows, total] = await Promise.all([
+      SaverLedger.find(q).populate('task', 'fileName taskType total')
+        .sort('-createdAt').skip((page - 1) * limit).limit(limit).lean(),
+      SaverLedger.countDocuments(q),
+    ]);
+    res.json({ success: true, data: rows, pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/saver/wallet/topup-request — 提交充值申请
+router.post('/wallet/topup-request', async (req, res) => {
+  try {
+    const cfg = await billing.getBillingConfig();
+    if (!cfg.enabled) return res.status(400).json({ success: false, message: '计费未开启，无需充值' });
+    const amount = Number(req.body?.amount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000) {
+      return res.status(400).json({ success: false, message: '金额无效' });
+    }
+    const SaverTopupRequest = require('../models/SaverTopupRequest');
+    const pendingCount = await SaverTopupRequest.countDocuments({ workspace: req.workspace._id, status: 'pending' });
+    if (pendingCount >= 3) {
+      return res.status(400).json({ success: false, message: '已有待处理的充值申请，请等待管理员审核' });
+    }
+    const reqDoc = await SaverTopupRequest.create({
+      workspace: req.workspace._id,
+      amount: billing.round3(amount),
+      note: String(req.body?.note || '').slice(0, 500),
+      by: req.user._id,
+    });
+    res.status(201).json({ success: true, message: '申请已提交，管理员审核后积分自动到账', data: reqDoc });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/saver/wallet/usdt-order — 创建 USDT 充值订单（输入 USDT 金额，返回收款地址和精确转账金额）
+router.post('/wallet/usdt-order', async (req, res) => {
+  try {
+    const cfg = await billing.getBillingConfig();
+    if (!cfg.enabled) return res.status(400).json({ success: false, message: '计费未开启，无需充值' });
+    const order = await require('../services/saverUsdtService').createOrder({
+      workspaceId: req.workspace._id, userId: req.user._id, usdtAmount: Number(req.body?.usdt),
+    });
+    res.status(201).json({ success: true, data: order });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/saver/wallet/usdt-order/:orderNo — 订单状态（前端支付页 5 秒轮询）
+router.get('/wallet/usdt-order/:orderNo', async (req, res) => {
+  try {
+    const SaverUsdtOrder = require('../models/SaverUsdtOrder');
+    const o = await SaverUsdtOrder.findOne({ orderNo: req.params.orderNo, workspace: req.workspace._id }).lean();
+    if (!o) return res.status(404).json({ success: false, message: '订单不存在' });
+    res.json({ success: true, data: { orderNo: o.orderNo, status: o.status, rmb: o.credits, usdtAmount: o.usdtAmount } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/saver/wallet/usdt-orders — 自己的充值订单列表
+router.get('/wallet/usdt-orders', async (req, res) => {
+  try {
+    const SaverUsdtOrder = require('../models/SaverUsdtOrder');
+    const orders = await SaverUsdtOrder.find({ workspace: req.workspace._id }).sort('-createdAt').limit(10).lean();
+    res.json({ success: true, data: orders.map(o => ({
+      orderNo: o.orderNo, rmb: o.credits, usdtAmount: o.usdtAmount,
+      status: o.status, createdAt: o.createdAt,
+    })) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/saver/wallet/topup-requests — 自己的充值申请记录
+router.get('/wallet/topup-requests', async (req, res) => {
+  try {
+    const SaverTopupRequest = require('../models/SaverTopupRequest');
+    const rows = await SaverTopupRequest.find({ workspace: req.workspace._id })
+      .sort('-createdAt').limit(20).lean();
+    res.json({ success: true, data: rows });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

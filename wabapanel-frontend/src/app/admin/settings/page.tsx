@@ -24,7 +24,7 @@ interface SystemSettings {
 
 
   security: { webhookSignature: string; };
-  saver: { baseUrl: string; apiKey: string; billingEnabled: boolean; priceDefault: string; priceOverrides: Record<string, number> };
+  saver: { baseUrl: string; apiKey: string; billingEnabled: boolean; priceDefault: string; priceOverrides: Record<string, number>; usdtEnabled: boolean; usdtAddress: string; usdtTronKey: string; usdtRate: string };
 }
 
 const defaultSettings: SystemSettings = {
@@ -40,7 +40,7 @@ const defaultSettings: SystemSettings = {
   
   
   security: { webhookSignature: 'log' },
-  saver: { baseUrl: '', apiKey: '', billingEnabled: false, priceDefault: '0.01', priceOverrides: {} },
+  saver: { baseUrl: '', apiKey: '', billingEnabled: false, priceDefault: '0.01', priceOverrides: {}, usdtEnabled: false, usdtAddress: '', usdtTronKey: '', usdtRate: '7' },
 };
 
 const EMAIL_TEMPLATE_DEFS: { key: string; label: string; description: string; variables: string[] }[] = [
@@ -293,11 +293,11 @@ export default function AdminSettingsPage() {
             <button type="button" onClick={() => updateField('saver', 'billingEnabled', !settings.saver.billingEnabled)} className="flex items-center justify-between w-full p-3 border border-gray-200 rounded-lg text-left">
               <span>
                 <span className="block text-sm font-medium text-gray-900">商家计量收费</span>
-                <span className="block text-xs text-gray-500">开启后商家提交检测按「单价 × 号码数」扣积分，余额不足无法提交；任务失败自动退款。商家余额在「商家计费」页管理</span>
+                <span className="block text-xs text-gray-500">开启后商家提交检测按「单价 × 号码数」扣余额（人民币），不足无法提交；任务失败自动退款。商家余额在「商家计费」页管理</span>
               </span>
               {settings.saver.billingEnabled ? <ToggleRight className="w-8 h-8 text-emerald-500 shrink-0" /> : <ToggleLeft className="w-8 h-8 text-gray-400 shrink-0" />}
             </button>
-            <Input label={"默认单价（积分/条）"} type="number" value={String(settings.saver.priceDefault)} onChange={e => updateField('saver', 'priceDefault', e.target.value)} />
+            <Input label={"默认单价（元/条）"} type="number" value={String(settings.saver.priceDefault)} onChange={e => updateField('saver', 'priceDefault', e.target.value)} />
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">按检测类型覆盖单价（未设置的类型用默认单价）</label>
               <div className="space-y-2">
@@ -335,6 +335,19 @@ export default function AdminSettingsPage() {
                 </select>
               </div>
             </div>
+          </div>
+
+          <div className="border-t border-gray-100 pt-4 space-y-4">
+            <button type="button" onClick={() => updateField('saver', 'usdtEnabled', !settings.saver.usdtEnabled)} className="flex items-center justify-between w-full p-3 border border-gray-200 rounded-lg text-left">
+              <span>
+                <span className="block text-sm font-medium text-gray-900">USDT 在线充值（TRC20 直收）</span>
+                <span className="block text-xs text-gray-500">开启后商家在「充值中心」输入金额 → 获得收款地址和精确转账金额（带随机尾数） → 链上到账自动按汇率折算人民币入账，15 分钟超时</span>
+              </span>
+              {settings.saver.usdtEnabled ? <ToggleRight className="w-8 h-8 text-emerald-500 shrink-0" /> : <ToggleLeft className="w-8 h-8 text-gray-400 shrink-0" />}
+            </button>
+            <Input label={"USDT 收款地址（TRC20，T 开头）"} value={settings.saver.usdtAddress} onChange={e => updateField('saver', 'usdtAddress', e.target.value)} autoComplete="off" />
+            <Input label={"汇率（1 USDT = 多少元）"} type="number" value={String(settings.saver.usdtRate)} onChange={e => updateField('saver', 'usdtRate', e.target.value)} />
+            <Input label={"TronGrid API Key（可选，提高链上查询限额）"} type="password" value={settings.saver.usdtTronKey} onChange={e => updateField('saver', 'usdtTronKey', e.target.value)} autoComplete="off" />
           </div>
 
           <div className="flex gap-2">

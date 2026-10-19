@@ -105,6 +105,42 @@ router.get('/saver-billing/ledger', async (req, res) => {
   }
 });
 
+// 省钱专家：充值申请列表与审批
+router.get('/saver-billing/topup-requests', async (req, res) => {
+  try {
+    const SaverTopupRequest = require('../models/SaverTopupRequest');
+    const q = {};
+    if (['pending', 'approved', 'rejected'].includes(req.query.status)) q.status = req.query.status;
+    const rows = await SaverTopupRequest.find(q)
+      .populate('workspace', 'name').populate('by', 'name email').populate('handledBy', 'name')
+      .sort('-createdAt').limit(100).lean();
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+router.post('/saver-billing/topup-requests/:id', superAdminOnly, async (req, res) => {
+  try {
+    const SaverTopupRequest = require('../models/SaverTopupRequest');
+    const { action, adminNote } = req.body || {};
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: '无效操作' });
+    }
+    // 原子抢占 pending，防止重复审批重复入账
+    const doc = await SaverTopupRequest.findOneAndUpdate(
+      { _id: req.params.id, status: 'pending' },
+      { $set: { status: action === 'approve' ? 'approved' : 'rejected', handledBy: req.user._id, handledAt: new Date(), adminNote: String(adminNote || '').slice(0, 300) } },
+      { new: true });
+    if (!doc) return res.status(404).json({ success: false, message: '申请不存在或已处理' });
+    if (action === 'approve') {
+      await require('../services/saverBillingService').adjust(doc.workspace, doc.amount, req.user._id, `充值申请批准${doc.note ? '：' + doc.note : ''}`);
+    }
+    res.json({ success: true, message: action === 'approve' ? '已通过并入账' : '已拒绝' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // 省钱专家：测试筛号 API 连接（查余额）
 router.get('/settings/saver-balance', superAdminOnly, async (req, res) => {
   try {

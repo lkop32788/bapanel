@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import useBranding from '@/lib/useBranding';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, LayoutDashboard, BarChart3, Users, Tags, Layers, FileText, Send, Zap, Keyboard, ShoppingBag, Share2, FormInput, Phone, UserPlus, Settings, ChevronDown, ChevronRight, Menu, X, LogOut, Database, MessageCircle, ImageIcon, Wrench, BookOpen, Brain, Plug, Sparkles, PiggyBank, Shield, Puzzle, QrCode, Bot, Cloud } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, BarChart3, Users, Tags, Layers, FileText, Send, Zap, Keyboard, ShoppingBag, Share2, FormInput, Phone, UserPlus, Settings, ChevronDown, ChevronRight, Menu, X, LogOut, Database, MessageCircle, ImageIcon, Wrench, BookOpen, Brain, Plug, Sparkles, PiggyBank, Shield, Puzzle, QrCode, Bot, Cloud, Coins } from 'lucide-react';
 import { FaWhatsapp, FaInstagram, FaFacebook, FaTelegram, FaEnvelope } from 'react-icons/fa';
 import { OmniNavIcon, OmniSidebarBrand } from '@/components/layout/OmniSidebar';
 import { useAuthStore } from '@/stores/authStore';
@@ -25,6 +25,7 @@ interface NavItem {
 export const navItems: NavItem[] = [
   { label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/client/dashboard' },
   { label: 'Analytics', icon: <BarChart3 className="w-5 h-5" />, href: '/client/analytics' },
+  { label: 'Saver Credits', icon: <Coins className="w-5 h-5 text-amber-500" />, href: '/client/saver-wallet' },
   {
     label: 'Inbox',
     icon: <MessageCircle className="w-5 h-5" />,
@@ -61,11 +62,13 @@ export const navItems: NavItem[] = [
   {
     label: 'Saver Expert',
     icon: <PiggyBank className="w-5 h-5" />,
-    children: SAVER_GROUPS.map(g => ({
-      label: g.name,
-      href: `/client/saver/${g.slug}`,
-      icon: <g.Icon className={`w-4 h-4 ${g.color}`} />,
-    })),
+    children: [
+      ...SAVER_GROUPS.map(g => ({
+        label: g.name,
+        href: `/client/saver/${g.slug}`,
+        icon: <g.Icon className={`w-4 h-4 ${g.color}`} />,
+      })),
+    ],
   },
   {
     label: 'Contacts',

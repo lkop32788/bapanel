@@ -259,6 +259,10 @@ const getSettings = async (req, res) => {
         priceOverrides: settings.saverApi?.priceOverrides instanceof Map
           ? Object.fromEntries(settings.saverApi.priceOverrides)
           : (settings.saverApi?.priceOverrides || {}),
+        usdtEnabled: !!settings.saverApi?.usdt?.enabled,
+        usdtAddress: settings.saverApi?.usdt?.address || '',
+        usdtTronKey: settings.saverApi?.usdt?.tronApiKey || '',
+        usdtRate: settings.saverApi?.usdt?.rate ?? 7,
       },
     };
 
@@ -365,6 +369,11 @@ const updateSettings = async (req, res) => {
             }
             settings.saverApi.priceOverrides = clean;
           }
+          if (!settings.saverApi.usdt) settings.saverApi.usdt = {};
+          if (data.usdtEnabled !== undefined) settings.saverApi.usdt.enabled = !!data.usdtEnabled;
+          if (data.usdtAddress !== undefined) settings.saverApi.usdt.address = String(data.usdtAddress || '').trim();
+          if (data.usdtTronKey !== undefined) settings.saverApi.usdt.tronApiKey = String(data.usdtTronKey || '').trim();
+          if (data.usdtRate !== undefined) settings.saverApi.usdt.rate = Math.max(0.01, Number(data.usdtRate) || 7);
         },
         whatsappWidget: () => {
           if (!settings.whatsappWidget) settings.whatsappWidget = {};

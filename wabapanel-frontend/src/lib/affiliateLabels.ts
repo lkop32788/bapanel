@@ -44,6 +44,6 @@ export const commissionTypeLabel: Record<string, string> = {
   first_sale: "新品促销", renewal: 'Renewal',
 };
 
-export const inr = (n: number | undefined) => `₹${Number(n || 0).toLocaleString('en-IN', {
+export const inr = (n: number | undefined) => `￥${Number(n || 0).toLocaleString('zh-CN', {
   minimumFractionDigits: 2, maximumFractionDigits: 2,
 })}`;

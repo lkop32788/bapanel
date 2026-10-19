@@ -309,8 +309,9 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
             <TypeIcon className={`w-5 h-5 ${group.color}`} />{def.name}管理
             {wallet?.enabled && (
               <span className="ml-2 text-xs font-normal text-gray-400">
-                我的积分 <span className="text-emerald-600 font-semibold">{round3(wallet.balance || 0)}</span>
-                <span className="ml-2">单价 {unitPrice} 积分/条</span>
+                我的余额 <span className="text-emerald-600 font-semibold">￥{round3(wallet.balance || 0)}</span>
+                <span className="ml-2">单价 ￥{unitPrice}/条</span>
+                <a href="/client/saver-wallet" className="ml-2 text-emerald-600 hover:underline">去充值</a>
               </span>
             )}
           </h2>
@@ -382,7 +383,7 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
                   </td>
                   {wallet?.enabled && (
                     <td className={`${td} text-right text-gray-600`}>
-                      {t.cost ? round3(t.cost) : '—'}
+                      {t.cost ? `￥${round3(t.cost)}` : '—'}
                       {t.refunded && <span className="text-xs text-emerald-600 ml-1">已退</span>}
                     </td>
                   )}
@@ -476,8 +477,8 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
           <div className="flex items-center justify-end gap-3 pt-1">
             {wallet?.enabled && fileNumbers.length > 0 && (
               <span className="text-sm text-gray-500 mr-auto">
-                预计扣费 <span className={`font-semibold ${round3(unitPrice * fileNumbers.length) > (wallet.balance || 0) ? 'text-red-500' : 'text-emerald-600'}`}>{round3(unitPrice * fileNumbers.length)}</span> 积分
-                <span className="text-xs text-gray-400 ml-1">（余额 {round3(wallet.balance || 0)}）</span>
+                预计扣费 <span className={`font-semibold ${round3(unitPrice * fileNumbers.length) > (wallet.balance || 0) ? 'text-red-500' : 'text-emerald-600'}`}>￥{round3(unitPrice * fileNumbers.length)}</span>
+                <span className="text-xs text-gray-400 ml-1">（余额 ￥{round3(wallet.balance || 0)}）</span>
               </span>
             )}
             <Button variant="ghost" onClick={() => setModalOpen(false)}>取消</Button>

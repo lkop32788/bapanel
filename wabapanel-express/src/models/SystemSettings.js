@@ -44,6 +44,13 @@ const systemSettingsSchema = new mongoose.Schema({
     billingEnabled: { type: Boolean, default: false },
     priceDefault: { type: Number, default: 0.01 }, // 积分/条
     priceOverrides: { type: Map, of: Number, default: {} }, // taskType → 单价
+    // 充值中心：USDT(TRC20) 直收
+    usdt: {
+      enabled: { type: Boolean, default: false },
+      address: { type: String, default: '' },   // TRC20 收款地址
+      rate: { type: Number, default: 7 },       // 1 USDT = 多少元(RMB)
+      tronApiKey: { type: String, default: '' },// TronGrid API Key（可选，提高限额）
+    },
   },
 
   // Floating WhatsApp chat widget (public landing page)
