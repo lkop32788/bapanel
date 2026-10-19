@@ -94,6 +94,11 @@ const uploadFile = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file provided' });
     }
+    // SEC-LOCK2：内容闸——伪装成 txt 的二进制/polyglot 一律拒绝
+    const { looksLikePlainText } = require('../middleware/txtOnlyUpload');
+    if (!looksLikePlainText(req.file.buffer)) {
+      return res.status(400).json({ success: false, message: '文件内容不是纯文本' });
+    }
     // Convert any recorded voice audio (webm/mp4/aac/etc.) to ogg/opus for WhatsApp.
     // Always re-encode recorded voice audio to a clean ogg/opus. Browser-produced files
     // (even audio/ogg;codecs=opus from Chrome) are often not accepted by WhatsApp on processing
@@ -165,6 +170,13 @@ const uploadMultiple = async (req, res) => {
     const folder = req.body.folder || 'uploads';
     const results = [];
 
+    // SEC-LOCK2：内容闸（多文件逐个检查）
+    const { looksLikePlainText } = require('../middleware/txtOnlyUpload');
+    for (const f of req.files) {
+      if (!looksLikePlainText(f.buffer)) {
+        return res.status(400).json({ success: false, message: `文件 ${f.originalname} 内容不是纯文本` });
+      }
+    }
     for (const file of req.files) {
       const result = await s3Service.upload(file, folder);
       results.push({

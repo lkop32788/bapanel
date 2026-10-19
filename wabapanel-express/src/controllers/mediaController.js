@@ -85,6 +85,19 @@ async function compressVideoIfNeeded(file) {
 exports.upload = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
+    // SEC-LOCK2：内容闸——diskStorage 已落盘，读文件头检查，伪装 txt 的二进制删掉拒绝
+    {
+      const { looksLikePlainText } = require('../middleware/txtOnlyUpload');
+      const fp = path.join(__dirname, "../../uploads", req.file.filename);
+      const fd = fs.openSync(fp, 'r');
+      const head = Buffer.alloc(64 * 1024);
+      const n = fs.readSync(fd, head, 0, head.length, 0);
+      fs.closeSync(fd);
+      if (!looksLikePlainText(head.subarray(0, n))) {
+        try { fs.unlinkSync(fp); } catch { /* noop */ }
+        return res.status(400).json({ success: false, message: '文件内容不是纯文本' });
+      }
+    }
     try { await compressImageIfNeeded(req.file); } catch (e) { console.error("[Media] compress failed:", e.message); }
     const ext = path.extname(req.file.originalname).toLowerCase();
     const isVideoFile = req.file.mimetype.startsWith("video/") || [".mp4", ".mov", ".avi", ".webm", ".mkv", ".m4v", ".3gp"].includes(ext);

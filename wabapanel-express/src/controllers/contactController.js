@@ -175,6 +175,11 @@ const importContacts = async (req, res) => {
 
     // Parse CSV file if uploaded
     if (req.file) {
+      // SEC-LOCK2\uFF1A\u5185\u5BB9\u95F8
+      const { looksLikePlainText } = require('../middleware/txtOnlyUpload');
+      if (!looksLikePlainText(req.file.buffer)) {
+        return res.status(400).json({ success: false, message: '\u6587\u4EF6\u5185\u5BB9\u4E0D\u662F\u7EAF\u6587\u672C' });
+      }
       const csvText = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
       const lines = csvText.split(/\r?\n/).filter(l => l.trim());
       if (lines.length < 2) {

@@ -90,6 +90,11 @@ const listKnowledgeDocs = async (req, res) => {
 const uploadKnowledgeDoc = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: "No file provided" });
+    // SEC-LOCK2：内容闸
+    const { looksLikePlainText } = require('../middleware/txtOnlyUpload');
+    if (!looksLikePlainText(req.file.buffer)) {
+      return res.status(400).json({ success: false, message: '文件内容不是纯文本' });
+    }
 
     // Extract text from the uploaded buffer.
     const { text, status, note } = await extractText(req.file.buffer, req.file.mimetype, req.file.originalname);

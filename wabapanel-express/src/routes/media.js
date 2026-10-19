@@ -6,7 +6,8 @@ const c = require("../controllers/mediaController");
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, "../../uploads")),
-  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname.replace(/\s+/g, "_")),
+  // SEC-LOCK2：落盘名只保留安全字符，杜绝原始文件名里的特殊字符进路径
+  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname.replace(/[^A-Za-z0-9._一-龥-]/g, "_")),
 });
 // SEC-LOCK：全平台上传锁定，仅允许 txt
 const { txtOnlyFilter } = require('../middleware/txtOnlyUpload');

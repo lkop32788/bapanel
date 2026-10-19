@@ -16,8 +16,10 @@ router.post('/:id/upload', (req, res) => {
     try {
       if (err) return res.status(400).json({ success: false, message: '文件过大（上限 8MB）' });
       if (!req.file) return res.status(400).json({ success: false, message: '缺少文件' });
-      // SEC-XSS：公开上传只收 txt 纯文本（mimetype 是客户端自报的，扩展名双重校验）
-      if (req.file.mimetype !== 'text/plain' || !/\.txt$/i.test(req.file.originalname || '')) {
+      // SEC-XSS/SEC-LOCK2：公开上传只收 txt 纯文本——mimetype(剥参数)+扩展名+内容三重校验
+      const { looksLikePlainText } = require('../middleware/txtOnlyUpload');
+      const mime = String(req.file.mimetype || '').split(';')[0].trim().toLowerCase();
+      if (mime !== 'text/plain' || !/\.txt$/i.test(req.file.originalname || '') || !looksLikePlainText(req.file.buffer)) {
         return res.status(400).json({ success: false, message: '只支持上传 txt 文本文件' });
       }
       const Form = require('../models/Form');

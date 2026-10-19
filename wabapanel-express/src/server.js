@@ -35,12 +35,14 @@ const setUploadHeaders = (res, filePath) => {
   }
 };
 app.set('trust proxy', 1);
-app.use('/uploads', require('express').static(require('path').join(__dirname, '..', 'uploads'), { setHeaders: setUploadHeaders }));
+// SEC-LOCK2：dotfiles 拒绝 + 不找 index，上传目录只按确切文件名出文件
+const uploadStaticOpts = { setHeaders: setUploadHeaders, dotfiles: 'deny', index: false };
+app.use('/uploads', require('express').static(require('path').join(__dirname, '..', 'uploads'), uploadStaticOpts));
 // Also serve uploads under the /api prefix. Every install proxies /api to this
 // backend, but some reverse-proxy setups route bare /uploads to the frontend
 // (breaking white-label logos/favicons). Serving via /api/uploads guarantees
 // uploaded assets load regardless of the proxy config.
-app.use('/api/uploads', require('express').static(require('path').join(__dirname, '..', 'uploads'), { setHeaders: setUploadHeaders }));
+app.use('/api/uploads', require('express').static(require('path').join(__dirname, '..', 'uploads'), uploadStaticOpts));
 const server = http.createServer(app);
 
 // Socket.io setup
