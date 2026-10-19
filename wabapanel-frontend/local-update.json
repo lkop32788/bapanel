@@ -294,5 +294,5 @@
     },
     "patchRisk": "供应商补丁若覆盖 routes/admin.js、routes/kkhsLicense.js、controllers/adminController.js 需重新应用本修复"
   },
-  "dashboardRedesign_20261019": "商户仪表盘排版重做（src/app/client/dashboard/page.tsx）：7个彩色分区标题全删，改三层结构——顶部一行6个核心KPI（今天发/收/未读/活跃对话/联系人/新增30天）→ 主体双栏（近30天消息柱状图+底部内嵌发送/送达/已读/失败四统计，右侧今日待办=到期提醒+AI跟进/机器人/营销活动快捷行，失败>0时追加红色行）→ 底部三栏（联系人增长/最近对话/最近营销活动）→ 页尾功能入口chips（模板/预设/关键词/AI外呼）。删低信息量饼图与重复卡片，文案修正（读→已读、接触增长→联系人增长、最近的谈话→最近对话、running→进行中）。KkhsDashboard/AgentDashboard分支未动"
+  "dashboardRedesign_20261019": "商户仪表盘排版重做（src/app/client/dashboard/page.tsx）：7个彩色分区标题全删，改三层结构——顶部一行6个核心KPI（今天发/收/未读/活跃对话/联系人/新增30天）→ 主体双栏（近30天消息柱状图+底部内嵌发送/送达/已读/失败四统计，右侧今日待办=到期提醒+AI跟进/机器人/营销活动快捷行，失败>0时追加红色行）→ 底部三栏（联系人增长/最近对话/最近营销活动）→ 页尾功能入口chips（模板/预设/关键词/AI外呼）。删低信息量饼图与重复卡片，文案修正（读→已读、接触增长→联系人增长、最近的谈话→最近对话、running→进行中）。KkhsDashboard/AgentDashboard分支未动；admin/dashboard 同步重做：顶部6 KPI（今日注册/今日消息/商户活跃比/工作空间/30天发收）→ 商户增长图(底部内嵌营销活动/AI外呼/消息总量)+资金概览卡（钱包余额合计/30天充值入账/待审批申请>0变橙，数据来自 saverWallets+saverUsdtOrders(paid)+saverTopupRequests(pending)，非超管自动隐藏）+快捷行（充值审批/功能开关/系统设置）→ 最近注册表格(加最近登录列)→ 页尾chips。KkhsAdminOps 分支未动"
 }
