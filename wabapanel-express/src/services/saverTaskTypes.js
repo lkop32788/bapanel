@@ -6,7 +6,6 @@ const T = (channel, input = 'phone', country = true, active = false) => ({ chann
 const TASK_TYPES = {
   // WhatsApp
   wsValid: T('whatsapp'),
-  wsSimpleValid: T('whatsapp'),
   wsActive: T('whatsapp', 'phone', true, true),
   wsGender: T('whatsapp'),
   // Telegram

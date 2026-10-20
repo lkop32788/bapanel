@@ -13,7 +13,7 @@ const saverCheckTaskSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   channel: { type: String, enum: ['whatsapp', 'telegram', 'more'], required: true },
   fileName: { type: String, default: '' },
-  // th333 的任务类型（wsValid 筛开通 / wsSimpleValid 简筛 / wsActive 筛活跃 / tgValid / tgActive）
+  // th333 的任务类型（wsValid 筛开通 / wsActive 筛活跃 / tgValid / tgActive 等）
   taskType: { type: String, default: '' },
   externalTaskId: { type: String, default: '' },
   country: {

@@ -32,7 +32,6 @@ const T = (value: string, tab: string, name: string,
 export const SAVER_GROUPS: SaverGroupDef[] = [
   { slug: 'ws', name: 'WS客户状态', Icon: FaWhatsapp, color: 'text-green-600', types: [
     T('wsValid', '筛开通', 'WS筛开通', { hint: '检测号码是否注册了 WhatsApp' }),
-    T('wsSimpleValid', '开通简筛', 'WS开通简筛', { hint: '更快更省的 WhatsApp 开通检测' }),
     T('wsActive', '筛活跃', 'WS筛活跃', { hint: '检测 WhatsApp 号码近期是否活跃上线' }),
     T('wsGender', '性别年龄', 'WS性别年龄', { hint: '检测开通号码的性别和年龄' }),
   ] },
