@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, QrCode, Settings as SettingsIcon, Trash2, Unplug, RefreshCw, KeyRound } from 'lucide-react';
+import { Plus, QrCode, Settings as SettingsIcon, Trash2, Unplug, RefreshCw } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -44,12 +44,6 @@ export default function WaQrSlotsSection() {
   // 号码设置弹窗
   const [settingsTarget, setSettingsTarget] = useState<WaQrSlot | null>(null);
   const [settingsForm, setSettingsForm] = useState({ label: '', enabled: true });
-  // 六段凭证导入弹窗
-  const [seg6Open, setSeg6Open] = useState(false);
-  const [seg6Raw, setSeg6Raw] = useState('');
-  const [seg6Label, setSeg6Label] = useState('');
-  const [seg6Platform, setSeg6Platform] = useState('0');
-  const [seg6Busy, setSeg6Busy] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
   const fetchSlots = useCallback(async () => {
@@ -93,20 +87,6 @@ export default function WaQrSlotsSection() {
       fetchSlots();
     } catch (err) { toast.error(errMsg(err, '添加号码失败')); }
     setAdding(false);
-  };
-
-  const importSeg6 = async () => {
-    if (seg6Busy) return;
-    if (!seg6Raw.trim()) { toast.error(translateApiMessage('请粘贴六段凭证')); return; }
-    setSeg6Busy(true);
-    try {
-      const res = await waqrApi.importSeg6({ raw: seg6Raw.trim(), platform: seg6Platform, label: seg6Label.trim() });
-      toast.success(translateApiMessage(res.data?.message || '登录成功，正在连接'));
-      setSeg6Open(false);
-      setSeg6Raw(''); setSeg6Label('');
-      fetchSlots();
-    } catch (err) { toast.error(errMsg(err, '导入失败')); }
-    setSeg6Busy(false);
   };
 
   const openConnect = async (slotId: string) => {
@@ -200,48 +180,7 @@ export default function WaQrSlotsSection() {
         <p className="text-xs text-gray-400 py-2">还没有连接任何 WhatsApp 号码，点击下方「添加号码」开始绑定。</p>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" icon={<Plus className="w-4 h-4" />} onClick={() => setAddOpen(true)}>添加号码（扫码）</Button>
-        <Button size="sm" variant="outline" icon={<KeyRound className="w-4 h-4" />} onClick={() => setSeg6Open(true)}>六段凭证登录</Button>
-      </div>
-
-      {/* 六段凭证登录导入 */}
-      <Modal isOpen={seg6Open} onClose={() => setSeg6Open(false)} title={'六段凭证登录'} size="md">
-        <div className="space-y-4">
-          <p className="text-xs text-gray-500">
-            粘贴一条六段凭证，系统将免扫码登录并作为普通号码加入号池。支持逗号格式
-            <code className="bg-gray-100 px-1 rounded">手机号,noisePub,noisePriv,identPub,identPriv,hash</code>
-            （可带 <code className="bg-gray-100 px-1 rounded">|代理</code> 尾部），或 JSON
-            <code className="bg-gray-100 px-1 rounded">{'{ phone, noisePriv, identityPriv, hash }'}</code>。
-          </p>
-          <textarea
-            value={seg6Raw}
-            onChange={(e) => setSeg6Raw(e.target.value)}
-            rows={5}
-            placeholder={'6281234567890,<noisePub>,<noisePriv>,<identPub>,<identPriv>,<hash>'}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-mono resize-y"
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input label={'名称/备注（可选）'} value={seg6Label} onChange={(e) => setSeg6Label(e.target.value)} placeholder={'例如：导入号 1'} />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">设备平台</label>
-              <select value={seg6Platform} onChange={(e) => setSeg6Platform(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-                <option value="0">Android（默认）</option>
-                <option value="1">iOS</option>
-                <option value="10">SMB Android（商业版）</option>
-                <option value="12">SMB iOS（商业版）</option>
-              </select>
-            </div>
-          </div>
-          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
-            登录会真实连接 WhatsApp 校验凭证，可能需要十几秒；凭证已失效的号码会返回“已登出”。
-          </p>
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setSeg6Open(false)}>取消</Button>
-            <Button size="sm" loading={seg6Busy} onClick={importSeg6}>导入并连接</Button>
-          </div>
-        </div>
-      </Modal>
+      <Button size="sm" variant="outline" icon={<Plus className="w-4 h-4" />} onClick={() => setAddOpen(true)}>添加号码</Button>
 
       {/* 添加号码 */}
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title={'添加号码'} size="sm">

@@ -280,6 +280,11 @@ func (device *Device) Save(ctx context.Context) error {
 	if device.Deleted {
 		return ErrDeviceDeleted
 	}
+	// 本地补丁：纯内存使用（六段凭证工厂）没有 Container，登录成功后 whatsmeow 会
+	// 调 Save 持久化设备，这里无 DB 可存，直接跳过避免空指针 panic。
+	if device.Container == nil {
+		return nil
+	}
 	return device.Container.PutDevice(ctx, device)
 }
 

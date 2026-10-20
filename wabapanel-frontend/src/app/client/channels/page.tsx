@@ -1,7 +1,7 @@
 'use client';
 import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Camera, Users as FbIcon, CheckCircle, XCircle, ExternalLink, Send, Mail, QrCode, Copy, Unplug, Cloud, ChevronDown, HelpCircle } from 'lucide-react';
+import { MessageSquare, Camera, Users as FbIcon, CheckCircle, XCircle, ExternalLink, Send, Mail, QrCode, Copy, Unplug, Cloud, ChevronDown, HelpCircle, KeyRound } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Tabs from '@/components/ui/Tabs';
@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import ChannelDiagnose, { DiagnosisList } from '@/components/ChannelDiagnose';
 import WaQrSlotsSection from '@/components/channels/WaQrSlotsSection';
+import WaBridgeSection from '@/components/channels/WaBridgeSection';
 import TgPersonalSlotsSection from '@/components/channels/TgPersonalSlotsSection';
 
 type MetaDiagnosis = {
@@ -437,6 +438,15 @@ export default function ChannelsPage() {
               <li>对于批量营销活动、官方模板和绿色勾号验证，请使用官方 <b>WhatsApp 商业 API</b> 通道同上。</li>
             </ul>
           </Steps>
+        </ChannelCard>
+
+        {/* 六段凭证号（whatsmeow 常驻桥接） */}
+        <ChannelCard
+          icon={<KeyRound className="w-5 h-5 text-teal-600" />} iconBg="bg-teal-100"
+          title="六段凭证号" subtitle="用六段凭证免扫码接入 WhatsApp，常驻在线，收发进收件箱并参与号池。"
+          collapsible={false}
+        >
+          <WaBridgeSection />
         </ChannelCard>
 
         {/* Aliyun Chat App */}

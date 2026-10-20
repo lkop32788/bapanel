@@ -103,6 +103,11 @@ const workspaceSchema = new mongoose.Schema({
     lastError: { type: String, default: '' },
     lastSentAt: { type: Date },
     lastInboundAt: { type: Date },
+    // 'wa_bridge'=六段凭证号(whatsmeow 常驻，走 yuncang-proxy，外发内部直调而非 endpoint POST)；
+    // 空=普通第三方 API 专线。jid/phone 为该号标识。
+    backend: { type: String, default: '' },
+    jid: { type: String, default: '' },
+    phone: { type: String, default: '' },
   }], select: false },
   externalApiPoolCursor: { type: Number, default: 0 },
   // Aliyun Chat App Message Service — Meta Premier BSP, official WhatsApp

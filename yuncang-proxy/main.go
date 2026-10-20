@@ -112,6 +112,7 @@ func main() {
 	initMongo()
 	go gcLoop()
 	go storeWorker()
+	go restoreWaBridge() // 常驻 WhatsApp 会话重连
 
 	mux := http.NewServeMux()
 	// SEC-YC：/api/* 只服务本机（面板经 127.0.0.1 调用）。服务对外监听是为了
@@ -127,6 +128,11 @@ func main() {
 	mux.HandleFunc("/api/wa/seg6-login", loopbackOnly(handleWAFLogin))
 	mux.HandleFunc("/api/wa/seg6-convert", loopbackOnly(handleWAFConvert))
 	mux.HandleFunc("/api/wa/health", handleWAFHealth)
+	// WhatsApp 常驻桥接（六段凭证 → whatsmeow 常驻会话，面板走 external_api 收发）
+	mux.HandleFunc("/api/wa/bridge/login", loopbackOnly(handleBridgeLogin))
+	mux.HandleFunc("/api/wa/bridge/send", loopbackOnly(handleBridgeSend))
+	mux.HandleFunc("/api/wa/bridge/logout", loopbackOnly(handleBridgeLogout))
+	mux.HandleFunc("/api/wa/bridge/sessions", loopbackOnly(handleBridgeSessions))
 	// 自带管理页（SAVER_ADMIN_PASS 未设置时关闭）
 	mux.HandleFunc("/admin", requireAdmin(handleAdminPage))
 	mux.HandleFunc("/admin/api/stats", requireAdmin(handleStats))

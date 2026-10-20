@@ -19,6 +19,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -26,12 +28,15 @@ import (
 	"go.mau.fi/whatsmeow/proto/waAdv"
 	"go.mau.fi/whatsmeow/proto/waWa6"
 	"go.mau.fi/whatsmeow/store"
+	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
 	"go.mau.fi/whatsmeow/util/keys"
 	"golang.org/x/net/proxy"
 	"google.golang.org/protobuf/proto"
+
+	_ "modernc.org/sqlite"
 )
 
 // ─────────────────────────────────────────────
@@ -227,7 +232,27 @@ func seg6Login(phone, noisePrivB64, identityPrivB64, hashB64, platform, proxyURL
 	advKey := make([]byte, 32)
 	copy(advKey, hashBytes)
 
-	dev = &store.Device{}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	log := waLog.Stdout("WAF:"+phone[:minInt(8, len(phone))], "ERROR", false)
+
+	// 用临时 SQLite container 建 device（同参考实现）：登录成功后 whatsmeow 会调
+	// Save / PreKeys 等持久化操作，必须有真实 store，否则纯内存 Device 会空指针崩溃。
+	tmpDir, err := os.MkdirTemp("", "waf-")
+	if err != nil {
+		return "", nil, fmt.Errorf("建临时目录失败: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+	// modernc.org/sqlite 用 _pragma= 语法开外键（whatsmeow 升级库要求 FK 已开）
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)", filepath.Join(tmpDir, "s.db"))
+	container, err := sqlstore.New(ctx, "sqlite", dsn, log)
+	if err != nil {
+		return "", nil, fmt.Errorf("打开临时 DB 失败: %w", err)
+	}
+	defer container.Close()
+
+	dev = container.NewDevice()
 	dev.NoiseKey = keys.NewKeyPairFromPrivateKey(*(*[32]byte)(noisePriv))
 	dev.IdentityKey = keys.NewKeyPairFromPrivateKey(*(*[32]byte)(identPriv))
 	dev.RegistrationID = regID
@@ -242,11 +267,6 @@ func seg6Login(phone, noisePrivB64, identityPrivB64, hashB64, platform, proxyURL
 
 	jidObj := types.NewJID(phone, types.DefaultUserServer)
 	dev.ID = &jidObj
-
-	log := waLog.Stdout("WAF:"+phone[:minInt(8, len(phone))], "ERROR", false)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
 	cli := whatsmeow.NewClient(dev, log)
 

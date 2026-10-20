@@ -877,37 +877,6 @@ async function createSlot(workspaceId, label) {
   return { slotId };
 }
 
-// 导入 Baileys 会话（六段凭证经工厂转换而来）：新建号位 → 写 creds.json → 起连接。
-// credsB64 = base64(Baileys creds.json)，由 waFactoryService.seg6Login 返回。
-// 与扫码号完全平等地进入号池（waQrSlots 数组），连上后自动参与轮询发送。
-async function importCredsSession(workspaceId, { credsB64, phone, label }) {
-  if (!credsB64) throw new Error('缺少会话凭据');
-  let credsBuf;
-  try {
-    credsBuf = Buffer.from(String(credsB64), 'base64');
-    JSON.parse(credsBuf.toString('utf8')); // 校验是合法 JSON
-  } catch { throw new Error('会话凭据格式错误'); }
-
-  const Workspace = require('../models/Workspace');
-  const id = String(workspaceId);
-  const slotId = 'n' + Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 4);
-  const cleanPhone = String(phone || '').replace(/\D/g, '');
-
-  // 写 auth 目录：useMultiFileAuthState 读 <authDir>/creds.json
-  const authDir = authDirFor(id, slotId);
-  fs.mkdirSync(authDir, { recursive: true });
-  fs.writeFileSync(path.join(authDir, 'creds.json'), credsBuf);
-
-  await Workspace.updateOne(
-    { _id: id },
-    { $push: { waQrSlots: { slotId, label: String(label || '').slice(0, 60), status: 'connecting', phone: cleanPhone, enabled: true, dailyLimit: 0, sentToday: 0, sentDate: '' } } }
-  );
-
-  // 起连接：creds.me 已带设备 JID，Baileys 直接以已配对设备登录（不出二维码）
-  startSession(id, slotId).catch((e) => console.error(`[waQr:${id}:${slotId}] import startSession:`, e.message));
-  return { slotId, phone: cleanPhone };
-}
-
 // 删除号码：断开会话（含删 auth 目录、清该号会话数据）后移除数组元素。
 // 任意号码（含迁移来的 'default'）都可删——无"主号不可删"限制。
 async function deleteSlot(workspaceId, slotId) {
@@ -1019,6 +988,5 @@ module.exports = {
   startSession, sendMessage, sendReaction, subscribePresence, getStatus, disconnect, restoreAll, syncSession,
   // 号池多槽位
   listSlots, createSlot, deleteSlot, usableSlots, pickPoolSlot, makeSlotSender,
-  importCredsSession,
   _testSetState,
 };

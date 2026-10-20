@@ -112,6 +112,33 @@ async function deleteSlot(workspaceId, slotId) {
   );
 }
 
+// 六段凭证号（wa_bridge）：建槽位（backend 标记 + jid/phone），复用 external_api 收发
+async function createBridgeSlot(workspaceId, { slotId, label, jid, phone, webhookSecret }) {
+  await Workspace.findByIdAndUpdate(workspaceId, {
+    $push: {
+      externalApiSlots: {
+        slotId,
+        label: String(label || `六段号 ${slotId.slice(0, 4)}`).slice(0, 50),
+        endpoint: '', apiKey: '', authHeader: 'Authorization',
+        webhookSecret, enabled: true,
+        backend: 'wa_bridge', jid: jid || '', phone: phone || '',
+      },
+    },
+  });
+}
+
+async function listBridgeSlots(workspaceId) {
+  const ws = await Workspace.findById(workspaceId).select('+externalApiSlots');
+  if (!ws) return [];
+  return (ws.externalApiSlots || [])
+    .filter((s) => s.backend === 'wa_bridge')
+    .map((s) => ({
+      slotId: s.slotId, label: s.label, phone: s.phone, jid: s.jid,
+      enabled: s.enabled, lastError: s.lastError || '',
+      lastInboundAt: s.lastInboundAt, lastSentAt: s.lastSentAt,
+    }));
+}
+
 async function getSlot(workspaceId, slotId) {
   const ws = await Workspace.findById(workspaceId).select('+externalApiSlots');
   if (!ws) throw new Error('Workspace not found');
@@ -167,6 +194,22 @@ function extractMessageId(data) {
 async function sendMessage(workspaceId, to, payload, slotId) {
   const slot = await getSlot(workspaceId, slotId);
   if (!slot.enabled) throw new Error(`槽位 ${slot.label || slotId} 已停用`);
+
+  // 六段凭证号（whatsmeow 常驻）：外发内部直调 yuncang，不走 endpoint POST。
+  // 一期仅文本；媒体二期。
+  if (slot.backend === 'wa_bridge') {
+    const text = payload.text || (payload.media && payload.media.caption) || '';
+    if (!text) throw new Error('六段凭证号一期仅支持文本消息');
+    try {
+      const r = await require('./waBridgeService').send(workspaceId, slotId, to, text);
+      markSlot(workspaceId, slotId, { lastSentAt: new Date(), lastError: '' });
+      return { messageId: String((r && r.messageId) || ''), raw: r };
+    } catch (e) {
+      markSlot(workspaceId, slotId, { lastError: String(e.message).slice(0, 500) });
+      throw new Error(`六段凭证号发送失败（${slot.label || slotId}）：${e.message}`);
+    }
+  }
+
   if (!slot.endpoint) throw new Error(`槽位 ${slot.label || slotId} 未配置 endpoint`);
   await assertSafeOutboundUrl(slot.endpoint, '外部 API endpoint'); // SEC-SSRF：DNS 可能变，发送时复检
 
@@ -213,4 +256,5 @@ async function testSlot(workspaceId, slotId) {
 module.exports = {
   listSlots, createSlot, updateSlot, deleteSlot, rotateSecret, getSlot,
   pickPoolSlot, usableSlots, sendMessage, testSlot,
+  createBridgeSlot, listBridgeSlots,
 };
