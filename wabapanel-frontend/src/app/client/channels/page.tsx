@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { MessageSquare, Camera, Users as FbIcon, CheckCircle, XCircle, ExternalLink, Send, Mail, QrCode, Copy, Unplug, Cloud, ChevronDown, HelpCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Tabs from '@/components/ui/Tabs';
 import { workspaceApi } from '@/lib/api';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -20,31 +21,6 @@ type MetaDiagnosis = {
   meta?: Record<string, { threads?: number; lastUpdate?: string | null; error?: string }>;
   inbox?: Record<string, number>;
 };
-
-// 分区标题（与 analytics 一致：竖条 + 标题）
-const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center gap-2 pt-2">
-    <span className="w-1 h-4 rounded-full bg-emerald-500" />
-    <h2 className="text-sm font-semibold text-gray-700">{children}</h2>
-  </div>
-);
-
-// 状态总览小方块
-const StatusTile = ({ icon, iconBg, name, ok, text }: {
-  icon: React.ReactNode; iconBg: string; name: string; ok: boolean | null; text: string;
-}) => (
-  <div className="flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white p-2.5">
-    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>{icon}</div>
-    <div className="min-w-0">
-      <p className="text-xs font-semibold text-gray-800 truncate">{name}</p>
-      <p className={`text-[11px] truncate flex items-center gap-1 ${ok === true ? 'text-emerald-600' : ok === false ? 'text-gray-400' : 'text-sky-600'}`}>
-        {ok === true && <CheckCircle className="w-3 h-3 shrink-0" />}
-        {ok === false && <XCircle className="w-3 h-3 shrink-0" />}
-        <span className="truncate">{text}</span>
-      </p>
-    </div>
-  </div>
-);
 
 // 可折叠渠道卡：头部常显（图标/标题/状态/操作），正文按需展开
 const ChannelCard = ({ icon, iconBg, title, subtitle, right, children, defaultOpen = false, collapsible = true }: {
@@ -403,6 +379,14 @@ export default function ChannelsPage() {
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
+  // tab 图标 + 右上角连接状态圆点（绿=已连 / 灰=未连）
+  const tabDot = (icon: React.ReactNode, connected: boolean) => (
+    <span className="relative inline-flex">
+      {icon}
+      <span className={`absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full ring-1 ring-white ${connected ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+    </span>
+  );
+
   return (
     <div className="max-w-4xl">
       <div className="page-hero">
@@ -412,21 +396,11 @@ export default function ChannelsPage() {
         </div>
       </div>
 
-      {/* 状态总览 */}
-      <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-        <StatusTile icon={<MessageSquare className="w-4 h-4 text-emerald-600" />} iconBg="bg-emerald-100" name="WhatsApp API" ok={waConnected} text={waConnected ? (waPhone || '已连接') : '未连接'} />
-        <StatusTile icon={<QrCode className="w-4 h-4 text-green-600" />} iconBg="bg-green-100" name="WhatsApp 二维码" ok={null} text="多号池" />
-        <StatusTile icon={<Cloud className="w-4 h-4 text-orange-600" />} iconBg="bg-orange-100" name="Aliyun BSP" ok={chatApp.isConnected} text={chatApp.isConnected ? (chatApp.phoneNumber || '已连接') : '未连接'} />
-        <StatusTile icon={<FbIcon className="w-4 h-4 text-blue-600" />} iconBg="bg-blue-100" name="Facebook" ok={metaConnected} text={metaConnected ? '已连接' : '未连接'} />
-        <StatusTile icon={<Camera className="w-4 h-4 text-pink-600" />} iconBg="bg-pink-100" name="Instagram" ok={!!(metaChat.igEnabled || metaChat.igAccountId)} text={metaChat.igAccountId ? '已连接' : '未连接'} />
-        <StatusTile icon={<Send className="w-4 h-4 text-sky-600" />} iconBg="bg-sky-100" name="Telegram Bot" ok={!!telegram.botToken} text={telegram.botUsername ? `@${telegram.botUsername}` : telegram.botToken ? '已连接' : '未连接'} />
-        <StatusTile icon={<Send className="w-4 h-4 text-sky-600" />} iconBg="bg-sky-100" name="个人 Telegram" ok={null} text="多号池" />
-        <StatusTile icon={<Mail className="w-4 h-4 text-orange-600" />} iconBg="bg-orange-100" name="电子邮件" ok={!!(emailCh.user || emailCh.imapHost)} text={emailCh.user ? '已连接' : '未连接'} />
-      </div>
-
-      {/* ===== WhatsApp 家族 ===== */}
-      <SectionLabel>WhatsApp</SectionLabel>
-      <div className="mt-3 space-y-4">
+      {/* 渠道按家族分 tab，一次只看一个，减少堆叠 */}
+      <div className="mt-6">
+        <Tabs defaultTab="wa" tabs={[
+          { key: 'wa', label: 'WhatsApp', icon: tabDot(<MessageSquare className="w-4 h-4" />, waConnected || chatApp.isConnected), content: (
+            <div className="space-y-4">
         {/* WhatsApp 商务 API */}
         <ChannelCard
           icon={<MessageSquare className="w-5 h-5 text-emerald-600" />} iconBg="bg-emerald-100"
@@ -505,11 +479,10 @@ export default function ChannelsPage() {
             </ol>
           </Steps>
         </ChannelCard>
-      </div>
-
-      {/* ===== Facebook & Instagram ===== */}
-      <SectionLabel>Facebook &amp; Instagram</SectionLabel>
-      <div className="mt-3 space-y-4">
+            </div>
+          ) },
+          { key: 'meta', label: 'Facebook · Instagram', icon: tabDot(<FbIcon className="w-4 h-4" />, metaConnected || !!metaChat.igAccountId), content: (
+            <div className="space-y-4">
         {/* Facebook */}
         <ChannelCard
           icon={<FbIcon className="w-5 h-5 text-blue-600" />} iconBg="bg-blue-100"
@@ -624,11 +597,10 @@ export default function ChannelsPage() {
             <b>Webhook 设置（一次性，在 Meta App 仪表板中）：</b> 回调网址： <code className="bg-white px-1 rounded">{origin}/api/webhook/whatsapp</code> — 验证令牌与您的 WhatsApp webhook 相同。订阅页面和 Instagram 产品中的“消息”字段。
           </div>
         </ChannelCard>
-      </div>
-
-      {/* ===== Telegram 家族 ===== */}
-      <SectionLabel>Telegram</SectionLabel>
-      <div className="mt-3 space-y-4">
+            </div>
+          ) },
+          { key: 'tg', label: 'Telegram', icon: tabDot(<Send className="w-4 h-4" />, !!telegram.botToken), content: (
+            <div className="space-y-4">
         {/* Telegram Bot */}
         <ChannelCard
           icon={<Send className="w-5 h-5 text-sky-600" />} iconBg="bg-sky-100"
@@ -663,11 +635,10 @@ export default function ChannelsPage() {
           <ChannelDiagnose channel="tgpersonal" />
           <TgPersonalSlotsSection />
         </ChannelCard>
-      </div>
-
-      {/* ===== 电子邮件 ===== */}
-      <SectionLabel>电子邮件</SectionLabel>
-      <div className="mt-3 space-y-4">
+            </div>
+          ) },
+          { key: 'email', label: '电子邮件', icon: tabDot(<Mail className="w-4 h-4" />, !!(emailCh.user || emailCh.imapHost)), content: (
+            <div className="space-y-4">
         <ChannelCard
           icon={<Mail className="w-5 h-5 text-orange-600" />} iconBg="bg-orange-100"
           title="电子邮件收件箱" subtitle={emailCh.user ? `已连接 — ${emailCh.user}` : '发到支持邮箱的邮件进入收件箱，回复也从该地址发出'}
@@ -709,6 +680,9 @@ export default function ChannelsPage() {
           </Steps>
           <ChannelDiagnose channel="email" />
         </ChannelCard>
+            </div>
+          ) },
+        ]} />
       </div>
 
       {/* 底部吸附保存栏（sticky，随 main 滚动容器贴底，自动对齐内容宽度） */}
