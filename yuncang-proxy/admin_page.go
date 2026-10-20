@@ -96,7 +96,7 @@ a.exp:hover{text-decoration:underline}
 <div id="tab3" style="display:none">
 <div class="panel" style="max-width:700px">
 <h2>历史号码导入缓存</h2>
-<p class="gray" style="font-size:12px">将已有检测结果的号码直接写入缓存库，下次商户提交相同号码时直接命中，不再消耗积分。每次上传只需选好类型和结果，然后上传 txt/csv 文件（每行一个号码，支持带 + 或横线）。</p>
+<p class="gray" style="font-size:12px">将已有检测结果的号码直接写入缓存库，下次商户提交相同号码时直接命中，不再消耗积分。上传 txt/csv：每行一条，取第一列为号码（支持带 + 或横线）；性别年龄、UID 等带结果数据的类型需每行「号码,检测结果」；单文件不超过 64MB，更大请拆分。</p>
 <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px">
   <div style="flex:1;min-width:180px">
     <label style="display:block;font-size:13px;color:#374151;margin-bottom:4px">检测类型</label>
@@ -110,7 +110,7 @@ a.exp:hover{text-decoration:underline}
     </div>
   </div>
   <div style="display:flex;align-items:flex-end">
-    <button class="btn pri" onclick="document.getElementById('impFile').click()">选择文件并导入</button>
+    <button id="impBtn" class="btn pri" onclick="document.getElementById('impFile').click()">选择文件并导入</button>
     <input type="file" id="impFile" accept=".txt,.csv" style="display:none">
   </div>
 </div>
@@ -183,7 +183,7 @@ var TYPE_GROUPS=[
 ];
 var TYPE_LABEL={};TYPE_GROUPS.forEach(function(g){g[1].forEach(function(t){TYPE_LABEL[t[0]]=t[1]})});
 var COUNTRY_NAME={};COUNTRIES.forEach(function(c){COUNTRY_NAME[c[0]]=c[1]});
-function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function showTab(i){for(var j=0;j<5;j++){document.getElementById('tab'+j).style.display=j===i?'':'none';document.getElementById('tabBtn'+j).className=j===i?'on':''}}
 function fmt3(n){return Math.round((n||0)*1000)/1000}
 
@@ -353,34 +353,47 @@ function setImpValid(v){
   document.getElementById('impV0').style.background=v?'#fff':'#dc2626';
   document.getElementById('impV0').style.color=v?'#dc2626':'#fff';
 }
-var impHistory=[];
+var impHistory=[],impBusy=false;
+function renderImpHistory(){
+  document.getElementById('impHistory').innerHTML=impHistory.map(function(r){
+    return '<tr><td class="mono">'+r.time+'</td><td>'+esc(r.label)+'</td>'+
+      '<td class="'+(r.valid?'green':'redtxt')+'">'+(r.valid?'✓ 有效':'✗ 无效')+'</td>'+
+      '<td class="r">'+r.parsed+'</td><td class="r">'+r.upserted+(r.skipped?' <span class="gray">(跳过'+r.skipped+')</span>':'')+'</td></tr>';
+  }).join('');
+}
 document.getElementById('impFile').addEventListener('change',function(){
   var f=this.files[0];this.value='';
   if(!f)return;
+  if(impBusy){alert('正在导入，请等待完成');return}
   var kind=document.getElementById('impType').value;
   if(!kind){alert('请先选择检测类型');return}
+  // 提交瞬间固化有效性和类型：大文件在途时切换开关不得影响本次结果的记录
+  var v=impValid,label=TYPE_LABEL[kind]||kind;
   var log=document.getElementById('impLog');
-  log.textContent='正在上传 '+f.name+' …';
-  var fd=new FormData();fd.append('file',f);fd.append('kind',kind);fd.append('valid',impValid?'true':'false');
-  fetch('/admin/api/cache/import',{method:'POST',body:fd})
-    .then(function(r){return r.json()}).then(function(d){
+  var btn=document.getElementById('impBtn');
+  impBusy=true;btn.disabled=true;
+  log.style.color='#6b7280';
+  log.textContent='正在导入 '+f.name+' …大文件需要几分钟，请勿重复操作';
+  var fd=new FormData();fd.append('kind',kind);fd.append('valid',v?'true':'false');fd.append('file',f);
+  var done=function(){impBusy=false;btn.disabled=false};
+  fetch('/admin/api/cache/import',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest'},body:fd})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+    .then(function(d){
+      done();
       if(d.code!==0){log.style.color='#dc2626';log.textContent='导入失败：'+(d.message||'');return}
       log.style.color='#059669';
-      log.textContent='✓ 识别 '+d.parsed+' 条，写入缓存 '+d.upserted+' 条（'+(impValid?'有效':'无效')+'）';
-      var label=TYPE_LABEL[kind]||kind;
-      impHistory.unshift({time:new Date().toLocaleString('zh-CN'),label:label,valid:impValid,parsed:d.parsed,upserted:d.upserted});
+      log.textContent='✓ 识别 '+d.parsed+' 条，写入缓存 '+d.upserted+' 条'+(d.skipped?'，跳过 '+d.skipped+' 条（缺结果数据）':'')+'（'+(v?'有效':'无效')+'）';
+      impHistory.unshift({time:new Date().toLocaleString('zh-CN'),label:label,valid:v,parsed:d.parsed,upserted:d.upserted,skipped:d.skipped||0});
       if(impHistory.length>20)impHistory.pop();
-      document.getElementById('impHistory').innerHTML=impHistory.map(function(r){
-        return '<tr><td class="mono">'+r.time+'</td><td>'+esc(r.label)+'</td>'+
-          '<td class="'+(r.valid?'green':'redtxt')+'">'+(r.valid?'✓ 有效':'✗ 无效')+'</td>'+
-          '<td class="r">'+r.parsed+'</td><td class="r">'+r.upserted+'</td></tr>';
-      }).join('');
-    }).catch(function(e){log.style.color='#dc2626';log.textContent='请求失败：'+e.message});
+      renderImpHistory();
+    }).catch(function(e){done();log.style.color='#dc2626';log.textContent='请求失败：'+e.message});
 });
 function fillImpType(){
   var sel=document.getElementById('impType');
   sel.innerHTML=TYPE_GROUPS.map(function(g){
-    return '<optgroup label="'+g[0]+'">'+g[1].map(function(t){return '<option value="'+t[0]+'">'+t[1]+'</option>'}).join('')+'</optgroup>';
+    var opts=g[1].filter(function(t){return t[0]!=='phoneRoaming'});
+    if(!opts.length)return '';
+    return '<optgroup label="'+g[0]+'">'+opts.map(function(t){return '<option value="'+t[0]+'">'+t[1]+'</option>'}).join('')+'</optgroup>';
   }).join('');
 }
 

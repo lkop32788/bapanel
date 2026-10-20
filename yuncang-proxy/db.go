@@ -189,6 +189,38 @@ func cachePutMany(kind string, rows map[string]struct {
 	}
 }
 
+// 批量写缓存并返回真实写入数（新增 + 修改）。与 cachePutMany 的区别：
+// 错误上抛给调用方反馈用户（历史导入），不能只记日志吞掉。
+func cacheWriteBatch(kind string, rows []cacheDoc, now int64) (int64, error) {
+	if len(rows) == 0 {
+		return 0, nil
+	}
+	models := make([]mongo.WriteModel, 0, len(rows))
+	for _, d := range rows {
+		d.Kind, d.CheckedAt = kind, now
+		models = append(models, mongo.NewReplaceOneModel().
+			SetFilter(bson.M{"kind": kind, "value": d.Value}).
+			SetReplacement(d).SetUpsert(true))
+	}
+	var written int64
+	for i := 0; i < len(models); i += 2000 {
+		end := i + 2000
+		if end > len(models) {
+			end = len(models)
+		}
+		c, cancel := context120()
+		res, err := colCache.BulkWrite(c, models[i:end], options.BulkWrite().SetOrdered(false))
+		cancel()
+		if res != nil {
+			written += res.UpsertedCount + res.ModifiedCount
+		}
+		if err != nil {
+			return written, err
+		}
+	}
+	return written, nil
+}
+
 // ---------- 任务 ----------
 
 type taskDoc struct {

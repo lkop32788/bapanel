@@ -167,7 +167,8 @@
       "行为": "未知类型/未知任务编号/余额查询原样透传；上游结果（txt/zip）解析入库后与缓存命中合并输出为纯文本",
       "管理页": "自带 /admin 网页「云仓中转管理」（Basic Auth，用户 admin，密码在 yuncang-proxy/admin-pass.txt，pm2 启动环境 SAVER_ADMIN_PASS）：概览/各类型缓存量/最近任务/清空缓存。绑定 0.0.0.0:5090，外部访问需放行 5090 端口",
       "云仓管理": "管理页新增云仓功能（/admin 三个tab：概览/云仓管理/设置）：云仓=按国家+检测类型的号码仓库，上传txt入仓（待入仓）→ 后台工作器每60s先对共享缓存再自动提交th333 → 沉淀有效/无效两池，可分别导出txt；检测结果同时写共享缓存。自动检测用「设置」tab保存的上游token（settings表），与面板的token互相独立。表：stores/store_numbers/store_jobs/settings",
-      "计费归属": "面板提交检测时表单带 bizId/bizName（workspace标识，services/saverCheckService.js），代理按商家记每任务的提交量/缓存命中/上游扣费(consume.deduction)；云仓作业按仓记账。管理页「消耗统计」tab：总扣费/免检条数/估算节省 + 按商家表 + 按云仓表。tasks表加 owner_id/owner_name/deduction，store_jobs加 deduction（ALTER迁移，报错忽略）"
+      "计费归属": "面板提交检测时表单带 bizId/bizName（workspace标识，services/saverCheckService.js），代理按商家记每任务的提交量/缓存命中/上游扣费(consume.deduction)；云仓作业按仓记账。管理页「消耗统计」tab：总扣费/免检条数/估算节省 + 按商家表 + 按云仓表。tasks表加 owner_id/owner_name/deduction，store_jobs加 deduction（ALTER迁移，报错忽略）",
+      "历史导入_20261020": "管理页第4个tab「历史导入」（现共5个tab：概览/云仓管理/消耗统计/历史导入/设置）：选检测类型+有效/无效+上传txt/csv，直接写 cache 集合，商户后续检测直接命中免扣积分。后端 POST /admin/api/cache/import（stores.go handleCacheImport + db.go cacheWriteBatch）：kind 严格白名单（taskTypes，拒 ttl=0 的 phoneRoaming）、要求 X-Requested-With 头挡 CSRF、ContentLength>64MB 预拒+MaxBytesReader、MultipartReader+Scanner 流式逐行（防大文件 OOM）、真实 upserted 计数+错误上抛。行解析契约（与 CLI 一致）：去 BOM/跳过#//注释、按[,;\\t]取第一列按 input 类型规范化、≥2 非空列整行存 extra（与正常入库 extra=含号码完整结果行的不变量一致）；性别/UID/运营商等 payload 类 valid=true 时缺 extra 的行跳过、全缺报错。esc() 已补单引号转义（堵 onclick 注入 sink）。配套 CLI：yuncang-proxy/import-cache.js/.sh（借面板 node_modules 的 mongodb 驱动），--kind 接受任务类型名并映射命名空间（wsValid→wsOpen 等）、--valid 仅收 true/false、同一行解析契约、--dry 预览。非供应商代码，补丁覆盖后需重新应用"
     },
     "billing_20261019": {
       "note": "商家计量收费：提交检测按 单价×号码数 原子预扣余额(元)（findOneAndUpdate balance>=cost），余额不足402拒绝；任务失败全额退款（task.refunded 幂等）。总开关关闭=免费",

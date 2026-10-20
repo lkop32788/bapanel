@@ -5,6 +5,7 @@ package main
 // 自动检测使用「设置」里保存的上游 token（settings 集合 _id='token'）。
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -396,61 +397,172 @@ func handleStoreExport(w http.ResponseWriter, r *http.Request) {
 
 // ---------- 历史数据直接导入缓存 ----------
 
+// 有效结果必须携带附加数据的缓存命名空间（性别年龄/UID/型号/运营商等）：
+// 读路径在 extra 非空时用 extra 替代号码输出，缺 extra 的「有效」行等于没有交付内容
+var payloadKinds = map[string]bool{
+	"wsGender": true, "tgGender": true, "fbGender": true, "linkedinGender": true,
+	"lineGender": true, "viberGender": true, "botimGender": true, "zaloGender": true,
+	"fbUid": true, "wxAll": true, "iosAll": true, "numberStatus": true,
+	"operatorStandard": true, "phoneUsCarrier": true,
+}
+
+var impColRe = regexp.MustCompile(`[,;\t]`)
+
 func handleCacheImport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		apiErr(w, "method not allowed")
 		return
 	}
-	if err := r.ParseMultipartForm(256 << 20); err != nil {
+	// 跨站表单会自动附带浏览器缓存的 Basic 凭据；要求自定义头（跨站发送需 CORS
+	// 预检，本服务不回 CORS 头即被浏览器拦截），挡 CSRF
+	if r.Header.Get("X-Requested-With") != "XMLHttpRequest" {
+		apiErr(w, "非法请求来源")
+		return
+	}
+	if r.ContentLength > 64<<20 {
+		apiErr(w, "文件超过 64MB，请拆分后分次导入")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<20)
+
+	mr, err := r.MultipartReader()
+	if err != nil {
 		apiErr(w, "表单解析失败")
 		return
 	}
-	kind := strings.TrimSpace(r.FormValue("kind"))
-	if kind == "" {
-		apiErr(w, "缺少 kind 参数")
-		return
-	}
-	// 校验 kind 是否在已知 taskTypes 里（取对应 input 类型）
-	def, ok := taskTypes[kind]
-	if !ok {
-		// kind 也可以直接是 cache 命名空间（如 wsOpen），兜底为 phone
-		def = typeDef{kind: kind, input: "phone"}
-	}
-	valid := r.FormValue("valid") != "false"
 
-	f, _, err := r.FormFile("file")
-	if err != nil {
+	kind, validStr := "", ""
+	var def typeDef
+	valid := true
+	parsed, skipped := 0, 0
+	var upserted int64
+	now := time.Now().Unix()
+	batch := make([]cacheDoc, 0, 5000)
+	batchIdx := map[string]int{} // 批内去重：同一无序 BulkWrite 里对同一新键双重 upsert 会报 E11000
+	flush := func() error {
+		if len(batch) == 0 {
+			return nil
+		}
+		n, err := cacheWriteBatch(def.kind, batch, now)
+		upserted += n
+		batch = batch[:0]
+		batchIdx = map[string]int{}
+		return err
+	}
+
+	fileDone := false
+	for !fileDone {
+		part, perr := mr.NextPart()
+		if perr == io.EOF {
+			break
+		}
+		if perr != nil {
+			apiErr(w, fmt.Sprintf("表单读取失败（已写入 %d 条）：%v", upserted, perr))
+			return
+		}
+		switch part.FormName() {
+		case "kind":
+			b, _ := io.ReadAll(io.LimitReader(part, 256))
+			kind = strings.TrimSpace(string(b))
+		case "valid":
+			b, _ := io.ReadAll(io.LimitReader(part, 16))
+			validStr = strings.TrimSpace(string(b))
+		case "file":
+			// 前端保证 kind/valid 字段排在文件 part 之前
+			var ok bool
+			def, ok = taskTypes[kind]
+			if !ok {
+				apiErr(w, "未知的检测类型")
+				return
+			}
+			if def.ttl == 0 {
+				apiErr(w, "该类型为实时检测，缓存不生效，不支持导入")
+				return
+			}
+			valid = validStr != "false"
+			needExtra := valid && payloadKinds[def.kind]
+
+			sc := bufio.NewScanner(part)
+			sc.Buffer(make([]byte, 64<<10), 1<<20)
+			for sc.Scan() {
+				line := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(sc.Text()), "\ufeff"))
+				if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") {
+					continue
+				}
+				cols := impColRe.Split(line, -1)
+				first := strings.TrimSpace(cols[0])
+				value := ""
+				switch def.input {
+				case "email":
+					if v := strings.ToLower(first); emailRe.MatchString(v) {
+						value = v
+					}
+				case "username":
+					if v := strings.TrimPrefix(first, "@"); v != "" && len(v) <= 64 && !strings.ContainsAny(v, " \t,;") {
+						value = v
+					}
+				default:
+					value = normPhone(first)
+				}
+				if value == "" {
+					continue
+				}
+				parsed++
+				extra := ""
+				nonEmpty := 0
+				for _, col := range cols {
+					if strings.TrimSpace(col) != "" {
+						nonEmpty++
+					}
+				}
+				// ≥2 个非空列：整行存 extra（与正常入库一致，extra 是含号码的完整结果行，
+				// 导出路径 extra 非空时输出 extra 替代号码）
+				if nonEmpty >= 2 {
+					extra = line
+				}
+				if needExtra && extra == "" {
+					skipped++
+					continue
+				}
+				doc := cacheDoc{Value: value, Valid: valid, Extra: extra}
+				if i, dup := batchIdx[value]; dup {
+					batch[i] = doc
+				} else {
+					batchIdx[value] = len(batch)
+					batch = append(batch, doc)
+				}
+				if len(batch) >= 5000 {
+					if err := flush(); err != nil {
+						apiErr(w, fmt.Sprintf("已写入 %d 条后出错：%v", upserted, err))
+						return
+					}
+				}
+			}
+			if err := sc.Err(); err != nil {
+				apiErr(w, fmt.Sprintf("读取文件失败（可能超过 64MB 被截断，已写入 %d 条）：%v", upserted, err))
+				return
+			}
+			fileDone = true
+		}
+	}
+	if !fileDone {
 		apiErr(w, "缺少文件")
 		return
 	}
-	raw, _ := io.ReadAll(io.LimitReader(f, 256<<20))
-	f.Close()
-
-	values := parseValues(string(raw), def.input)
-	if len(values) == 0 {
+	if parsed == 0 {
 		apiErr(w, "文件里没有识别到有效内容")
 		return
 	}
-
-	// 确定写入 cache 的 kind：优先用 taskTypes 里的 kind 字段（命名空间），
-	// 未知 taskType 直接用传入的 kind 字符串
-	cacheKind := def.kind
-	if cacheKind == "" {
-		cacheKind = kind
+	if skipped == parsed {
+		apiErr(w, "该类型的有效数据需要每行附带检测结果，格式应为「号码,检测结果」")
+		return
 	}
-
-	rows := make(map[string]struct {
-		Valid bool
-		Extra string
-	}, len(values))
-	for _, v := range values {
-		rows[v] = struct {
-			Valid bool
-			Extra string
-		}{valid, ""}
+	if err := flush(); err != nil {
+		apiErr(w, fmt.Sprintf("已写入 %d 条后出错：%v", upserted, err))
+		return
 	}
-	cachePutMany(cacheKind, rows, time.Now().Unix())
-	writeJSON(w, map[string]any{"code": 0, "message": "success", "parsed": len(values), "upserted": len(values)})
+	writeJSON(w, map[string]any{"code": 0, "message": "success",
+		"parsed": parsed, "upserted": upserted, "skipped": skipped})
 }
 
 // ---------- 设置 / 余额 ----------
