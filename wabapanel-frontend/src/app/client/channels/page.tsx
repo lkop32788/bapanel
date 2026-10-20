@@ -1,10 +1,10 @@
 'use client';
 import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Camera, Users as FbIcon, CheckCircle, XCircle, ExternalLink, Send, Mail, QrCode, ShieldAlert, ShieldCheck, Copy, Unplug, Cloud } from 'lucide-react';
+import { MessageSquare, Camera, Users as FbIcon, CheckCircle, XCircle, ExternalLink, Send, Mail, QrCode, ShieldAlert, Copy, Unplug, Cloud } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { workspaceApi, waqrApi, tgPersonalApi } from '@/lib/api';
+import { workspaceApi } from '@/lib/api';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import toast from 'react-hot-toast';
@@ -34,16 +34,8 @@ export default function ChannelsPage() {
   const [emailStatus, setEmailStatus] = useState<{ lastPolledAt?: string; lastError?: string }>({});
   const [emailSyncing, setEmailSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [qr, setQr] = useState<{ status: string; phone: string; qr: string | null; todayCap?: number; sentToday?: number; warmupDay?: number; warmupTotalDays?: number; customLimit?: number }>({ status: 'disconnected', phone: '', qr: null });
-  const [tgp, setTgp] = useState<{ status: string; phone: string; username?: string; error?: string; qr?: string }>({ status: 'disconnected', phone: '' });
-  const [tgpPhone, setTgpPhone] = useState('');
-  const [tgpMode, setTgpMode] = useState<'qr' | 'phone'>('qr');
-  const [tgpCode, setTgpCode] = useState('');
-  const [tgpPassword, setTgpPassword] = useState('');
-  const [tgpBusy, setTgpBusy] = useState(false);
-  const [qrLimitInput, setQrLimitInput] = useState('');
-  const [qrLimitSaving, setQrLimitSaving] = useState(false);
-  const [qrBusy, setQrBusy] = useState(false);
+  // 网页版 WhatsApp / 个人 Telegram 的号码连接统一由 WaQrSlotsSection /
+  // TgPersonalSlotsSection 组件管理（多号平等、自动号池），本页不再持有单号状态。
   const [fbCfg, setFbCfg] = useState<{ appId?: string; configId?: string; oneClick?: boolean; connected?: boolean; pageName?: string } | null>(null);
   const [fbBusy, setFbBusy] = useState(false);
   const [fbPages, setFbPages] = useState<{ id: string; name: string }[]>([]);
@@ -53,40 +45,6 @@ export default function ChannelsPage() {
   const [metaDiag, setMetaDiag] = useState<MetaDiagnosis | null>(null);
   const [metaDiagBusy, setMetaDiagBusy] = useState(false);
   const [metaSyncBusy, setMetaSyncBusy] = useState(false);
-
-  useEffect(() => {
-    if (!currentWorkspace) return;
-    let stop = false;
-    const poll = async () => {
-      try {
-        const res = await waqrApi.status();
-        if (!stop) setQr(res.data.data);
-      } catch { /* */ }
-    };
-    poll();
-    const t = setInterval(() => {
-      if (['qr', 'connecting', 'reconnecting'].includes(qr.status)) poll();
-    }, 3000);
-    return () => { stop = true; clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWorkspace, qr.status]);
-
-  useEffect(() => {
-    if (!currentWorkspace) return;
-    let stop = false;
-    const poll = async () => {
-      try {
-        const res = await tgPersonalApi.status();
-        if (!stop) setTgp(res.data.data);
-      } catch { /* */ }
-    };
-    poll();
-    const t = setInterval(() => {
-      if (['qr', 'connecting', 'verifying', 'awaiting_code', 'awaiting_password'].includes(tgp.status)) poll();
-    }, 2500);
-    return () => { stop = true; clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWorkspace, tgp.status]);
 
   useEffect(() => {
     if (!currentWorkspace) return;
@@ -215,53 +173,6 @@ export default function ChannelsPage() {
           .finally(() => setIgBusy(false));
       }, opts);
     } catch { setIgBusy(false); toast.error(translateApiMessage("Facebook SDK 加载失败")); }
-  };
-
-  const connectTgpQr = async () => {
-    setTgpBusy(true);
-    try {
-      const res = await tgPersonalApi.connectQr();
-      setTgp(res.data.data);
-      if (res.data.data?.status === 'error') toast.error(translateApiMessage(res.data.data.error || "生成二维码失败"));
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      toast.error(translateApiMessage(e.response?.data?.message || "生成二维码失败"));
-    }
-    setTgpBusy(false);
-  };
-
-  const connectTgp = async () => {
-    if (!tgpPhone.trim()) { toast.error(translateApiMessage("输入您的电话号码和国家/地区代码")); return; }
-    setTgpBusy(true);
-    try {
-      const res = await tgPersonalApi.connect(tgpPhone.trim());
-      setTgp(res.data.data);
-      if (res.data.data?.status === 'awaiting_code') toast.success(translateApiMessage("代码已发送 — 检查您的 Telegram 应用"));
-      if (res.data.data?.status === 'error') toast.error(translateApiMessage(res.data.data.error || "登录失败"));
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      toast.error(translateApiMessage(e.response?.data?.message || "无法开始登录"));
-    }
-    setTgpBusy(false);
-  };
-
-  const connectQr = async () => {
-    setQrBusy(true);
-    try {
-      const res = await waqrApi.connect();
-      setQr(res.data.data);
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      toast.error(translateApiMessage(e.response?.data?.message || "无法启动 QR 会话"));
-    }
-    setQrBusy(false);
-  };
-
-  const disconnectQr = async () => {
-    if (!confirm("断开此 WhatsApp 号码的连接吗？")) return;
-    setQrBusy(true);
-    try { await waqrApi.disconnect(); setQr({ status: 'disconnected', phone: '', qr: null }); toast.success(translateApiMessage("已断开连接")); } catch { toast.error(translateApiMessage("操作失败")); }
-    setQrBusy(false);
   };
 
   useEffect(() => {
@@ -447,87 +358,13 @@ export default function ChannelsPage() {
 
       {/* WhatsApp by QR */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center"><QrCode className="w-5 h-5 text-green-600" /></div>
-            <div>
-              <h2 className="font-semibold text-gray-900">WhatsApp 二维码</h2>
-              <p className="text-xs text-gray-500">{qr.status === 'connected' ? `已连接 — +${qr.phone}` : "通过扫描二维码连接普通 WhatsApp 号码（无需 API）"}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {qr.status === 'connected' ? (
-              <>
-                <span className="flex items-center gap-1 text-xs text-emerald-600"><CheckCircle className="w-4 h-4" /> 已连接</span>
-                <Button size="sm" variant="outline" loading={qrBusy} onClick={async () => { setQrBusy(true); try { await waqrApi.sync(); toast.success(translateApiMessage("正在同步消息...")); } catch { toast.error(translateApiMessage("同步失败")); } setQrBusy(false); }}>同步消息</Button>
-                <Button size="sm" variant="outline" onClick={disconnectQr} loading={qrBusy}>断开连接</Button>
-              </>
-            ) : (
-              <Button size="sm" onClick={connectQr} loading={qrBusy}>{qr.status === 'qr' ? "刷新" : "连接"}</Button>
-            )}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center"><QrCode className="w-5 h-5 text-green-600" /></div>
+          <div>
+            <h2 className="font-semibold text-gray-900">WhatsApp 二维码</h2>
+            <p className="text-xs text-gray-500">扫码连接普通 WhatsApp 号码（无需 API）。可添加多个号码，系统自动轮流发送、老客户固定原号接待；每个号码自动预热防封。</p>
           </div>
         </div>
-
-        {qr.status === 'qr' && qr.qr && (
-          <div className="flex flex-col items-center gap-2 py-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qr.qr} alt={"WhatsApp 二维码"} className="w-56 h-56 rounded-lg border" />
-            <p className="text-xs text-gray-500 text-center">在手机上打开 WhatsApp → <b>设置 → 链接设备 → 链接设备</b> → 扫描此码</p>
-          </div>
-        )}
-        {['connecting', 'reconnecting'].includes(qr.status) && (
-          <p className="text-xs text-gray-400">正在连接...二维码将在几秒钟后出现在此处。</p>
-        )}
-        {qr.status === 'connected' && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-emerald-800 flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> 号码加温器和反禁令保护 — 主动</p>
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-600 text-white">热身日 {qr.warmupDay || 1} / {qr.warmupTotalDays || 14}</span>
-            </div>
-            <div>
-              <div className="flex justify-between text-[11px] text-emerald-800 mb-1">
-                <span>今日安全发送限额</span>
-                <span className="font-semibold">{qr.sentToday || 0} / {qr.todayCap || 25} 消息</span>
-              </div>
-              <div className="h-2 bg-emerald-100 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${Math.min(100, ((qr.sentToday || 0) / (qr.todayCap || 25)) * 100)}%` }} />
-              </div>
-            </div>
-            <ul className="text-[11px] text-emerald-800 grid grid-cols-2 gap-x-4 gap-y-1">
-              <li className="flex items-center gap-1"><CheckCircle className="w-3 h-3" /> 逐步涨停预热（14天）</li>
-              <li className="flex items-center gap-1"><CheckCircle className="w-3 h-3" /> 类人随机延迟（5-15秒）</li>
-              <li className="flex items-center gap-1"><CheckCircle className="w-3 h-3" /> 每次发送前的键入指示器</li>
-              <li className="flex items-center gap-1"><CheckCircle className="w-3 h-3" /> 禁止/注销检测时自动暂停</li>
-              <li className="flex items-center gap-1"><CheckCircle className="w-3 h-3" /> 一旦达到每日上限，发送就会被阻止</li>
-              <li className="flex items-center gap-1"><CheckCircle className="w-3 h-3" /> 每日计数器在午夜重置</li>
-            </ul>
-            <p className="text-[11px] text-emerald-700">聊天显示在 <b>WhatsApp 二维码收件箱</b>。随着您的号码变暖，限额每天都会自动增加。</p>
-            <div className="border-t border-emerald-200 pt-2 space-y-1.5">
-              <p className="text-[11px] font-semibold text-emerald-800">自定义每日限额（风险自负）</p>
-              <div className="flex items-center gap-2">
-                <input type="number" min={0} max={2000} placeholder={qr.customLimit ? String(qr.customLimit) : "自动（预热）"}
-                  value={qrLimitInput} onChange={(e) => setQrLimitInput(e.target.value)}
-                  className="w-36 px-2 py-1 text-xs border border-emerald-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                <Button size="sm" variant="outline" loading={qrLimitSaving} onClick={async () => {
-                  setQrLimitSaving(true);
-                  try {
-                    const v = parseInt(qrLimitInput, 10) || 0;
-                    await waqrApi.settings(v);
-                    setQr({ ...qr, customLimit: v, todayCap: v > 0 ? v : qr.todayCap });
-                    toast.success(translateApiMessage(v > 0 ? `每日限额设置为 ${v}` : "返回自动预热限制"));
-                  } catch { toast.error(translateApiMessage("保存限制失败")); }
-                  setQrLimitSaving(false);
-                }}>保存</Button>
-                {(qr.customLimit || 0) > 0 && (
-                  <button className="text-[11px] text-emerald-700 underline" onClick={async () => {
-                    try { await waqrApi.settings(0); setQr({ ...qr, customLimit: 0 }); setQrLimitInput(''); toast.success(translateApiMessage("返回自动预热限制")); } catch { toast.error(translateApiMessage("操作失败")); }
-                  }}>重置为自动</button>
-                )}
-              </div>
-              <p className="text-[10px] text-emerald-700">覆盖自动预热计划。对新鲜数量设置较高的限制会大大增加禁令风险。设置 0 或重置以返回自动。</p>
-            </div>
-          </div>
-        )}
 
         <ChannelDiagnose channel="waqr" />
         <WaQrSlotsSection />
@@ -704,93 +541,14 @@ export default function ChannelsPage() {
 
       {/* Personal Telegram */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center"><Send className="w-5 h-5 text-sky-600" /></div>
-            <div>
-              <h2 className="font-semibold text-gray-900">个人电报</h2>
-              <p className="text-xs text-gray-500">{tgp.status === 'connected' ? `已连接 — +${tgp.phone}${tgp.username ? ' (@' + tgp.username + ')' : ''}` : "通过二维码扫描连接您自己的 Telegram 账户（如 Telegram Desktop）——官方 Telegram API，无封禁风险"}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {tgp.status === 'connected' ? (
-              <>
-                <span className="flex items-center gap-1 text-xs text-emerald-600"><CheckCircle className="w-4 h-4" /> 已连接</span>
-                <Button size="sm" variant="outline" loading={tgpBusy} onClick={async () => {
-                  if (!confirm("断开此 Telegram 账户的连接？")) return;
-                  setTgpBusy(true);
-                  try { await tgPersonalApi.disconnect(); setTgp({ status: 'disconnected', phone: '' }); toast.success(translateApiMessage("已断开连接")); } catch { toast.error(translateApiMessage("操作失败")); }
-                  setTgpBusy(false);
-                }}>断开连接</Button>
-              </>
-            ) : (
-              <span className="flex items-center gap-1 text-xs text-red-500"><XCircle className="w-4 h-4" /> 未连接</span>
-            )}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center"><Send className="w-5 h-5 text-sky-600" /></div>
+          <div>
+            <h2 className="font-semibold text-gray-900">个人电报</h2>
+            <p className="text-xs text-gray-500">连接您自己的 Telegram 账户（官方 API，无封禁风险）。可添加多个账户，系统自动轮流发送、老客户固定原账户接待。</p>
           </div>
         </div>
 
-        {tgp.status !== 'connected' && (
-          <>
-            {!['awaiting_code', 'awaiting_password', 'verifying'].includes(tgp.status) && (
-              <div className="space-y-3">
-                {tgpMode === 'qr' ? (
-                  <>
-                    {tgp.status === 'qr' && tgp.qr ? (
-                      <div className="flex flex-col items-center gap-3 py-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={tgp.qr} alt={"电报登录二维码"} className="w-56 h-56 border rounded-lg" />
-                        <p className="text-xs text-gray-500 text-center">在手机上打开 Telegram → <b>设置 → 设备 → 链接桌面设备</b> → 扫描此二维码。代码会自动刷新。</p>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <Button size="sm" onClick={connectTgpQr} loading={tgpBusy || tgp.status === 'connecting'}>通过二维码连接</Button>
-                        {tgp.status === 'error' && <span className="text-xs text-red-500">{tgp.error || "登录失败"}</span>}
-                      </div>
-                    )}
-                    <button type="button" className="text-xs text-sky-600 underline" onClick={() => setTgpMode('phone')}>使用电话号码+验证码登录</button>
-                  </>
-                ) : (
-                  <>
-                    <Input label={"电话号码（带国家/地区代码）"} value={tgpPhone} onChange={(e) => setTgpPhone(e.target.value)} placeholder="+60123456789" />
-                    <div className="flex items-center gap-3">
-                      <Button size="sm" onClick={connectTgp} loading={tgpBusy || tgp.status === 'connecting'}>发送登录代码</Button>
-                      {tgp.status === 'error' && <span className="text-xs text-red-500">{tgp.error || "登录失败"}</span>}
-                    </div>
-                    <button type="button" className="text-xs text-sky-600 underline" onClick={() => setTgpMode('qr')}>使用二维码扫描登录</button>
-                  </>
-                )}
-              </div>
-            )}
-            {tgp.status === 'awaiting_code' && (
-              <div className="flex items-end gap-3">
-                <Input label={"登录代码（发送到您的 Telegram 应用程序）"} value={tgpCode} onChange={(e) => setTgpCode(e.target.value)} placeholder="12345" />
-                <Button size="sm" loading={tgpBusy} onClick={async () => {
-                  if (!tgpCode.trim()) return;
-                  setTgpBusy(true);
-                  try { await tgPersonalApi.code(tgpCode.trim()); setTgp({ ...tgp, status: 'verifying' }); setTgpCode(''); }
-                  catch (err: unknown) { const e = err as { response?: { data?: { message?: string } } }; toast.error(translateApiMessage(e.response?.data?.message || "操作失败")); }
-                  setTgpBusy(false);
-                }}>验证码</Button>
-              </div>
-            )}
-            {tgp.status === 'awaiting_password' && (
-              <div className="flex items-end gap-3">
-                <Input label={"两步验证密码"} type="password" value={tgpPassword} onChange={(e) => setTgpPassword(e.target.value)} />
-                <Button size="sm" loading={tgpBusy} onClick={async () => {
-                  if (!tgpPassword) return;
-                  setTgpBusy(true);
-                  try { await tgPersonalApi.password(tgpPassword); setTgp({ ...tgp, status: 'verifying' }); setTgpPassword(''); }
-                  catch (err: unknown) { const e = err as { response?: { data?: { message?: string } } }; toast.error(translateApiMessage(e.response?.data?.message || "操作失败")); }
-                  setTgpBusy(false);
-                }}>验证密码</Button>
-              </div>
-            )}
-            {tgp.status === 'verifying' && <p className="text-xs text-gray-400">正在验证...</p>}
-          </>
-        )}
-        {tgp.status === 'connected' && (
-          <p className="text-xs text-gray-500">聊天显示在 <b>个人电报收件箱</b>。您可以向 Telegram 联系人/聊天中的任何人发送消息，并且流程、关键字和 AI 自动回复均在此频道上运行。这使用了 Telegram 的官方 API — 没有被禁止的风险。</p>
-        )}
         <ChannelDiagnose channel="tgpersonal" />
         <TgPersonalSlotsSection />
       </div>

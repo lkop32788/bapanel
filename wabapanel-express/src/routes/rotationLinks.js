@@ -9,6 +9,14 @@ router.use(protect);
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
 const genCode = () => Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
 
+// 号池统一后无"主号"概念：取工作区一个代表性 QR 号（优先已连接，否则首个有号的）
+function pickQrNumber(ws) {
+  const slots = (ws && ws.waQrSlots) || [];
+  const connected = slots.find((s) => s.status === 'connected' && s.phone);
+  const any = connected || slots.find((s) => s.phone);
+  return { phone: (any && any.phone) || '', connected: !!connected };
+}
+
 // Validates numbers[] against workspaces the caller OWNS and snapshots phones.
 // Returns { error: { status, message } } or { numbers }.
 async function buildNumbers(input, userId) {
@@ -24,9 +32,10 @@ async function buildNumbers(input, userId) {
     seen.add(String(wsId));
     const cap = n.dailyCap === undefined || n.dailyCap === '' ? 20 : Number(n.dailyCap);
     if (!Number.isInteger(cap) || cap < 1 || cap > 1000) return { error: { status: 400, message: 'dailyCap must be an integer 1-1000' } };
-    const ws = await Workspace.findOne({ _id: wsId, owner: userId }).select('waQr.phone');
-    if (!ws || !ws.waQr || !ws.waQr.phone) return { error: { status: 403, message: 'Number not available' } };
-    numbers.push({ workspace: ws._id, phone: ws.waQr.phone, dailyCap: cap });
+    const ws = await Workspace.findOne({ _id: wsId, owner: userId }).select('waQrSlots');
+    const pick = pickQrNumber(ws);
+    if (!pick.phone) return { error: { status: 403, message: 'Number not available' } };
+    numbers.push({ workspace: ws._id, phone: pick.phone, dailyCap: cap });
   }
   return { numbers };
 }
@@ -35,11 +44,11 @@ async function buildNumbers(input, userId) {
 router.get('/numbers', async (req, res) => {
   try {
     // All owned workspaces: ones without a logged-in QR number are listed too (UI shows them disabled with guidance)
-    const list = await Workspace.find({ owner: req.user._id }).select('name waQr.phone waQr.status');
-    res.json({ success: true, data: list.map((w) => ({
-      workspace: w._id, workspaceName: w.name, phone: (w.waQr && w.waQr.phone) || '',
-      connected: !!(w.waQr && w.waQr.status === 'connected' && w.waQr.phone),
-    })) });
+    const list = await Workspace.find({ owner: req.user._id }).select('name waQrSlots');
+    res.json({ success: true, data: list.map((w) => {
+      const p = pickQrNumber(w);
+      return { workspace: w._id, workspaceName: w.name, phone: p.phone, connected: p.connected };
+    }) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

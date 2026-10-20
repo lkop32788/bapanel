@@ -145,8 +145,7 @@ export default function WaQrSlotsSection() {
             <div key={s.slotId} className="border border-gray-200 rounded-lg p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{s.label || '未命名号码'}</p>
-                  {s.isDefault && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 shrink-0">主号</span>}
+                  <p className="text-sm font-medium text-gray-900 truncate">{s.label || (s.phone ? `+${s.phone}` : '未命名号码')}</p>
                   {s.enabled === false && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">已停用</span>}
                 </div>
                 <SlotStatusBadge status={s.status} />
@@ -154,31 +153,31 @@ export default function WaQrSlotsSection() {
               <p className="text-xs text-gray-500">
                 {s.phone ? `+${s.phone}` : '未绑定号码'} · 今日已发 {s.sentToday || 0} / 上限 {s.dailyLimit ? s.dailyLimit : '自动（预热）'}
               </p>
-              {s.isDefault ? (
-                <p className="text-[11px] text-gray-400">主号请在上方卡片操作（连接/断开）。</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {s.status !== 'connected' && (
-                    <Button size="sm" variant="outline" loading={busyId === s.slotId} onClick={() => openConnect(s.slotId)}>
-                      <QrCode className="w-3.5 h-3.5" /> 扫码连接
-                    </Button>
-                  )}
-                  {s.status === 'connected' && (
-                    <Button size="sm" variant="outline" loading={busyId === s.slotId} onClick={() => disconnectSlot(s)}>
-                      <Unplug className="w-3.5 h-3.5" /> 断开
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" onClick={() => openSettings(s)}>
-                    <SettingsIcon className="w-3.5 h-3.5" /> 设置
+              <div className="flex flex-wrap gap-1.5">
+                {s.status !== 'connected' && (
+                  <Button size="sm" variant="outline" loading={busyId === s.slotId} onClick={() => openConnect(s.slotId)}>
+                    <QrCode className="w-3.5 h-3.5" /> 扫码连接
                   </Button>
-                  <Button size="sm" variant="outline" loading={busyId === s.slotId} onClick={() => removeSlot(s)}>
-                    <Trash2 className="w-3.5 h-3.5 text-red-500" /> 删除
+                )}
+                {s.status === 'connected' && (
+                  <Button size="sm" variant="outline" loading={busyId === s.slotId} onClick={() => disconnectSlot(s)}>
+                    <Unplug className="w-3.5 h-3.5" /> 断开
                   </Button>
-                </div>
-              )}
+                )}
+                <Button size="sm" variant="outline" onClick={() => openSettings(s)}>
+                  <SettingsIcon className="w-3.5 h-3.5" /> 设置
+                </Button>
+                <Button size="sm" variant="outline" loading={busyId === s.slotId} onClick={() => removeSlot(s)}>
+                  <Trash2 className="w-3.5 h-3.5 text-red-500" /> 删除
+                </Button>
+              </div>
             </div>
           ))}
         </div>
+      )}
+
+      {slots.length === 0 && (
+        <p className="text-xs text-gray-400 py-2">还没有连接任何 WhatsApp 号码，点击下方「添加号码」开始绑定。</p>
       )}
 
       <Button size="sm" variant="outline" icon={<Plus className="w-4 h-4" />} onClick={() => setAddOpen(true)}>添加号码</Button>

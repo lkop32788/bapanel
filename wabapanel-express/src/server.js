@@ -101,13 +101,12 @@ setTimeout(async () => {
 setTimeout(async () => {
   try {
     const Workspace = require('./models/Workspace');
-    const a = await Workspace.updateMany({ 'waQr.dailyLimit': 1000 }, { $set: { 'waQr.dailyLimit': 0 } });
     const b = await Workspace.updateMany(
       { 'waQrSlots.dailyLimit': 1000 },
       { $set: { 'waQrSlots.$[s].dailyLimit': 0 } },
       { arrayFilters: [{ 's.dailyLimit': 1000 }] }
     );
-    if (a.modifiedCount || b.modifiedCount) console.log(`[Fixup] QR dailyLimit 1000→0（预热曲线生效）: 主号 ${a.modifiedCount} 个、附加槽 ${b.modifiedCount} 个工作区`);
+    if (b.modifiedCount) console.log(`[Fixup] QR dailyLimit 1000→0（预热曲线生效）: ${b.modifiedCount} 个工作区`);
   } catch (e) { console.error('[Fixup] QR dailyLimit fixup:', e.message); }
 }, 15000);
 
@@ -134,6 +133,35 @@ require('mongoose').connection.once('open', async () => {
       console.log('[Fixup] IgAutoDmLog dedupe index migrated');
     }
   } catch (e) { console.error('[Fixup] IgAutoDmLog index migration failed:', e.message); }
+  // 号池统一迁移（2026-10-20）：把"主号"子文档 waQr / tgPersonal 复制成 slotId='default'
+  // 的普通数组成员，使首号与附加号在代码/界面上完全平等。幂等、保留旧子文档可回滚。
+  // 必须在 restoreAll（5s/7s）之前完成，否则已连接主号不会恢复（restoreAll 只读数组）。
+  try {
+    const Workspace = require('./models/Workspace');
+    let q = 0;
+    const qrRows = await Workspace.find({ 'waQr.phone': { $gt: '' } }).select('waQr waQrSlots').lean();
+    for (const ws of qrRows) {
+      if ((ws.waQrSlots || []).some((s) => s.slotId === 'default')) continue;
+      const d = ws.waQr || {};
+      const r = await Workspace.updateOne(
+        { _id: ws._id, 'waQrSlots.slotId': { $ne: 'default' } },
+        { $push: { waQrSlots: { slotId: 'default', label: d.label || '', status: d.status || 'disconnected', phone: d.phone || '', enabled: d.enabled !== false, warmupStartedAt: d.warmupStartedAt, dailyLimit: d.dailyLimit === 1000 ? 0 : (d.dailyLimit || 0), sentToday: d.sentToday || 0, sentDate: d.sentDate || '' } } }
+      );
+      q += r.modifiedCount || 0;
+    }
+    let t = 0;
+    const tgRows = await Workspace.find({ 'tgPersonal.session': { $gt: '' } }).select('tgPersonal tgPersonalSlots').lean();
+    for (const ws of tgRows) {
+      if ((ws.tgPersonalSlots || []).some((s) => s.slotId === 'default')) continue;
+      const d = ws.tgPersonal || {};
+      const r = await Workspace.updateOne(
+        { _id: ws._id, 'tgPersonalSlots.slotId': { $ne: 'default' } },
+        { $push: { tgPersonalSlots: { slotId: 'default', label: d.label || '', status: d.status || 'disconnected', phone: d.phone || '', username: d.username || '', session: d.session || '', enabled: d.enabled !== false } } }
+      );
+      t += r.modifiedCount || 0;
+    }
+    if (q || t) console.log(`[Fixup] 号池统一迁移：QR 主号 ${q} 个、TG 主号 ${t} 个 → 数组成员 slotId=default`);
+  } catch (e) { console.error('[Fixup] pool unify migration failed:', e.message); }
 });
 
 // Middleware

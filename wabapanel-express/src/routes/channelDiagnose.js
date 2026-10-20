@@ -97,10 +97,10 @@ async function diagnoseWaqr(ws) {
     const st = await require('../services/waQrService').getStatus(String(ws._id));
     const connected = st?.status === 'connected';
     checks.push(check('session', '登录状态', connected,
-      connected ? `已连接 ${st.phone || ws.waQr?.phone || ''}` : `当前状态：${st?.status || ws.waQr?.status || 'disconnected'}`,
+      connected ? `已连接 ${st.phone || ''}` : `当前状态：${st?.status || 'disconnected'}`,
       '在渠道设置重新扫码登录'));
-    if (connected && ws.waQr) {
-      checks.push(check('quota', '今日发送额度', true, `${ws.waQr.sentToday || 0} / ${ws.waQr.dailyLimit || 0}`));
+    if (connected) {
+      checks.push(check('quota', '今日发送额度', true, `${st.sentToday || 0} / ${st.todayCap || 0}`));
     }
   } catch (e) {
     checks.push(check('session', '登录状态', false, e.message, '在渠道设置重新扫码登录'));

@@ -229,12 +229,11 @@ export default function QrCampaignsPage() {
           <Select label={"预设模板"} value={form.preset} onChange={(e) => setForm({ ...form, preset: e.target.value })}
             options={[{ value: '', label: "选择预设模板" }, ...presets.map(p => ({ value: p._id, label: p.name }))]} />
           {presets.length === 0 && <p className="text-xs text-amber-600">首先在“预设模板”页面上创建一个模板。</p>}
-          {form.sendChannel === 'whatsapp_qr' && qrSlots.some(s => !s.isDefault) && (
+          {form.sendChannel === 'whatsapp_qr' && qrSlots.length > 0 && (
             <Select label={"发送号码"} value={form.senderNumberId} onChange={(e) => setForm({ ...form, senderNumberId: e.target.value })}
               options={[
                 { value: 'pool', label: '自动轮询（多号分摊，老客户固定原号）' },
-                { value: '', label: '仅默认号（主号）' },
-                ...qrSlots.filter(s => !s.isDefault).map(s => ({ value: s.slotId, label: `${s.label || '号码'}${s.phone ? ` (+${s.phone})` : ''}${s.status !== 'connected' ? ' — 未连接' : ''}` })),
+                ...qrSlots.map(s => ({ value: s.slotId, label: `${s.label || (s.phone ? `+${s.phone}` : '号码')}${s.phone && s.label ? ` (+${s.phone})` : ''}${s.status !== 'connected' ? ' — 未连接' : ''}` })),
               ]} />
           )}
           <Select label={"观众"} value={form.audienceType} onChange={(e) => setForm({ ...form, audienceType: e.target.value })}

@@ -36,7 +36,6 @@ export interface WaQrSlot {
   enabled: boolean;
   dailyLimit?: number;
   sentToday?: number;
-  isDefault?: boolean;
 }
 
 // 号池 v2：Telegram 个人号账号槽位
@@ -47,7 +46,6 @@ export interface TgPersonalSlot {
   phone?: string;
   username?: string;
   enabled: boolean;
-  isDefault?: boolean;
 }
 
 // 外部 API 占位渠道：槽位型，可对接任意第三方 HTTP 消息 API

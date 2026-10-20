@@ -41,23 +41,32 @@ function getState(workspaceId, slotId = 'default') {
   return sessions.get(key);
 }
 
-// 读取槽位的持久化子文档：default = ws.waQr，附加槽 = waQrSlots 数组元素
+// 所有号码（含首个，slotId='default'）都是 waQrSlots 数组的普通成员，统一读写。
+// 'default' 仅作为迁移沿用的 slotId 字符串 + 旧 auth 目录映射（见 authDirFor），
+// 在逻辑/界面上与其它号码完全平等——无"主号"概念。
 function slotDocOf(ws, slotId) {
   if (!ws) return null;
-  if (!slotId || slotId === 'default') return ws.waQr || {};
-  return (ws.waQrSlots || []).find((s) => s.slotId === slotId) || null;
+  const id = slotId || 'default';
+  return (ws.waQrSlots || []).find((s) => s.slotId === id) || null;
 }
 
-// 原子更新槽位字段：default 写 waQr.*（老代码路径），附加槽用 arrayFilters 定位
+// 确保槽位元素存在（首次连接/迁移缺失时补建），幂等
+async function ensureSlot(workspaceId, slotId, label) {
+  const Workspace = require('../models/Workspace');
+  const id = slotId || 'default';
+  return Workspace.updateOne(
+    { _id: workspaceId, 'waQrSlots.slotId': { $ne: id } },
+    { $push: { waQrSlots: { slotId: id, label: label || '', status: 'disconnected', phone: '', enabled: true, dailyLimit: 0, sentToday: 0, sentDate: '' } } }
+  ).catch(() => {});
+}
+
+// 原子更新槽位字段：统一走 waQrSlots arrayFilters
 async function updateSlotFields(workspaceId, slotId, fields) {
   const Workspace = require('../models/Workspace');
+  const id = slotId || 'default';
   const $set = {};
-  if (!slotId || slotId === 'default') {
-    for (const [k, v] of Object.entries(fields)) $set[`waQr.${k}`] = v;
-    return Workspace.updateOne({ _id: workspaceId }, { $set }).catch(() => {});
-  }
   for (const [k, v] of Object.entries(fields)) $set[`waQrSlots.$[s].${k}`] = v;
-  return Workspace.updateOne({ _id: workspaceId }, { $set }, { arrayFilters: [{ 's.slotId': slotId }] }).catch(() => {});
+  return Workspace.updateOne({ _id: workspaceId }, { $set }, { arrayFilters: [{ 's.slotId': id }] }).catch(() => {});
 }
 
 function dayCap(warmupStartedAt) {
@@ -183,38 +192,22 @@ async function doStartSession(id, slotId, state) {
       state.decryptFailFirst = 0;
       state.rescanResetting = false;
       state.phone = (sock.user?.id || '').split(':')[0].split('@')[0];
+      // 统一路径：所有号码都是 waQrSlots 成员，无主号分支
+      await ensureSlot(id, slotId);
       const Workspace = require('../models/Workspace');
-      const ws = await Workspace.findById(id);
-      if (ws) {
-        if (slotId === 'default') {
-          // 主槽位：沿用老字段 + rotation-link 快照同步（保持原有行为）
-          ws.waQr = ws.waQr || {};
-          ws.waQr.enabled = true;
-          ws.waQr.status = 'connected';
-          const phoneChanged = ws.waQr.phone && ws.waQr.phone !== state.phone;
-          ws.waQr.phone = state.phone;
-          if (!ws.waQr.warmupStartedAt) ws.waQr.warmupStartedAt = new Date();
-          await ws.save();
-          if (phoneChanged) {
-            // Keep rotation-link snapshots pointing at the workspace's current number after a re-scan
-            try {
-              await require('../models/RotationLink').updateMany(
-                { 'numbers.workspace': id },
-                { $set: { 'numbers.$[n].phone': state.phone } },
-                { arrayFilters: [{ 'n.workspace': id }] }
-              );
-            } catch (e) { /* noop */ }
-          }
-        } else {
-          // 附加槽位：只写 waQrSlots 对应元素，不碰 rotation-link（它跟踪主号）
-          const slot = (ws.waQrSlots || []).find((s) => s.slotId === slotId);
-          if (slot) {
-            slot.status = 'connected';
-            slot.phone = state.phone;
-            if (!slot.warmupStartedAt) slot.warmupStartedAt = new Date();
-            await ws.save();
-          }
-        }
+      const prevDoc = slotDocOf(await Workspace.findById(id).select('waQrSlots').lean(), slotId) || {};
+      const fields = { enabled: true, status: 'connected', phone: state.phone };
+      if (!prevDoc.warmupStartedAt) fields.warmupStartedAt = new Date();
+      await updateSlotFields(id, slotId, fields);
+      // rotation-link 快照：换号重扫后，把引用了该号旧电话的 rotation-link 条目更新为新电话
+      if (prevDoc.phone && prevDoc.phone !== state.phone) {
+        try {
+          await require('../models/RotationLink').updateMany(
+            { 'numbers.workspace': id, 'numbers.phone': prevDoc.phone },
+            { $set: { 'numbers.$[n].phone': state.phone } },
+            { arrayFilters: [{ 'n.workspace': id, 'n.phone': prevDoc.phone }] }
+          );
+        } catch (e) { /* noop */ }
       }
       if (global.io) global.io.to(`workspace:${id}`).emit('waqr:status', { status: 'connected', phone: state.phone, slotId });
     }
@@ -225,11 +218,7 @@ async function doStartSession(id, slotId, state) {
         state.status = 'disconnected';
         state.qr = null;
         try { fs.rmSync(authDirFor(id, slotId), { recursive: true, force: true }); } catch (e) { /* noop */ }
-        if (slotId === 'default') {
-          await updateSlotFields(id, 'default', { enabled: false, status: 'logged_out' });
-        } else {
-          await updateSlotFields(id, slotId, { status: 'logged_out' });
-        }
+        await updateSlotFields(id, slotId, { enabled: false, status: 'logged_out', phone: '' });
         await purgeQrData(id, slotId);
         if (global.io) global.io.to(`workspace:${id}`).emit('waqr:status', { status: 'logged_out', slotId });
       } else {
@@ -597,30 +586,25 @@ async function handleIncoming(workspaceId, m, state) {
 // 日限额/预热按槽位独立：default 读写 waQr 子文档，附加槽读写 waQrSlots 元素。
 async function checkAndCountSend(workspaceId, slotId = 'default') {
   const Workspace = require('../models/Workspace');
-  const ws = await Workspace.findById(workspaceId);
-  const today = new Date().toISOString().slice(0, 10);
-  if (slotId === 'default') {
-    if (!ws || !ws.waQr?.enabled) throw new Error('WhatsApp by QR is not connected');
-    ws.waQr = ws.waQr || {};
-    if (ws.waQr.sentDate !== today) { ws.waQr.sentDate = today; ws.waQr.sentToday = 0; }
-    // A custom daily limit (set by the user at their own risk) overrides the warm-up cap
-    const cap = ws.waQr.dailyLimit > 0 ? ws.waQr.dailyLimit : dayCap(ws.waQr.warmupStartedAt);
-    if ((ws.waQr.sentToday || 0) >= cap) {
-      throw new Error(`Daily safety limit reached (${cap} messages). Limit increases automatically as the number warms up.`);
-    }
-    ws.waQr.sentToday = (ws.waQr.sentToday || 0) + 1;
-    await ws.save();
-    return;
-  }
-  const slot = ws && (ws.waQrSlots || []).find((s) => s.slotId === slotId);
+  const id = slotId || 'default';
+  const ws = await Workspace.findById(workspaceId).select('waQrSlots').lean();
+  const slot = ws && (ws.waQrSlots || []).find((s) => s.slotId === id);
   if (!slot || slot.enabled === false) throw new Error('WhatsApp by QR is not connected');
-  if (slot.sentDate !== today) { slot.sentDate = today; slot.sentToday = 0; }
+  const today = new Date().toISOString().slice(0, 10);
+  const sentToday = slot.sentDate === today ? (slot.sentToday || 0) : 0;
+  // dailyLimit>0 = 平台自定义上限；0 = 自动预热曲线
   const cap = slot.dailyLimit > 0 ? slot.dailyLimit : dayCap(slot.warmupStartedAt);
-  if ((slot.sentToday || 0) >= cap) {
+  if (sentToday >= cap) {
     throw new Error(`Daily safety limit reached (${cap} messages). Limit increases automatically as the number warms up.`);
   }
-  slot.sentToday = (slot.sentToday || 0) + 1;
-  await ws.save();
+  // 原子计数（$inc），跨日则重置——避免整文档读改写并发丢计数
+  if (slot.sentDate !== today) {
+    await Workspace.updateOne({ _id: workspaceId, 'waQrSlots.slotId': id },
+      { $set: { 'waQrSlots.$[s].sentDate': today, 'waQrSlots.$[s].sentToday': 1 } }, { arrayFilters: [{ 's.slotId': id }] });
+  } else {
+    await Workspace.updateOne({ _id: workspaceId, 'waQrSlots.slotId': id },
+      { $inc: { 'waQrSlots.$[s].sentToday': 1 } }, { arrayFilters: [{ 's.slotId': id }] });
+  }
 }
 
 function processQueue(workspaceId, slotId = 'default') {
@@ -744,7 +728,7 @@ async function getStatus(workspaceId, slotId = 'default') {
   const sentToday = doc.sentDate === today ? (doc.sentToday || 0) : 0;
   return {
     slotId,
-    label: slotId === 'default' ? '' : (doc.label || ''),
+    label: doc.label || '',
     status: state.status,
     phone: state.phone || doc.phone || '',
     qr: qrDataUrl,
@@ -806,11 +790,7 @@ async function disconnect(workspaceId, slotId = 'default') {
   state.qr = null;
   state.phone = '';
   try { fs.rmSync(authDirFor(id, slotId), { recursive: true, force: true }); } catch (e) { /* noop */ }
-  if (slotId === 'default') {
-    await updateSlotFields(id, 'default', { enabled: false, status: 'disconnected' });
-  } else {
-    await updateSlotFields(id, slotId, { status: 'disconnected', phone: '' });
-  }
+  await updateSlotFields(id, slotId, { enabled: false, status: 'disconnected', phone: '' });
   await purgeQrData(id, slotId);
 }
 
@@ -834,13 +814,9 @@ async function syncSession(workspaceId, slotId = 'default') {
 // wa_sessions/<wsId>__<slotId>/（附加槽）。
 async function restoreAll() {
   const Workspace = require('../models/Workspace');
-  const list = await Workspace.find({ $or: [{ 'waQr.enabled': true }, { 'waQrSlots.0': { $exists: true } }] })
-    .select('_id waQr waQrSlots').lean();
+  const list = await Workspace.find({ 'waQrSlots.0': { $exists: true } }).select('_id waQrSlots').lean();
   for (const ws of list) {
     const id = String(ws._id);
-    if (ws.waQr && ws.waQr.enabled && fs.existsSync(authDirFor(id, 'default'))) {
-      startSession(id, 'default').catch(() => {});
-    }
     for (const slot of ws.waQrSlots || []) {
       if (slot.enabled === false) continue;
       if (fs.existsSync(authDirFor(id, slot.slotId))) startSession(id, slot.slotId).catch(() => {});
@@ -868,32 +844,29 @@ async function sendReaction(workspaceId, phone, targetId, emoji, fromMe, slotId 
 
 // ===== 号池槽位管理（新增导出）=====
 
-// 列出全部槽位（default 永远在首位），合并运行时内存状态（status/phone）。
+// 列出全部号码（统一从 waQrSlots 读），合并运行时内存状态（status/phone）。
+// 所有号码平等：均可删、可改名，无 isDefault 概念。
 async function listSlots(workspaceId) {
   const Workspace = require('../models/Workspace');
   const id = String(workspaceId);
-  const ws = await Workspace.findById(id).select('waQr waQrSlots').lean();
+  const ws = await Workspace.findById(id).select('waQrSlots').lean();
   const today = new Date().toISOString().slice(0, 10);
-  const build = (slotId, doc, isDefault) => {
-    const st = sessions.get(skey(id, slotId));
+  return (ws && ws.waQrSlots || []).map((doc) => {
+    const st = sessions.get(skey(id, doc.slotId));
     return {
-      slotId,
-      label: isDefault ? (doc.label || '主号') : (doc.label || ''),
+      slotId: doc.slotId,
+      label: doc.label || '',
       status: (st && st.status) || doc.status || 'disconnected',
       phone: (st && st.phone) || doc.phone || '',
-      enabled: isDefault ? !!doc.enabled : doc.enabled !== false,
+      enabled: doc.enabled !== false,
       dailyLimit: doc.dailyLimit || 0,
       sentToday: doc.sentDate === today ? (doc.sentToday || 0) : 0,
       todayCap: doc.dailyLimit > 0 ? doc.dailyLimit : dayCap(doc.warmupStartedAt),
-      isDefault,
     };
-  };
-  const rows = [build('default', (ws && ws.waQr) || {}, true)];
-  for (const s of (ws && ws.waQrSlots) || []) rows.push(build(s.slotId, s, false));
-  return rows;
+  });
 }
 
-// 新建附加槽位；slotId = 'n' + 随机短串（避免与 'default' 和 Mongo 字段名冲突）。
+// 新建号码槽位；slotId = 'n' + 随机短串（避免与 Mongo 字段名冲突）。
 async function createSlot(workspaceId, label) {
   const Workspace = require('../models/Workspace');
   const slotId = 'n' + Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 4);
@@ -904,13 +877,13 @@ async function createSlot(workspaceId, label) {
   return { slotId };
 }
 
-// 删除附加槽位：断开会话（含删会话目录、清该槽的会话数据）后移除数组元素。
-// default 槽不可删（走旧的 /disconnect）。
+// 删除号码：断开会话（含删 auth 目录、清该号会话数据）后移除数组元素。
+// 任意号码（含迁移来的 'default'）都可删——无"主号不可删"限制。
 async function deleteSlot(workspaceId, slotId) {
-  if (!slotId || slotId === 'default') throw new Error('默认号码不可删除');
+  if (!slotId) throw new Error('缺少号码标识');
   const Workspace = require('../models/Workspace');
   const id = String(workspaceId);
-  await disconnect(id, slotId); // 登出 + 删 wa_sessions 目录 + 清理该槽会话数据
+  await disconnect(id, slotId); // 登出 + 删 wa_sessions 目录 + 清理该号会话数据
   await Workspace.updateOne({ _id: id }, { $pull: { waQrSlots: { slotId } } });
   sessions.delete(skey(id, slotId));
   startInFlight.delete(skey(id, slotId));

@@ -32,27 +32,28 @@ async function buildClient(sessionStr, apiId, apiHash) {
   return client;
 }
 
-// 槽位字段持久化：default 走 tgPersonal.* 老路径；附加槽走 tgPersonalSlots.$[s].*（arrayFilters 定位）
+// 所有账号（含首个，slotId='default'）都是 tgPersonalSlots 数组成员，统一读写。
+// apiId/apiHash 是工作区级共用凭据，留在 tgPersonal.*（不属于任何单个账号），不入数组。
 async function persistSlot(workspaceId, slotId, fields) {
   const Workspace = require('../models/Workspace');
-  if (slotId === DEFAULT_SLOT) {
-    const $set = {};
-    for (const [k, v] of Object.entries(fields)) $set[`tgPersonal.${k}`] = v;
-    await Workspace.findByIdAndUpdate(workspaceId, $set);
-  } else {
-    const $set = {};
-    for (const [k, v] of Object.entries(fields)) {
-      if (k === 'apiId' || k === 'apiHash') continue; // 附加槽共用主槽 apiId/apiHash，不单独存
-      $set[`tgPersonalSlots.$[s].${k}`] = v;
-    }
-    if (Object.keys($set).length) {
-      await Workspace.updateOne(
-        { _id: workspaceId },
-        { $set },
-        { arrayFilters: [{ 's.slotId': String(slotId) }] }
-      );
-    }
+  const id = String(slotId || DEFAULT_SLOT);
+  const $set = {};
+  for (const [k, v] of Object.entries(fields)) {
+    if (k === 'apiId' || k === 'apiHash') continue; // 工作区级，见 tgPersonal.apiId/apiHash
+    $set[`tgPersonalSlots.$[s].${k}`] = v;
   }
+  if (!Object.keys($set).length) return;
+  await Workspace.updateOne({ _id: workspaceId }, { $set }, { arrayFilters: [{ 's.slotId': id }] });
+}
+
+// 确保账号槽位元素存在（首次登录/迁移缺失时补建），幂等
+async function ensureSlot(workspaceId, slotId, label) {
+  const Workspace = require('../models/Workspace');
+  const id = String(slotId || DEFAULT_SLOT);
+  await Workspace.updateOne(
+    { _id: workspaceId, 'tgPersonalSlots.slotId': { $ne: id } },
+    { $push: { tgPersonalSlots: { slotId: id, label: label || '', status: 'disconnected', phone: '', username: '', session: '', enabled: true } } }
+  ).catch(() => {});
 }
 
 // 读取槽位的 apiId/apiHash：附加槽沿用主槽（tgPersonal）配置，缺省回退 env/内置默认值
@@ -66,14 +67,6 @@ async function resolveApiCreds(workspaceId, override = {}) {
     apiHash = apiHash || (ws && ws.tgPersonal && ws.tgPersonal.apiHash) || DEFAULT_API_HASH;
   }
   return { apiId, apiHash };
-}
-
-// 校验附加槽位存在（default 槽免查）
-async function assertSlotExists(workspaceId, slotId) {
-  if (slotId === DEFAULT_SLOT) return;
-  const Workspace = require('../models/Workspace');
-  const ws = await Workspace.findOne({ _id: workspaceId, 'tgPersonalSlots.slotId': String(slotId) }).select('_id');
-  if (!ws) throw new Error(`槽位不存在：${slotId}`);
 }
 
 async function onConnected(workspaceId, slotId, state) {
@@ -175,17 +168,15 @@ async function handleIncoming(workspaceId, slotId, state, event) {
 async function startQrLogin(workspaceId, opts = {}, slotId = DEFAULT_SLOT) {
   const id = String(workspaceId);
   slotId = String(slotId || DEFAULT_SLOT);
-  await assertSlotExists(id, slotId);
+  await ensureSlot(id, slotId);
   const state = getState(id, slotId);
   if (state.status === 'connected') return getStatus(id, slotId);
   if (state.client) { try { await state.client.disconnect(); } catch { /* noop */ } }
 
   const { apiId, apiHash } = await resolveApiCreds(id, opts);
-  // apiId/apiHash 只存主槽（附加槽共用）；传了 override 时与旧行为一致地写回主槽
-  if (slotId === DEFAULT_SLOT || opts.apiId || opts.apiHash) {
-    const Workspace = require('../models/Workspace');
-    await Workspace.findByIdAndUpdate(id, { 'tgPersonal.apiId': String(apiId), 'tgPersonal.apiHash': String(apiHash) });
-  }
+  // apiId/apiHash 是工作区级共用凭据，存 tgPersonal.*（所有账号共用，非每号配置）
+  const Workspace = require('../models/Workspace');
+  await Workspace.findByIdAndUpdate(id, { 'tgPersonal.apiId': String(apiId), 'tgPersonal.apiHash': String(apiHash) });
 
   state.client = await buildClient('', apiId, apiHash);
   state.status = 'connecting';
@@ -227,20 +218,17 @@ async function startQrLogin(workspaceId, opts = {}, slotId = DEFAULT_SLOT) {
 async function startLogin(workspaceId, { apiId, apiHash, phone }, slotId = DEFAULT_SLOT) {
   const id = String(workspaceId);
   slotId = String(slotId || DEFAULT_SLOT);
-  await assertSlotExists(id, slotId);
+  await ensureSlot(id, slotId);
   const state = getState(id, slotId);
   if (state.status === 'connected') return getStatus(id, slotId);
   if (state.client) { try { await state.client.disconnect(); } catch { /* noop */ } }
 
   const creds = await resolveApiCreds(id, { apiId, apiHash });
   apiId = creds.apiId; apiHash = creds.apiHash;
-  if (slotId === DEFAULT_SLOT) {
-    const Workspace = require('../models/Workspace');
-    await Workspace.findByIdAndUpdate(id, { 'tgPersonal.apiId': String(apiId), 'tgPersonal.apiHash': String(apiHash), 'tgPersonal.phone': String(phone) });
-  } else {
-    // 附加槽只记录手机号；apiId/apiHash 共用主槽
-    await persistSlot(id, slotId, { phone: String(phone) });
-  }
+  // apiId/apiHash 工作区级共用凭据存 tgPersonal.*；手机号是该账号的，存数组
+  const Workspace = require('../models/Workspace');
+  await Workspace.findByIdAndUpdate(id, { 'tgPersonal.apiId': String(apiId), 'tgPersonal.apiHash': String(apiHash) });
+  await persistSlot(id, slotId, { phone: String(phone) });
 
   state.client = await buildClient('', apiId, apiHash);
   state.phone = String(phone).replace(/[^\d+]/g, '');
@@ -316,9 +304,7 @@ async function send(workspaceId, chatId, { type = 'text', text, media, slotId: o
   const slot = String(optSlotId || slotId || DEFAULT_SLOT);
   const state = getState(id, slot);
   if (!state.client || state.status !== 'connected') {
-    throw new Error(slot === DEFAULT_SLOT
-      ? 'Personal Telegram is not connected (connect it on the Channels page)'
-      : `Telegram 个人号槽位 ${slot} 未连接（请在渠道页重新登录该账号）`);
+    throw new Error('Telegram 个人号未连接（请在渠道页登录该账号）');
   }
   const entity = await resolveEntity(state.client, chatId);
   if (['image', 'video', 'audio', 'document'].includes(type) && media?.url) {
@@ -345,47 +331,29 @@ async function disconnect(workspaceId, slotId = DEFAULT_SLOT) {
     try { await state.client.disconnect(); } catch { /* noop */ }
   }
   sessions.delete(`${id}:${slotId}`);
-  if (slotId === DEFAULT_SLOT) {
-    const Workspace = require('../models/Workspace');
-    await Workspace.findByIdAndUpdate(id, { 'tgPersonal.enabled': false, 'tgPersonal.status': 'disconnected', 'tgPersonal.session': '' });
-  } else {
-    // 附加槽：保留元素（可重新登录），只清状态和 session；enabled 置 false 使其退出号池
-    await persistSlot(id, slotId, { enabled: false, status: 'disconnected', session: '' });
-  }
+  // 保留数组元素（可重新登录），只清状态和 session；enabled 置 false 使其退出号池
+  await persistSlot(id, slotId, { enabled: false, status: 'disconnected', session: '' });
 }
 
 // ===== 号池 v2：槽位管理 =====
 
-// 列出所有槽位（default 首位），合并内存运行时状态（status/phone/username 以运行时为准）
+// 列出所有账号（统一从 tgPersonalSlots 读），合并内存运行时状态。
+// 所有账号平等：均可删、可改名，无 isDefault 概念。
 async function listSlots(workspaceId) {
   const Workspace = require('../models/Workspace');
-  const ws = await Workspace.findById(workspaceId).select('tgPersonal tgPersonalSlots');
+  const ws = await Workspace.findById(workspaceId).select('tgPersonalSlots');
   if (!ws) throw new Error('Workspace not found');
-  const out = [];
-  const main = ws.tgPersonal || {};
-  const mainState = getState(workspaceId, DEFAULT_SLOT);
-  out.push({
-    slotId: DEFAULT_SLOT,
-    label: '主账号',
-    status: mainState.client ? mainState.status : (main.status || 'disconnected'),
-    phone: mainState.phone || main.phone || '',
-    username: mainState.username || main.username || '',
-    enabled: !!main.enabled,
-    isDefault: true,
-  });
-  for (const s of (ws.tgPersonalSlots || [])) {
+  return (ws.tgPersonalSlots || []).map((s) => {
     const st = getState(workspaceId, s.slotId);
-    out.push({
+    return {
       slotId: s.slotId,
       label: s.label || '',
       status: st.client ? st.status : (s.status || 'disconnected'),
       phone: st.phone || s.phone || '',
       username: st.username || s.username || '',
       enabled: s.enabled !== false,
-      isDefault: false,
-    });
-  }
-  return out;
+    };
+  });
 }
 
 // 新建附加槽位，返回 {slotId}
@@ -400,10 +368,11 @@ async function createSlot(workspaceId, label) {
   return { slotId };
 }
 
-// 删除附加槽位：断开运行时连接 → 清 session → 从数组移除。default 不可删。
+// 删除账号：断开运行时连接 → 清 session → 从数组移除 → 清会话绑定。
+// 任意账号（含迁移来的 'default'）都可删——无"主账号不可删"限制。
 async function deleteSlot(workspaceId, slotId) {
   slotId = String(slotId || '');
-  if (!slotId || slotId === DEFAULT_SLOT) throw new Error('主账号槽位不可删除');
+  if (!slotId) throw new Error('缺少账号标识');
   const id = String(workspaceId);
   const key = `${id}:${slotId}`;
   const state = sessions.get(key);
@@ -430,11 +399,9 @@ async function deleteSlot(workspaceId, slotId) {
 // 无可用槽位返回 ''（由调用方回退/报错）。单槽位时恒返回该槽，自动号池无需开关。
 async function pickPoolSlot(workspaceId) {
   const Workspace = require('../models/Workspace');
-  const ws = await Workspace.findById(workspaceId).select('tgPersonal.enabled tgPersonalSlots');
+  const ws = await Workspace.findById(workspaceId).select('tgPersonalSlots');
   if (!ws) return '';
   const candidates = [];
-  const mainState = getState(workspaceId, DEFAULT_SLOT);
-  if (ws.tgPersonal && ws.tgPersonal.enabled && mainState.status === 'connected') candidates.push(DEFAULT_SLOT);
   for (const s of (ws.tgPersonalSlots || [])) {
     if (s.enabled === false) continue;
     const st = getState(workspaceId, s.slotId);
@@ -451,24 +418,16 @@ async function pickPoolSlot(workspaceId) {
   return candidates[((cursor % candidates.length) + candidates.length) % candidates.length];
 }
 
-// 启动时恢复所有已保存会话：主槽（tgPersonal）+ session 非空的附加槽（tgPersonalSlots）。
+// 启动时恢复所有已保存会话（统一从 tgPersonalSlots 读；apiId/apiHash 工作区级共用）。
 async function restoreAll() {
   const Workspace = require('../models/Workspace');
   const list = await Workspace.find({
-    $or: [
-      { 'tgPersonal.enabled': true, 'tgPersonal.session': { $ne: '' } },
-      { tgPersonalSlots: { $elemMatch: { session: { $nin: ['', null] } } } },
-    ],
-  }).select('tgPersonal tgPersonalSlots');
+    tgPersonalSlots: { $elemMatch: { session: { $nin: ['', null] } } },
+  }).select('tgPersonal.apiId tgPersonal.apiHash tgPersonalSlots');
   for (const ws of list) {
     const id = String(ws._id);
     const apiId = (ws.tgPersonal && ws.tgPersonal.apiId) || DEFAULT_API_ID;
     const apiHash = (ws.tgPersonal && ws.tgPersonal.apiHash) || DEFAULT_API_HASH;
-    // 主槽位
-    if (ws.tgPersonal && ws.tgPersonal.enabled && ws.tgPersonal.session) {
-      await restoreSlot(id, DEFAULT_SLOT, ws.tgPersonal.session, ws.tgPersonal.phone, apiId, apiHash);
-    }
-    // 附加槽位（apiId/apiHash 共用主槽配置）
     for (const s of (ws.tgPersonalSlots || [])) {
       if (!s.session) continue;
       await restoreSlot(id, s.slotId, s.session, s.phone, apiId, apiHash);

@@ -128,7 +128,6 @@ export const waqrApi = {
   connect: () => api.post('/waqr/connect', {}),
   status: () => api.get('/waqr/status'),
   sync: () => api.post('/waqr/sync', {}),
-  settings: (dailyLimit: number) => api.post('/waqr/settings', { dailyLimit }),
   sendNew: (phone: string, text: string) => api.post('/waqr/send-new', { phone, text }),
   disconnect: () => api.post('/waqr/disconnect', {}),
   // 号池 v2：多号码槽位
