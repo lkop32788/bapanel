@@ -123,6 +123,10 @@ func main() {
 	mux.HandleFunc("/api/user/balance", loopbackOnly(func(w http.ResponseWriter, r *http.Request) { passThrough(w, r) }))
 	mux.HandleFunc("/healthz", handleHealth)
 	mux.HandleFunc("/api/usdt/address", loopbackOnly(handleUsdtAddress))
+	// WhatsApp Session Factory（6段凭证登录 → Baileys 格式）
+	mux.HandleFunc("/api/wa/seg6-login", loopbackOnly(handleWAFLogin))
+	mux.HandleFunc("/api/wa/seg6-convert", loopbackOnly(handleWAFConvert))
+	mux.HandleFunc("/api/wa/health", handleWAFHealth)
 	// 自带管理页（SAVER_ADMIN_PASS 未设置时关闭）
 	mux.HandleFunc("/admin", requireAdmin(handleAdminPage))
 	mux.HandleFunc("/admin/api/stats", requireAdmin(handleStats))
