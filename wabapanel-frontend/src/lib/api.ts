@@ -333,8 +333,9 @@ export const rotationLinkApi = {
 
 // 省钱专家：号码状态批量检测
 export const saverCheckApi = {
-  create: (data: { channel: string; country?: { name: string; dial: string; code: string }; numbers: string[]; fileName?: string; taskType?: string }) =>
-    api.post('/saver/checks', data),
+  // multipart：file 原始 txt + channel/taskType/fileName/countryCode/countryName/countryDial
+  create: (data: FormData) => api.post('/saver/checks', data, { timeout: 600000 }),
+  exportResult: (id: string) => api.get(`/saver/checks/${id}/export`, { responseType: 'blob', timeout: 600000 }),
   wallet: () => api.get('/saver/wallet'),
   walletLedger: (params: { page?: number; limit?: number }) => api.get('/saver/wallet/ledger', { params }),
   topupRequest: (data: { amount: number; note?: string }) => api.post('/saver/wallet/topup-request', data),

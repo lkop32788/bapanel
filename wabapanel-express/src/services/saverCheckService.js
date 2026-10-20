@@ -2,6 +2,7 @@
 // 流程：multipart 提交 txt → 轮询 /api/task/progress → Finish 后下载结果文件，
 // 文件里出现的号码视为「有效」。认证：请求头 token。
 const SaverCheckTask = require('../models/SaverCheckTask');
+const SaverCheckItem = require('../models/SaverCheckItem');
 const SystemSettings = require('../models/SystemSettings');
 const { TASK_TYPES } = require('./saverTaskTypes');
 
@@ -34,7 +35,15 @@ async function getBalance() {
 }
 
 async function createRemoteTask(cfg, task) {
-  const txt = task.results.map(r => r.phone).join('\n');
+  let txt;
+  if (task.results?.length) {
+    txt = task.results.map(r => r.phone).join('\n'); // 旧任务：明细内嵌在任务文档
+  } else {
+    const phones = [];
+    const cursor = SaverCheckItem.find({ task: task._id }).select('phone').lean().cursor({ batchSize: 5000 });
+    for await (const it of cursor) phones.push(it.phone);
+    txt = phones.join('\n');
+  }
   const form = new FormData();
   form.append('file', new Blob([txt], { type: 'text/plain' }), 'numbers.txt');
   if (task.country?.code) form.append('country', task.country.code); // 邮箱类任务无需 country
@@ -55,7 +64,7 @@ async function createRemoteTask(cfg, task) {
 // 下载结果文件并解析为 Map<值, 附加信息行>（txt 直接解析；zip 用 jszip 解开，
 // 跳过名字像「无效/未开通」的文件）。号码按纯数字匹配，邮箱/用户名按小写 token 匹配；
 // 一行里除值以外还有内容时（如性别年龄），整行作为附加信息保留。
-async function downloadValidMap(cfg, externalTaskId) {
+async function downloadValidMap(cfg, externalTaskId, input) {
   // 任务在平台侧已完成并扣费，下载失败多重试几次再放弃
   let res = null, lastErr = null;
   for (let i = 0; i < 3; i++) {
@@ -87,12 +96,16 @@ async function downloadValidMap(cfg, externalTaskId) {
     const line = rawLine.trim();
     if (!line) continue;
     const tokens = line.split(/[\s,;\t|]+/).filter(Boolean);
-    const extra = tokens.length > 1 ? line.slice(0, 120) : ''; // 限长：10万条×附加信息不能超 Mongo 16MB 文档上限
+    const extra = tokens.length > 1 ? line.slice(0, 120) : ''; // 限长：防单条附加信息过长（旧任务内嵌明细还受 16MB 文档上限约束）
     for (const tok of tokens) {
-      const digits = tok.replace(/\D/g, '');
-      if (digits.length >= 6 && digits.length <= 17 && !map.get(digits)) map.set(digits, extra);
-      const low = tok.toLowerCase();
-      if (!map.get(low)) map.set(low, extra);
+      // 按输入类型只建单键：500 万条若同时存数字+小写双键，内存直接翻倍
+      if (input === 'phone') {
+        const digits = tok.replace(/\D/g, '');
+        if (digits.length >= 6 && digits.length <= 17 && !map.get(digits)) map.set(digits, extra);
+      } else {
+        const low = tok.toLowerCase();
+        if (!map.get(low)) map.set(low, extra);
+      }
     }
   }
   return map;
@@ -100,7 +113,7 @@ async function downloadValidMap(cfg, externalTaskId) {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const POLL_MS = 15000;
-const MAX_POLLS = 1920; // 约 8 小时
+const MAX_POLLS = 5760; // 约 24 小时（单次最高 500 万条，上游检测耗时更长）
 
 const running = new Set();
 
@@ -150,23 +163,39 @@ async function processTask(taskId) {
       }
       if (state !== 'Finish') throw new Error('检测超时，请稍后刷新或联系管理员');
 
-      const validMap = await downloadValidMap(cfg, task.externalTaskId);
+      const input = TASK_TYPES[task.taskType]?.input || 'phone';
+      const validMap = await downloadValidMap(cfg, task.externalTaskId, input);
       const activeType = !!TASK_TYPES[task.taskType]?.active; // 筛活跃：无效=久未上线；其余：无效=未开通
-      for (const r of task.results) {
-        const hit = validMap.has(r.phone) ? r.phone
-          : validMap.has(r.phone.toLowerCase()) ? r.phone.toLowerCase() : null;
-        if (hit !== null) {
-          r.status = 'active';
-          r.detail = validMap.get(hit) || (activeType ? '活跃' : '已开通');
-        } else {
-          r.status = activeType ? 'inactive' : 'not_found';
-          r.detail = activeType ? '久未上线' : '未开通';
-        }
-      }
+      const judge = (phone) => {
+        const hit = validMap.has(phone) ? phone
+          : validMap.has(phone.toLowerCase()) ? phone.toLowerCase() : null;
+        if (hit !== null) return { status: 'active', detail: validMap.get(hit) || (activeType ? '活跃' : '已开通') };
+        return activeType ? { status: 'inactive', detail: '久未上线' } : { status: 'not_found', detail: '未开通' };
+      };
       const summary = { active: 0, banned: 0, inactive: 0, notFound: 0, unknown: 0 };
-      for (const r of task.results) {
-        if (r.status === 'not_found') summary.notFound += 1;
-        else summary[r.status] = (summary[r.status] || 0) + 1;
+      const tally = (status) => {
+        if (status === 'not_found') summary.notFound += 1;
+        else summary[status] = (summary[status] || 0) + 1;
+      };
+      if (task.results?.length) {
+        // 旧任务：明细内嵌在任务文档
+        for (const r of task.results) {
+          const v = judge(r.phone);
+          r.status = v.status;
+          r.detail = v.detail;
+          tally(v.status);
+        }
+      } else {
+        // 新任务：明细在独立集合，游标逐条判定、分批回写
+        const cursor = SaverCheckItem.find({ task: task._id }).select('_id phone').lean().cursor({ batchSize: 5000 });
+        let ops = [];
+        for await (const it of cursor) {
+          const v = judge(it.phone);
+          tally(v.status);
+          ops.push({ updateOne: { filter: { _id: it._id }, update: { $set: { status: v.status, detail: v.detail } } } });
+          if (ops.length >= 5000) { await SaverCheckItem.bulkWrite(ops, { ordered: false }); ops = []; }
+        }
+        if (ops.length) await SaverCheckItem.bulkWrite(ops, { ordered: false });
       }
       task.summary = summary;
       task.status = 'completed';

@@ -149,7 +149,8 @@
       "server.js": "挂载 /api/saver",
       "controllers/adminController.js": "getSettings/updateSettings 新增 saver section（saverApi.baseUrl/apiKey）",
       "routes/admin.js": "GET /api/admin/settings/saver-balance 测试筛号API连接（superAdminOnly）",
-      "services/saverTaskTypes.js(新增)": "th333 全量任务类型目录（~50种：ws/tg/社交/通讯/号码/邮箱/交易所），含 input(phone|email|username)/country必填/active 标记和按类型的输入规范化"
+      "services/saverTaskTypes.js(新增)": "th333 全量任务类型目录（~50种：ws/tg/社交/通讯/号码/邮箱/交易所），含 input(phone|email|username)/country必填/active 标记和按类型的输入规范化",
+      "上传限制改造_20261021": "单次 2000～500 万条（原上限 10 万）。明细从 SaverCheckTask.results 内嵌拆到独立集合 SaverCheckItem{task,phone,status,detail}（内嵌 500 万会爆 Mongo 16MB 文档上限；旧任务仍读内嵌，全链路兼容回退）。POST /checks 双模式：multipart 文件直传（multer memoryStorage 200MB、逐行扫描+去重、#//注释跳过、[,;\\t] 只取第一列防数字拼接）/ 旧 JSON numbers 兼容；明细原生 insertMany 分批 5000，失败删 items+删任务+退款。新增 GET /checks/:id/export 流式 txt 导出（背压 drain）。DELETE 后台清明细。processTask：items 游标拼提交 txt、downloadValidMap 按 input 单键建图（phone 只存数字键省半内存）、结果标记游标+分批 bulkWrite、MAX_POLLS 8h→24h。nginx /api client_max_body_size 50m→200m、proxy_read_timeout 300s→600s（/www/server/panel/vhost/nginx/proxy/ws.37182.club/00-api-backend.conf，补丁不会覆盖但重装 BaoTa 会）。前端 SaverStatusCheck：文件直传 FormData、本地按行计数校验 2000/500万、导出改走流式端点 blob、批量下载逐任务单文件"
     },
     "frontend": {
       "src/components/SaverStatusCheck.tsx(新增)": "平台检测页组件：顶部类型 tab + 搜索表单 + 工具栏 + 复选框任务表格 + 分页；按 taskType 过滤列表，切 tab 重置筛选，邮箱类免国家",

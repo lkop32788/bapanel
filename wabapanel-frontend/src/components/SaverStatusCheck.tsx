@@ -7,8 +7,6 @@ import Modal from '@/components/ui/Modal';
 import { saverCheckApi } from '@/lib/api';
 import { SAVER_GROUP_MAP, saverChannelOf, type SaverTypeDef } from '@/lib/saverTypes';
 
-type ResultStatus = 'active' | 'banned' | 'inactive' | 'not_found' | 'unknown';
-
 interface CheckTask {
   _id: string;
   fileName?: string;
@@ -21,11 +19,14 @@ interface CheckTask {
   cost?: number;
   refunded?: boolean;
   summary?: { active: number; banned: number; inactive: number; notFound: number; unknown: number };
-  results?: { phone: string; status: ResultStatus; detail?: string }[];
   startedAt?: string;
   finishedAt?: string;
   createdAt: string;
 }
+
+// 上传限制：与后端一致（后端以自己解析去重后的条数为准计费，这里仅前置校验）
+const MIN_NUMBERS = 2000;
+const MAX_NUMBERS = 5000000;
 
 const COUNTRIES: { name: string; dial: string; code: string }[] = [
   { name: '马来西亚', dial: '60', code: 'MY' },
@@ -46,10 +47,6 @@ const COUNTRIES: { name: string; dial: string; code: string }[] = [
   { name: '巴西', dial: '55', code: 'BR' },
 ];
 
-const STATUS_LABEL: Record<ResultStatus, string> = {
-  active: '有效', banned: '已封号', inactive: '久未上线', not_found: '未开通', unknown: '未知',
-};
-
 const TASK_STATUS: Record<CheckTask['status'], { label: string; cls: string }> = {
   pending: { label: '排队中', cls: 'bg-gray-100 text-gray-500' },
   processing: { label: '检测中', cls: 'bg-blue-50 text-blue-600' },
@@ -57,20 +54,28 @@ const TASK_STATUS: Record<CheckTask['status'], { label: string; cls: string }> =
   failed: { label: '失败', cls: 'bg-red-50 text-red-600' },
 };
 
-// 按检测类型从文本中提取内容：号码（连续数字 6-17 位）/ 邮箱 / 用户名
-const extractNumbers = (text: string): string[] =>
-  (text.match(/\+?\d[\d\s\-()]{4,21}\d/g) || [])
-    .map(s => s.replace(/\D/g, ''))
-    .filter(s => s.length >= 6 && s.length <= 17);
-const extractByInput = (text: string, input: SaverTypeDef['input']): string[] => {
-  if (input === 'email') {
-    return Array.from(new Set((text.match(/[^\s@,;|]+@[^\s@,;|]+\.[A-Za-z]{2,}/g) || []).map(s => s.toLowerCase())));
+// 按行扫描估算条数（去重）：号码（纯数字 6-17 位）/ 邮箱 / 用户名。
+// 500 万行级文件避免全文大正则 match 产生巨型中间数组；结果只留计数，不留数组
+const emailLineRe = /[^\s@,;|]+@[^\s@,;|]+\.[A-Za-z]{2,}/;
+const countByInput = (text: string, input: SaverTypeDef['input']): number => {
+  const seen = new Set<string>();
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#') || line.startsWith('//')) continue;
+    if (input === 'email') {
+      const m = line.match(emailLineRe);
+      if (m) seen.add(m[0].toLowerCase());
+      continue;
+    }
+    if (input === 'username') {
+      const s = line.replace(/^@/, '');
+      if (s && s.length <= 64 && !/[\s,;]/.test(s)) seen.add(s);
+      continue;
+    }
+    const digits = line.split(/[,;\t]/)[0].replace(/\D/g, '');
+    if (digits.length >= 6 && digits.length <= 17) seen.add(digits);
   }
-  if (input === 'username') {
-    return Array.from(new Set(
-      text.split(/\r?\n/).map(s => s.trim().replace(/^@/, '')).filter(s => s && s.length <= 64 && !/[\s,;]/.test(s))));
-  }
-  return Array.from(new Set(extractNumbers(text)));
+  return seen.size;
 };
 const INPUT_HINT: Record<SaverTypeDef['input'], string> = {
   phone: '每行一个号码', email: '每行一个邮箱', username: '每行一个用户名',
@@ -88,10 +93,7 @@ const progressOf = (t: CheckTask) => {
   return t.total ? Math.round(((t.checked || 0) / t.total) * 100) : 0;
 };
 
-const taskToTxt = (t: CheckTask) =>
-  (t.results || []).map(r => `${r.phone}\t${STATUS_LABEL[r.status] || r.status}${r.detail ? `\t${r.detail}` : ''}`).join('\n');
-const saveTxt = (name: string, content: string) => {
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+const saveBlob = (name: string, blob: Blob) => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -116,13 +118,14 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
 
-  // 新增弹窗。文件只解析进内存数组，界面只显示文件名和识别数量
+  // 新增弹窗。文件本地只扫一遍估算条数（显示/校验用），提交时原始文件直传后端
   const [modalOpen, setModalOpen] = useState(false);
   const [taskName, setTaskName] = useState('');
   const [countryCode, setCountryCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [fileNumbers, setFileNumbers] = useState<string[]>([]);
+  const [fileObj, setFileObj] = useState<File | null>(null);
+  const [parsing, setParsing] = useState(false);
   const [fileInfo, setFileInfo] = useState<{ name: string; count: number } | null>(null);
   // 商家积分钱包（计费开启时显示余额和预计扣费）
   interface WalletInfo { enabled: boolean; balance?: number; priceDefault?: number; priceOverrides?: Record<string, number> }
@@ -174,30 +177,47 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
 
   const openCreate = () => {
     setTaskName('');
-    setFileNumbers([]);
+    setFileObj(null);
     setFileInfo(null);
+    setParsing(false);
     setModalOpen(true);
   };
   const onFilePicked = (file: File) => {
+    setFileObj(null);
+    setFileInfo(null);
+    setParsing(true);
     const reader = new FileReader();
     reader.onload = () => {
-      const found = extractByInput(String(reader.result || ''), def.input);
-      setFileNumbers(found);
-      setFileInfo({ name: file.name, count: found.length });
-      if (!taskName) setTaskName(file.name.replace(/\.(txt|csv)$/i, ''));
+      // 大文件同步扫描会卡顿 1-3 秒，先让「正在识别…」渲染出来
+      setTimeout(() => {
+        const count = countByInput(String(reader.result || ''), def.input);
+        setFileObj(file);
+        setFileInfo({ name: file.name, count });
+        setParsing(false);
+        if (!taskName) setTaskName(file.name.replace(/\.(txt|csv)$/i, ''));
+      }, 50);
     };
+    reader.onerror = () => { setParsing(false); alert('文件读取失败，请重试'); };
     reader.readAsText(file);
   };
 
+  const count = fileInfo?.count || 0;
+  const countOk = count >= MIN_NUMBERS && count <= MAX_NUMBERS;
+
   const submit = async () => {
-    if (submitting || !fileNumbers.length || (def.country && !countryCode)) return;
+    if (submitting || !fileObj || !countOk || (def.country && !countryCode)) return;
     setSubmitting(true);
     try {
-      const country = def.country ? COUNTRIES.find(c => c.code === countryCode) : undefined;
-      await saverCheckApi.create({
-        channel: saverChannelOf(typeValue), country, numbers: fileNumbers, taskType: typeValue,
-        fileName: taskName.trim() || `${def.name}-${new Date().toLocaleDateString('zh-CN')}`,
-      });
+      const fd = new FormData();
+      fd.append('channel', saverChannelOf(typeValue));
+      fd.append('taskType', typeValue);
+      fd.append('fileName', taskName.trim() || `${def.name}-${new Date().toLocaleDateString('zh-CN')}`);
+      if (def.country) {
+        const c = COUNTRIES.find(x => x.code === countryCode);
+        if (c) { fd.append('countryCode', c.code); fd.append('countryName', c.name); fd.append('countryDial', c.dial); }
+      }
+      fd.append('file', fileObj);
+      await saverCheckApi.create(fd);
       setModalOpen(false);
       setPage(1);
       loadTasks();
@@ -209,25 +229,24 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
     setSubmitting(false);
   };
 
+  // 下载结果：后端流式生成 txt（号码\t状态\t说明），blob 保存
   const exportOne = async (t: CheckTask) => {
     try {
-      const res = await saverCheckApi.get(t._id);
-      saveTxt(`${t.fileName || taskNo(t._id)}-检测结果.txt`, '号码\t状态\t说明\n' + taskToTxt(res.data.data));
+      const res = await saverCheckApi.exportResult(t._id);
+      saveBlob(`${t.fileName || taskNo(t._id)}-检测结果.txt`, res.data);
     } catch { alert('导出失败，请稍后重试'); }
   };
 
-  // 批量下载：选中的已完成任务合并为一个 txt，按任务分段
+  // 批量下载：逐任务各存一个 txt（百万级结果合并单文件会撑爆内存）
   const exportSelected = async () => {
     const targets = tasks.filter(t => selected.has(t._id) && t.status === 'completed');
     if (!targets.length || exporting) return;
     setExporting(true);
     try {
-      const parts: string[] = [];
       for (const t of targets) {
-        const res = await saverCheckApi.get(t._id);
-        parts.push(`===== ${t.fileName || taskNo(t._id)}（${t.total} 条）=====\n号码\t状态\t说明\n${taskToTxt(res.data.data)}`);
+        const res = await saverCheckApi.exportResult(t._id);
+        saveBlob(`${t.fileName || taskNo(t._id)}-检测结果.txt`, res.data);
       }
-      saveTxt(`${def.name}-批量结果-${new Date().toISOString().slice(0, 10)}.txt`, parts.join('\n\n'));
     } catch { alert('批量下载失败，请稍后重试'); }
     setExporting(false);
   };
@@ -459,12 +478,24 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
             <label className="block text-sm font-medium text-gray-700 mb-1.5">检测文件</label>
             <input ref={fileRef} type="file" accept=".txt,.csv" className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) onFilePicked(f); e.target.value = ''; }} />
-            {fileInfo ? (
-              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm">
-                <span className="font-medium text-gray-900 truncate">{fileInfo.name}</span>
-                <span className="text-emerald-700 shrink-0">已识别 {fileInfo.count} 条</span>
-                <button onClick={() => { setFileNumbers([]); setFileInfo(null); }}
-                  className="ml-auto text-gray-400 hover:text-red-500 text-xs shrink-0">移除</button>
+            {parsing ? (
+              <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                <RefreshCw className="w-4 h-4 animate-spin text-emerald-500 shrink-0" />正在识别文件内容…大文件需要几秒钟
+              </div>
+            ) : fileInfo ? (
+              <div className="space-y-1.5">
+                <div className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${countOk ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                  <span className="font-medium text-gray-900 truncate">{fileInfo.name}</span>
+                  <span className={`shrink-0 ${countOk ? 'text-emerald-700' : 'text-red-600'}`}>已识别 {count.toLocaleString()} 条</span>
+                  <button onClick={() => { setFileObj(null); setFileInfo(null); }}
+                    className="ml-auto text-gray-400 hover:text-red-500 text-xs shrink-0">移除</button>
+                </div>
+                {count < MIN_NUMBERS && (
+                  <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />条数不足：单次最低 {MIN_NUMBERS.toLocaleString()} 条</p>
+                )}
+                {count > MAX_NUMBERS && (
+                  <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />超出上限：单次最多 {MAX_NUMBERS.toLocaleString()} 条，请拆分后分次提交</p>
+                )}
               </div>
             ) : (
               <button onClick={() => fileRef.current?.click()}
@@ -473,17 +504,18 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
                 点击选择 .txt / .csv 文件（{INPUT_HINT[def.input]}）
               </button>
             )}
+            <p className="text-xs text-gray-400 mt-1.5">单次 {MIN_NUMBERS.toLocaleString()} ～ {MAX_NUMBERS.toLocaleString()} 条；以系统实际识别去重后的条数计费</p>
           </div>
           <div className="flex items-center justify-end gap-3 pt-1">
-            {wallet?.enabled && fileNumbers.length > 0 && (
+            {wallet?.enabled && count > 0 && (
               <span className="text-sm text-gray-500 mr-auto">
-                预计扣费 <span className={`font-semibold ${round3(unitPrice * fileNumbers.length) > (wallet.balance || 0) ? 'text-red-500' : 'text-emerald-600'}`}>￥{round3(unitPrice * fileNumbers.length)}</span>
+                预计扣费 <span className={`font-semibold ${round3(unitPrice * count) > (wallet.balance || 0) ? 'text-red-500' : 'text-emerald-600'}`}>￥{round3(unitPrice * count)}</span>
                 <span className="text-xs text-gray-400 ml-1">（余额 ￥{round3(wallet.balance || 0)}）</span>
               </span>
             )}
             <Button variant="ghost" onClick={() => setModalOpen(false)}>取消</Button>
-            <Button onClick={submit} disabled={!fileNumbers.length || (def.country && !countryCode)} loading={submitting}>
-              开始检测{fileNumbers.length ? `（${fileNumbers.length} 条）` : ''}
+            <Button onClick={submit} disabled={!fileObj || !countOk || (def.country && !countryCode)} loading={submitting}>
+              开始检测{count ? `（${count.toLocaleString()} 条）` : ''}
             </Button>
           </div>
         </div>
