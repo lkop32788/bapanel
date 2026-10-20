@@ -142,7 +142,8 @@ export default function WaQrSlotsSection() {
 
       {slots.length > 0 && (() => {
         const kw = q.trim().toLowerCase();
-        const list = kw ? slots.filter((s) => (s.phone || '').toLowerCase().includes(kw) || (s.label || '').toLowerCase().includes(kw)) : slots;
+        const kwD = kw.replace(/\D/g, '');
+        const list = kw ? slots.filter((s) => (s.label || '').toLowerCase().includes(kw) || (s.phone || '').includes(kw) || (!!kwD && (s.phone || '').includes(kwD))) : slots;
         return (
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/60">

@@ -117,8 +117,9 @@ export default function WaBridgeSection() {
   };
 
   const kw = q.trim().toLowerCase();
+  const kwD = kw.replace(/\D/g, ''); // 号码搜索不分 +：按纯数字匹配
   const filtered = kw
-    ? slots.filter((s) => (s.phone || '').toLowerCase().includes(kw) || (s.label || '').toLowerCase().includes(kw))
+    ? slots.filter((s) => (s.label || '').toLowerCase().includes(kw) || (s.phone || '').includes(kw) || (!!kwD && (s.phone || '').includes(kwD)))
     : slots;
 
   return (

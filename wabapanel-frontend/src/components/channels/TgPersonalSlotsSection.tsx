@@ -185,7 +185,8 @@ export default function TgPersonalSlotsSection() {
         <p className="text-xs text-gray-400 py-2">还没有连接任何 Telegram 账号，点击下方「添加账号」开始绑定。</p>
       ) : (() => {
         const kw = q.trim().toLowerCase();
-        const list = kw ? slots.filter((s) => (s.phone || '').toLowerCase().includes(kw) || (s.label || '').toLowerCase().includes(kw) || (s.username || '').toLowerCase().includes(kw)) : slots;
+        const kwD = kw.replace(/\D/g, '');
+        const list = kw ? slots.filter((s) => (s.label || '').toLowerCase().includes(kw) || (s.username || '').toLowerCase().includes(kw) || (s.phone || '').includes(kw) || (!!kwD && (s.phone || '').includes(kwD))) : slots;
         return (
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/60">
