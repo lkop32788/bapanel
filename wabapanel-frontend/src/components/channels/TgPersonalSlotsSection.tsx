@@ -22,6 +22,7 @@ type SlotStatus = { status: string; qr?: string; phone?: string; username?: stri
 export default function TgPersonalSlotsSection() {
   const [slots, setSlots] = useState<TgPersonalSlot[]>([]);
   const [busyId, setBusyId] = useState('');
+  const [q, setQ] = useState('');
   // 添加账号
   const [addOpen, setAddOpen] = useState(false);
   const [addLabel, setAddLabel] = useState('');
@@ -180,46 +181,47 @@ export default function TgPersonalSlotsSection() {
         已连接多个账号时，系统自动轮流分配发送，老客户固定由原账号接待，无需任何设置。
       </p>
 
-      {slots.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {slots.map((s) => (
-            <div key={s.slotId} className="border border-gray-200 rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{s.label || (s.phone ? `+${s.phone}` : '未命名账号')}</p>
-                  {s.enabled === false && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">已停用</span>}
-                </div>
-                <SlotStatusBadge status={s.status} />
-              </div>
-              <p className="text-xs text-gray-500">
-                {s.phone ? `+${s.phone}` : '未绑定账号'}{s.username ? ` (@${s.username})` : ''}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {s.status !== 'connected' && (
-                  <Button size="sm" variant="outline" loading={busyId === s.slotId} onClick={() => openLogin(s.slotId)}>
-                    <QrCode className="w-3.5 h-3.5" /> 登录
-                  </Button>
-                )}
-                {s.status === 'connected' && (
-                  <Button size="sm" variant="outline" loading={busyId === s.slotId} onClick={() => disconnectSlot(s)}>
-                    <Unplug className="w-3.5 h-3.5" /> 断开
-                  </Button>
-                )}
-                <Button size="sm" variant="outline" onClick={() => openSettings(s)}>
-                  <SettingsIcon className="w-3.5 h-3.5" /> 设置
-                </Button>
-                <Button size="sm" variant="outline" loading={busyId === s.slotId} onClick={() => removeSlot(s)}>
-                  <Trash2 className="w-3.5 h-3.5 text-red-500" /> 删除
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {slots.length === 0 && (
+      {slots.length === 0 ? (
         <p className="text-xs text-gray-400 py-2">还没有连接任何 Telegram 账号，点击下方「添加账号」开始绑定。</p>
-      )}
+      ) : (() => {
+        const kw = q.trim().toLowerCase();
+        const list = kw ? slots.filter((s) => (s.phone || '').toLowerCase().includes(kw) || (s.label || '').toLowerCase().includes(kw) || (s.username || '').toLowerCase().includes(kw)) : slots;
+        return (
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/60">
+              <span className="text-xs text-gray-500 shrink-0">
+                共 <b className="text-gray-700">{slots.length}</b> · 在线 <b className="text-emerald-600">{slots.filter((s) => s.status === 'connected').length}</b>
+              </span>
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索账号 / 备注" className="ml-auto w-40 max-w-[50%] px-2.5 py-1 text-xs border border-gray-200 rounded-md bg-white" />
+            </div>
+            <div className="max-h-96 overflow-y-auto divide-y divide-gray-100">
+              {list.length === 0 ? (
+                <p className="text-xs text-gray-400 px-3 py-6 text-center">没有匹配的账号</p>
+              ) : list.map((s) => (
+                <div key={s.slotId} className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className="text-sm text-gray-900 truncate leading-tight">{s.label || (s.phone ? `+${s.phone}` : '未命名账号')}</p>
+                      {s.enabled === false && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">已停用</span>}
+                    </div>
+                    <p className="text-[11px] text-gray-400 truncate leading-tight">{s.phone ? `+${s.phone}` : '未绑定'}{s.username ? ` · @${s.username}` : ''}</p>
+                  </div>
+                  <SlotStatusBadge status={s.status} />
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    {s.status !== 'connected' ? (
+                      <button type="button" disabled={busyId === s.slotId} onClick={() => openLogin(s.slotId)} className="p-1.5 rounded-md hover:bg-sky-50 disabled:opacity-50" title="登录"><QrCode className="w-3.5 h-3.5 text-sky-600" /></button>
+                    ) : (
+                      <button type="button" disabled={busyId === s.slotId} onClick={() => disconnectSlot(s)} className="p-1.5 rounded-md hover:bg-amber-50 disabled:opacity-50" title="断开"><Unplug className="w-3.5 h-3.5 text-amber-600" /></button>
+                    )}
+                    <button type="button" onClick={() => openSettings(s)} className="p-1.5 rounded-md hover:bg-gray-100" title="设置"><SettingsIcon className="w-3.5 h-3.5 text-gray-500" /></button>
+                    <button type="button" disabled={busyId === s.slotId} onClick={() => removeSlot(s)} className="p-1.5 rounded-md hover:bg-red-50 disabled:opacity-50" title="删除"><Trash2 className="w-3.5 h-3.5 text-red-500" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       <Button size="sm" variant="outline" icon={<Plus className="w-4 h-4" />} onClick={() => setAddOpen(true)}>添加账号</Button>
 
