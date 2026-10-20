@@ -1,7 +1,7 @@
 'use client';
 import { translateApiMessage } from '@/lib/zhMessages';
 import React, { useState } from 'react';
-import { Bot, Link2, Copy, ExternalLink, MessageSquare, Zap, Settings, ArrowRight } from 'lucide-react';
+import { Bot, Link2, Copy, ExternalLink, MessageSquare, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function ToolsetPage() {
@@ -45,32 +45,12 @@ export default function ToolsetPage() {
 
           <div className="space-y-3">
             <p className="text-sm font-medium text-gray-700">管理自动回复：</p>
-            <a href="/client/keywords" className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 group">
-              <div className="flex items-center gap-3">
-                <Zap className="w-5 h-5 text-emerald-600" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">关键词</p>
-                  <p className="text-xs text-gray-500">检测到特定关键字时自动回复</p>
-                </div>
-              </div>
-              <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-            </a>
             <a href="/client/quick-replies" className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 group">
               <div className="flex items-center gap-3">
                 <MessageSquare className="w-5 h-5 text-blue-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-900">快捷回复</p>
                   <p className="text-xs text-gray-500">预先保存的聊天回复模板</p>
-                </div>
-              </div>
-              <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-            </a>
-            <a href="/client/automations" className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 group">
-              <div className="flex items-center gap-3">
-                <Settings className="w-5 h-5 text-purple-600" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">自动化</p>
-                  <p className="text-xs text-gray-500">构建复杂的自动回复流程</p>
                 </div>
               </div>
               <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />

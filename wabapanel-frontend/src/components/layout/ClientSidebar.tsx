@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import useBranding from '@/lib/useBranding';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, LayoutDashboard, BarChart3, Users, Tags, Layers, FileText, Send, Zap, Keyboard, ShoppingBag, Share2, FormInput, Phone, UserPlus, Settings, ChevronDown, ChevronRight, Menu, X, LogOut, Database, MessageCircle, ImageIcon, Wrench, BookOpen, Brain, Plug, Sparkles, PiggyBank, Shield, Puzzle, QrCode, Bot, Cloud, Coins } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, BarChart3, Users, Tags, Layers, FileText, Send, Zap, ShoppingBag, Share2, FormInput, Phone, UserPlus, Settings, ChevronDown, ChevronRight, Menu, X, LogOut, Database, MessageCircle, ImageIcon, Wrench, Brain, Plug, PiggyBank, QrCode, Bot, Cloud, Coins } from 'lucide-react';
 import { FaWhatsapp, FaInstagram, FaFacebook, FaTelegram, FaEnvelope } from 'react-icons/fa';
 import { OmniNavIcon, OmniSidebarBrand } from '@/components/layout/OmniSidebar';
 import { useAuthStore } from '@/stores/authStore';
@@ -83,12 +83,9 @@ export const navItems: NavItem[] = [
     label: 'Automation',
     icon: <Zap className="w-5 h-5" />,
     children: [
-      { label: 'Automations', href: '/client/automations', icon: <Zap className="w-4 h-4" /> },
-      { label: 'Bulk AI Calls', href: '/client/bulk-calls', icon: <Phone className="w-4 h-4" /> },
+      // 入口隐藏（页面保留，仅从侧边栏移除）：automations / bulk-calls / followups / keywords
       { label: 'Bot Flow Builder', href: '/client/bot-flows', icon: <Zap className="w-4 h-4" /> },
-      { label: 'AI Follow-ups', href: '/client/followups', icon: <Sparkles className="w-4 h-4" /> },
       { label: 'Quick Replies', href: '/client/quick-replies', icon: <MessageCircle className="w-4 h-4" /> },
-      { label: 'Keyword Triggers', href: '/client/keywords', icon: <Keyboard className="w-4 h-4" /> },
     ],
   },
   {
@@ -113,11 +110,9 @@ export const navItems: NavItem[] = [
     icon: <Settings className="w-5 h-5" />,
     children: [
       { label: 'Teams & Agents', href: '/client/agents', icon: <UserPlus className="w-4 h-4" /> },
-      { label: 'Integrations', href: '/client/integrations', icon: <Puzzle className="w-4 h-4" /> },
+      // 入口隐藏（页面保留）：integrations / knowledge-base / audit-log
       { label: 'AI Settings', href: '/client/ai-settings', icon: <Brain className="w-4 h-4" /> },
       { label: 'AI Calling Settings', href: '/client/ai-calling', icon: <Phone className="w-4 h-4" /> },
-      { label: 'Knowledge Base', href: '/client/knowledge-base', icon: <BookOpen className="w-4 h-4" /> },
-      { label: 'Audit Log', href: '/client/audit-log', icon: <Shield className="w-4 h-4" /> },
       { label: 'Business Settings', href: '/client/settings', icon: <Wrench className="w-4 h-4" /> },
     ],
   },

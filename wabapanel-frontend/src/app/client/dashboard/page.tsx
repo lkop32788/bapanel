@@ -206,7 +206,6 @@ export default function DashboardPage() {
           </div>
           <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
             {[
-              { href: '/client/followups', icon: <Zap className="w-4 h-4 text-amber-500" />, label: 'AI 自动跟进', right: '检查线索 →' },
               { href: '/client/bot-flows', icon: <LayoutTemplate className="w-4 h-4 text-blue-500" />, label: '活跃机器人流程', right: String(data?.botFlowsActive || 0) },
               { href: '/client/broadcasts', icon: <Megaphone className="w-4 h-4 text-purple-500" />, label: '营销活动', right: `进行中 ${data?.campaigns?.running || 0} / 共 ${data?.campaigns?.total || 0}` },
               ...((m?.failed || 0) > 0 ? [{ href: '/client/chat', icon: <AlertCircle className="w-4 h-4 text-red-500" />, label: '发送失败（30 天）', right: String(m?.failed || 0) }] : []),
@@ -283,7 +282,6 @@ export default function DashboardPage() {
         {[
           { href: '/client/templates', label: `模板 ${data?.templates?.approved || 0}/${data?.templates?.total || 0} 已批准`, icon: <LayoutTemplate className="w-3.5 h-3.5" /> },
           { href: '/client/save-money/templates', label: `预设模板 ${data?.presets || 0}`, icon: <Zap className="w-3.5 h-3.5" /> },
-          { href: '/client/keywords', label: `自动回复关键词 ${data?.keywords || 0}`, icon: <MessageSquare className="w-3.5 h-3.5" /> },
           { href: '/client/ai-calling', label: `AI 外呼 ${data?.aiCalls?.total || 0} 通 · ${data?.aiCalls?.minutes || 0} 分钟`, icon: <Phone className="w-3.5 h-3.5" /> },
         ].map((t) => (
           <Link key={t.href} href={t.href}
