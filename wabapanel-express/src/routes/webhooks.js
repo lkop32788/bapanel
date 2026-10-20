@@ -47,7 +47,8 @@ router.post('/telegram/:workspaceId', async (req, res) => {
 router.post('/extapi/:workspaceId/:slotId', async (req, res) => {
   try {
     const Workspace = require('../models/Workspace');
-    const ws = await Workspace.findById(req.params.workspaceId).catch(() => null);
+    // externalApiSlots 是 select:false，验签必须显式 +select，否则全部入站误判 401
+    const ws = await Workspace.findById(req.params.workspaceId).select('+externalApiSlots').catch(() => null);
     const slot = ws && (ws.externalApiSlots || []).find((s) => s.slotId === req.params.slotId);
     const given = String(req.query.secret || req.headers['x-webhook-secret'] || '');
     const expect = String((slot && slot.webhookSecret) || '');

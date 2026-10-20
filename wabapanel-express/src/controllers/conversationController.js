@@ -223,11 +223,11 @@ const sendMessage = async (req, res) => {
     else if (conversation.channel === 'telegram_personal') {
       try {
         const tgUser = require('../services/tgUserService');
-        // 号池：会话已绑定账号则粘住；未绑定且开池时轮询取号并绑定
+        // 自动号池：已绑定账号粘住；未绑定轮询取号并绑定（单号时恒返回该号）
         let tgpSlot = 'default';
         const tm = /^tgp:(.+)$/.exec(conversation.waNumberId || '');
         if (tm) tgpSlot = tm[1];
-        else if (req.workspace.tgPersonalPoolEnabled) {
+        else {
           const picked = await tgUser.pickPoolSlot(req.workspace._id);
           if (picked) { tgpSlot = picked; conversation.waNumberId = 'tgp:' + picked; }
         }
@@ -244,11 +244,11 @@ const sendMessage = async (req, res) => {
     else if (conversation.channel === 'whatsapp_qr') {
       try {
         const waQr = require('../services/waQrService');
-        // 号池：会话已绑定槽位则粘住；未绑定且开池时轮询取槽并绑定
+        // 自动号池：已绑定槽位粘住；未绑定轮询取槽并绑定（单号时恒返回该号）
         let qrSlot = 'default';
         const qm = /^qr:(.+)$/.exec(conversation.waNumberId || '');
         if (qm) qrSlot = qm[1];
-        else if (req.workspace.waQrPoolEnabled) {
+        else {
           const picked = await waQr.pickPoolSlot(req.workspace._id);
           if (picked) { qrSlot = picked; conversation.waNumberId = 'qr:' + picked; }
         }
@@ -349,17 +349,14 @@ const sendMessage = async (req, res) => {
       try {
         const extSvc = require('../services/externalApiService');
         // 号池：会话已绑定槽位则粘住；未绑定且开池时轮询取槽并绑定
+        // 自动号池：已绑定粘住；未绑定轮询取槽（单槽时恒返回该槽，无需任何开关）
         let extSlot = null;
         const em = /^ext:(.+)$/.exec(conversation.waNumberId || '');
         if (em) {
           extSlot = em[1];
-        } else if (req.workspace.externalApiPoolEnabled) {
+        } else {
           const picked = await extSvc.pickPoolSlot(req.workspace._id);
           if (picked) { extSlot = picked; conversation.waNumberId = 'ext:' + picked; }
-        } else {
-          // 没开池：有可用槽就落到第一个可用槽并绑定（单槽场景免开池）
-          const usable = extSvc.usableSlots(req.workspace);
-          if (usable.length) { extSlot = usable[0].slotId; conversation.waNumberId = 'ext:' + extSlot; }
         }
         if (!extSlot) {
           message.status = 'failed';
@@ -385,8 +382,9 @@ const sendMessage = async (req, res) => {
       let senderId = fromNumberId && validSenderIds.includes(fromNumberId)
         ? fromNumberId
         : (conversation.waNumberId || waCfg.phoneNumberId);
-      // 号池：未绑定发送号的会话（客服新开聊/首次回复）从池里轮询取号并绑定粘住
-      if (waCfg.poolEnabled && !conversation.waNumberId && !(fromNumberId && validSenderIds.includes(fromNumberId))) {
+      // 自动号池：未绑定发送号的会话（客服新开聊/首次回复）从池里轮询取号并绑定
+      // 粘住；池里只有主号时 pickNumber 恒返回主号，单号行为不变
+      if (!conversation.waNumberId && !(fromNumberId && validSenderIds.includes(fromNumberId))) {
         const picked = await require('../services/waNumberPool').pickNumber(req.workspace._id, waCfg);
         if (picked) senderId = picked;
       }

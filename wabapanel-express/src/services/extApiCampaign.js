@@ -58,7 +58,7 @@ async function execute(campaign, workspace, contacts, io) {
     return;
   }
   const extSvc = require('./externalApiService');
-  const slots = extSvc.usableSlots(workspace).map((s) => ({ slotId: s.slotId, fails: 0 }));
+  const slots = (await extSvc.usableSlots(workspace._id)).map((s) => ({ slotId: s.slotId, fails: 0 }));
   if (!slots.length) {
     await Campaign.updateOne({ _id: campaign._id }, { $set: { status: 'failed' } });
     return;

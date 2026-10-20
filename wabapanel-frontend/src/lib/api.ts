@@ -121,7 +121,6 @@ export const tgPersonalApi = {
   slotDisconnect: (slotId: string) => api.post(`/tgpersonal/slots/${slotId}/disconnect`, {}),
   deleteSlot: (slotId: string) => api.delete(`/tgpersonal/slots/${slotId}`),
   updateSlotSettings: (slotId: string, data: { label?: string; enabled?: boolean }) => api.put(`/tgpersonal/slots/${slotId}/settings`, data),
-  setPool: (enabled: boolean) => api.put('/tgpersonal/pool', { enabled }),
 };
 
 // Workspaces
@@ -140,7 +139,6 @@ export const waqrApi = {
   disconnectSlot: (slotId: string) => api.post(`/waqr/slots/${slotId}/disconnect`, {}),
   deleteSlot: (slotId: string) => api.delete(`/waqr/slots/${slotId}`),
   updateSlotSettings: (slotId: string, data: { label?: string; dailyLimit?: number; enabled?: boolean }) => api.put(`/waqr/slots/${slotId}/settings`, data),
-  setPool: (enabled: boolean) => api.put('/waqr/pool', { enabled }),
 };
 
 export const workspaceApi = {
@@ -650,15 +648,14 @@ export const auditLogApi = {
 
 // Invoices
 
-// 外部 API 占位渠道（extchannel）
-export const externalApiChannelApi = {
-  listSlots: () => api.get('/extchannel/slots'),
-  createSlot: (label: string) => api.post('/extchannel/slots', { label }),
-  updateSlot: (slotId: string, data: object) => api.put(`/extchannel/slots/${slotId}/settings`, data),
-  deleteSlot: (slotId: string) => api.delete(`/extchannel/slots/${slotId}`),
-  testSlot: (slotId: string) => api.post(`/extchannel/slots/${slotId}/test`),
-  rotateSecret: (slotId: string) => api.post(`/extchannel/slots/${slotId}/rotate-secret`),
-  setPool: (enabled: boolean) => api.put('/extchannel/pool', { enabled }),
+// 外部通道（external_api）——平台级配置，仅管理后台使用
+export const adminExtChannelApi = {
+  listSlots: (workspaceId: string) => api.get(`/admin/extchannel/${workspaceId}/slots`),
+  createSlot: (workspaceId: string, label: string) => api.post(`/admin/extchannel/${workspaceId}/slots`, { label }),
+  updateSlot: (workspaceId: string, slotId: string, data: object) => api.put(`/admin/extchannel/${workspaceId}/slots/${slotId}/settings`, data),
+  deleteSlot: (workspaceId: string, slotId: string) => api.delete(`/admin/extchannel/${workspaceId}/slots/${slotId}`),
+  testSlot: (workspaceId: string, slotId: string) => api.post(`/admin/extchannel/${workspaceId}/slots/${slotId}/test`),
+  rotateSecret: (workspaceId: string, slotId: string) => api.post(`/admin/extchannel/${workspaceId}/slots/${slotId}/rotate-secret`),
 };
 
 // Platform (coupons, announcements, support tickets, system admin)

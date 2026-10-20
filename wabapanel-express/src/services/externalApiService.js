@@ -25,7 +25,7 @@ const MASK = '••••';
 // ---------- 槽位 CRUD ----------
 
 async function listSlots(workspaceId) {
-  const ws = await Workspace.findById(workspaceId).select('externalApiSlots externalApiPoolEnabled');
+  const ws = await Workspace.findById(workspaceId).select('+externalApiSlots');
   if (!ws) throw new Error('Workspace not found');
   return (ws.externalApiSlots || []).map((s) => ({
     slotId: s.slotId,
@@ -104,10 +104,16 @@ async function deleteSlot(workspaceId, slotId) {
   await Workspace.findByIdAndUpdate(workspaceId, {
     $pull: { externalApiSlots: { slotId } },
   });
+  // 清掉绑定该槽的会话（置空后下次发送自动从池重新取号），否则这些会话永远发不出
+  const Conversation = require('../models/Conversation');
+  await Conversation.updateMany(
+    { workspace: workspaceId, channel: 'external_api', waNumberId: `ext:${slotId}` },
+    { $set: { waNumberId: '' } }
+  );
 }
 
 async function getSlot(workspaceId, slotId) {
-  const ws = await Workspace.findById(workspaceId).select('externalApiSlots');
+  const ws = await Workspace.findById(workspaceId).select('+externalApiSlots');
   if (!ws) throw new Error('Workspace not found');
   const slot = (ws.externalApiSlots || []).find((s) => s.slotId === slotId);
   if (!slot) throw new Error(`外部 API 槽位 ${slotId} 不存在`);
@@ -120,7 +126,7 @@ async function pickPoolSlot(workspaceId) {
   const ws = await Workspace.findByIdAndUpdate(
     workspaceId,
     { $inc: { externalApiPoolCursor: 1 } },        // 原子推进游标（并发不重号）
-    { new: true, projection: { externalApiSlots: 1, externalApiPoolCursor: 1 } }
+    { new: true, select: '+externalApiSlots externalApiPoolCursor' }
   );
   if (!ws) return null;
   const usable = (ws.externalApiSlots || []).filter((s) => s.enabled && s.endpoint);
@@ -128,8 +134,10 @@ async function pickPoolSlot(workspaceId) {
   return usable[(ws.externalApiPoolCursor - 1) % usable.length].slotId;
 }
 
-function usableSlots(workspace) {
-  return (workspace.externalApiSlots || []).filter((s) => s.enabled && s.endpoint);
+// 可用槽位列表（externalApiSlots 是 select:false，必须显式取）
+async function usableSlots(workspaceId) {
+  const ws = await Workspace.findById(workspaceId).select('+externalApiSlots');
+  return ((ws && ws.externalApiSlots) || []).filter((s) => s.enabled && s.endpoint);
 }
 
 // ---------- 发消息 ----------

@@ -419,10 +419,15 @@ async function deleteSlot(workspaceId, slotId) {
     { $pull: { tgPersonalSlots: { slotId } } }
   );
   if (!r.matchedCount) throw new Error(`槽位不存在：${slotId}`);
+  // 清掉绑定该槽的会话（置空后下次发送自动重新取号），否则这些会话永远发不出
+  await require('../models/Conversation').updateMany(
+    { workspace: workspaceId, channel: 'telegram_personal', waNumberId: `tgp:${slotId}` },
+    { $set: { waNumberId: '' } }
+  );
 }
 
 // 号池轮询取号：在 已连接 且 enabled 的槽位（含 default）间用 $inc 游标原子轮询。
-// 无可用槽位返回 ''（由调用方回退/报错）。注意：是否启用号池（tgPersonalPoolEnabled）由调用方判断。
+// 无可用槽位返回 ''（由调用方回退/报错）。单槽位时恒返回该槽，自动号池无需开关。
 async function pickPoolSlot(workspaceId) {
   const Workspace = require('../models/Workspace');
   const ws = await Workspace.findById(workspaceId).select('tgPersonal.enabled tgPersonalSlots');

@@ -38,8 +38,8 @@ const getCampaigns = async (req, res) => {
     const query = { workspace: req.workspace._id };
     if (type) query.type = type;
     if (status) query.status = status;
-    if (sendChannel === 'whatsapp_qr' || sendChannel === 'whatsapp_chatapp') query.sendChannel = sendChannel;
-    else if (sendChannel === 'cloud') query.sendChannel = { $nin: ['whatsapp_qr', 'whatsapp_chatapp'] };
+    if (sendChannel === 'whatsapp_qr' || sendChannel === 'whatsapp_chatapp' || sendChannel === 'external_api') query.sendChannel = sendChannel;
+    else if (sendChannel === 'cloud') query.sendChannel = { $nin: ['whatsapp_qr', 'whatsapp_chatapp', 'external_api'] };
 
     const total = await Campaign.countDocuments(query);
     let campaigns = await Campaign.find(query)
@@ -692,9 +692,10 @@ const startCampaign = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Aliyun Chat App is not connected (add your AccessKey on the Channels page)' });
       }
     } else if (campaign.sendChannel === 'external_api') {
-      const hasSlot = (req.workspace.externalApiSlots || []).some((s) => s.enabled && s.endpoint);
-      if (!hasSlot) {
-        return res.status(400).json({ success: false, message: '外部 API 渠道没有已配置的槽位（请先在渠道页添加外部 API）' });
+      // externalApiSlots 是 select:false，req.workspace 上拿不到，走服务显式查
+      const usable = await require('../services/externalApiService').usableSlots(req.workspace._id);
+      if (!usable.length) {
+        return res.status(400).json({ success: false, message: '专线通道未开通（请联系平台配置）' });
       }
     } else if (!req.workspace.whatsapp?.isConnected) {
       return res.status(400).json({ success: false, message: 'WhatsApp not connected' });

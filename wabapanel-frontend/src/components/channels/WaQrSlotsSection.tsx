@@ -31,24 +31,20 @@ export const SlotStatusBadge = ({ status }: { status: string }) => {
   return <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${s.cls}`}>{s.text}</span>;
 };
 
-export default function WaQrSlotsSection({ initialPoolEnabled }: { initialPoolEnabled: boolean }) {
+export default function WaQrSlotsSection() {
   const [slots, setSlots] = useState<WaQrSlot[]>([]);
-  const [poolEnabled, setPoolEnabled] = useState(initialPoolEnabled);
-  const [poolSaving, setPoolSaving] = useState(false);
   const [busyId, setBusyId] = useState('');
-  // 添加槽位
+  // 添加号码
   const [addOpen, setAddOpen] = useState(false);
   const [addLabel, setAddLabel] = useState('');
   const [adding, setAdding] = useState(false);
   // 扫码连接弹窗
   const [connectId, setConnectId] = useState<string | null>(null);
   const [connectInfo, setConnectInfo] = useState<{ status: string; qr?: string | null; phone?: string }>({ status: 'connecting' });
-  // 槽位设置弹窗
+  // 号码设置弹窗
   const [settingsTarget, setSettingsTarget] = useState<WaQrSlot | null>(null);
-  const [settingsForm, setSettingsForm] = useState({ label: '', dailyLimit: '', enabled: true });
+  const [settingsForm, setSettingsForm] = useState({ label: '', enabled: true });
   const [settingsSaving, setSettingsSaving] = useState(false);
-
-  useEffect(() => { setPoolEnabled(initialPoolEnabled); }, [initialPoolEnabled]);
 
   const fetchSlots = useCallback(async () => {
     try {
@@ -80,27 +76,16 @@ export default function WaQrSlotsSection({ initialPoolEnabled }: { initialPoolEn
     return () => { stop = true; clearInterval(t); };
   }, [connectId, fetchSlots]);
 
-  const togglePool = async () => {
-    const next = !poolEnabled;
-    setPoolSaving(true);
-    try {
-      await waqrApi.setPool(next);
-      setPoolEnabled(next);
-      toast.success(translateApiMessage(next ? '号池模式已开启' : '号池模式已关闭'));
-    } catch (err) { toast.error(errMsg(err, '操作失败')); }
-    setPoolSaving(false);
-  };
-
   const createSlot = async () => {
     if (adding) return;
     setAdding(true);
     try {
       await waqrApi.createSlot(addLabel.trim() || '新号码');
-      toast.success(translateApiMessage('槽位已创建，点击「扫码连接」绑定号码'));
+      toast.success(translateApiMessage('号码已添加，点击「扫码连接」完成绑定'));
       setAddOpen(false);
       setAddLabel('');
       fetchSlots();
-    } catch (err) { toast.error(errMsg(err, '创建槽位失败')); }
+    } catch (err) { toast.error(errMsg(err, '添加号码失败')); }
     setAdding(false);
   };
 
@@ -111,21 +96,21 @@ export default function WaQrSlotsSection({ initialPoolEnabled }: { initialPoolEn
   };
 
   const disconnectSlot = async (s: WaQrSlot) => {
-    if (!confirm(`断开槽位「${s.label || s.phone || s.slotId}」的连接吗？`)) return;
+    if (!confirm(`断开号码「${s.label || s.phone || s.slotId}」的连接吗？`)) return;
     setBusyId(s.slotId);
     try { await waqrApi.disconnectSlot(s.slotId); toast.success(translateApiMessage('已断开连接')); fetchSlots(); } catch (err) { toast.error(errMsg(err, '操作失败')); }
     setBusyId('');
   };
 
   const removeSlot = async (s: WaQrSlot) => {
-    if (!confirm(`删除槽位「${s.label || s.phone || s.slotId}」？该号码将断开连接并从号池移除。`)) return;
+    if (!confirm(`删除号码「${s.label || s.phone || s.slotId}」？该号码将断开连接并停止使用。`)) return;
     setBusyId(s.slotId);
-    try { await waqrApi.deleteSlot(s.slotId); toast.success(translateApiMessage('槽位已删除')); fetchSlots(); } catch (err) { toast.error(errMsg(err, '操作失败')); }
+    try { await waqrApi.deleteSlot(s.slotId); toast.success(translateApiMessage('号码已删除')); fetchSlots(); } catch (err) { toast.error(errMsg(err, '操作失败')); }
     setBusyId('');
   };
 
   const openSettings = (s: WaQrSlot) => {
-    setSettingsForm({ label: s.label || '', dailyLimit: s.dailyLimit ? String(s.dailyLimit) : '', enabled: s.enabled !== false });
+    setSettingsForm({ label: s.label || '', enabled: s.enabled !== false });
     setSettingsTarget(s);
   };
 
@@ -135,10 +120,9 @@ export default function WaQrSlotsSection({ initialPoolEnabled }: { initialPoolEn
     try {
       await waqrApi.updateSlotSettings(settingsTarget.slotId, {
         label: settingsForm.label.trim(),
-        dailyLimit: Math.max(0, parseInt(settingsForm.dailyLimit, 10) || 0),
         enabled: settingsForm.enabled,
       });
-      toast.success(translateApiMessage('槽位设置已保存'));
+      toast.success(translateApiMessage('设置已保存'));
       setSettingsTarget(null);
       fetchSlots();
     } catch (err) { toast.error(errMsg(err, '保存失败')); }
@@ -147,18 +131,12 @@ export default function WaQrSlotsSection({ initialPoolEnabled }: { initialPoolEn
 
   return (
     <div className="border-t border-gray-100 pt-4 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-gray-900">号池槽位（多号码）</p>
-          <p className="text-xs text-gray-500">为群发和接待挂接多个 WhatsApp 号码，分摊发送量、降低封号风险</p>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer shrink-0">
-          <input type="checkbox" checked={poolEnabled} disabled={poolSaving} onChange={togglePool} className="w-4 h-4 accent-emerald-600" />
-          号池模式
-        </label>
+      <div>
+        <p className="text-sm font-semibold text-gray-900">WhatsApp 号码</p>
+        <p className="text-xs text-gray-500">可连接多个 WhatsApp 号码，分摊发送量、降低封号风险</p>
       </div>
       <p className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-2.5">
-        开启号池模式后：群发任务可选择「号池轮询」由已连接槽位平均分摊发送；新会话会自动轮询取一个号接待并粘住绑定（后续消息固定走同一号码）。
+        已连接多个号码时，系统自动轮流分配发送，老客户固定由原号码接待，无需任何设置。
       </p>
 
       {slots.length > 0 && (
@@ -167,17 +145,17 @@ export default function WaQrSlotsSection({ initialPoolEnabled }: { initialPoolEn
             <div key={s.slotId} className="border border-gray-200 rounded-lg p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{s.label || '未命名槽位'}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{s.label || '未命名号码'}</p>
                   {s.isDefault && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 shrink-0">主号</span>}
                   {s.enabled === false && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">已停用</span>}
                 </div>
                 <SlotStatusBadge status={s.status} />
               </div>
               <p className="text-xs text-gray-500">
-                {s.phone ? `+${s.phone}` : '未绑定号码'} · 今日已发 {s.sentToday || 0} / {s.dailyLimit ? s.dailyLimit : '自动'}
+                {s.phone ? `+${s.phone}` : '未绑定号码'} · 今日已发 {s.sentToday || 0} / 上限 {s.dailyLimit ? s.dailyLimit : '自动（预热）'}
               </p>
               {s.isDefault ? (
-                <p className="text-[11px] text-gray-400">主号请在上方卡片操作（连接/断开/限额）。</p>
+                <p className="text-[11px] text-gray-400">主号请在上方卡片操作（连接/断开）。</p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {s.status !== 'connected' && (
@@ -203,16 +181,16 @@ export default function WaQrSlotsSection({ initialPoolEnabled }: { initialPoolEn
         </div>
       )}
 
-      <Button size="sm" variant="outline" icon={<Plus className="w-4 h-4" />} onClick={() => setAddOpen(true)}>添加号码槽位</Button>
+      <Button size="sm" variant="outline" icon={<Plus className="w-4 h-4" />} onClick={() => setAddOpen(true)}>添加号码</Button>
 
-      {/* 添加槽位 */}
-      <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title={'添加号码槽位'} size="sm">
+      {/* 添加号码 */}
+      <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title={'添加号码'} size="sm">
         <div className="space-y-4">
           <Input label={'名称/备注'} value={addLabel} onChange={(e) => setAddLabel(e.target.value)} placeholder={'例如：业务号 2'} />
-          <p className="text-xs text-gray-500">创建后在槽位卡片上点击「扫码连接」，用对应手机的 WhatsApp 扫码绑定。</p>
+          <p className="text-xs text-gray-500">添加后在号码卡片上点击「扫码连接」，用对应手机的 WhatsApp 扫码绑定。</p>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setAddOpen(false)}>取消</Button>
-            <Button size="sm" loading={adding} onClick={createSlot}>创建槽位</Button>
+            <Button size="sm" loading={adding} onClick={createSlot}>添加</Button>
           </div>
         </div>
       </Modal>
@@ -236,15 +214,16 @@ export default function WaQrSlotsSection({ initialPoolEnabled }: { initialPoolEn
         </div>
       </Modal>
 
-      {/* 槽位设置 */}
-      <Modal isOpen={!!settingsTarget} onClose={() => setSettingsTarget(null)} title={'槽位设置'} size="sm">
+      {/* 号码设置 */}
+      <Modal isOpen={!!settingsTarget} onClose={() => setSettingsTarget(null)} title={'号码设置'} size="sm">
         <div className="space-y-4">
           <Input label={'名称/备注'} value={settingsForm.label} onChange={(e) => setSettingsForm({ ...settingsForm, label: e.target.value })} />
-          <Input label={'每日发送限额（0 = 自动预热限额）'} type="number" min={0} value={settingsForm.dailyLimit}
-            onChange={(e) => setSettingsForm({ ...settingsForm, dailyLimit: e.target.value })} placeholder={'自动（预热）'} />
+          <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-2.5">
+            每日发送上限由系统自动管理（新号码从小量逐步提升，保护号码安全）。
+          </p>
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" checked={settingsForm.enabled} onChange={(e) => setSettingsForm({ ...settingsForm, enabled: e.target.checked })} className="w-4 h-4 accent-emerald-600" />
-            启用该槽位（停用后不参与号池轮询和群发）
+            启用该号码（停用后不再分配发送）
           </label>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setSettingsTarget(null)}>取消</Button>

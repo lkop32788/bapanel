@@ -1,13 +1,14 @@
 'use client';
+// 外部通道管理（平台级）：按商户配置第三方消息 API 对接。
+// 商户端以「专线通道」名义收发，不暴露任何 endpoint/密钥配置。
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Settings as SettingsIcon, Trash2, Copy, Globe, Zap, RefreshCw, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
-import { externalApiChannelApi } from '@/lib/api';
+import { adminExtChannelApi } from '@/lib/api';
 import type { ExternalApiSlot } from '@/types';
 import { translateApiMessage } from '@/lib/zhMessages';
-import { useAuthStore } from '@/stores/authStore';
 import toast from 'react-hot-toast';
 
 const errMsg = (err: unknown, fallback: string) => {
@@ -40,11 +41,8 @@ const timeAgo = (iso?: string) => {
 
 type TestResult = { ok: boolean; httpStatus: number; latencyMs: number; error?: string };
 
-export default function ExternalApiSlotsSection({ initialPoolEnabled }: { initialPoolEnabled: boolean }) {
-  const { currentWorkspace } = useAuthStore();
+export default function ExtChannelManager({ workspaceId }: { workspaceId: string }) {
   const [slots, setSlots] = useState<ExternalApiSlot[]>([]);
-  const [poolEnabled, setPoolEnabled] = useState(initialPoolEnabled);
-  const [poolSaving, setPoolSaving] = useState(false);
   const [busyId, setBusyId] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState(emptyForm);
@@ -56,28 +54,24 @@ export default function ExternalApiSlotsSection({ initialPoolEnabled }: { initia
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [rotatingId, setRotatingId] = useState('');
 
-  useEffect(() => { setPoolEnabled(initialPoolEnabled); }, [initialPoolEnabled]);
-
   const fetchSlots = useCallback(async () => {
+    if (!workspaceId) { setSlots([]); return; }
     try {
-      const res = await externalApiChannelApi.listSlots();
+      const res = await adminExtChannelApi.listSlots(workspaceId);
       setSlots(res.data.data || []);
-    } catch { /* 后端未就绪时静默 */ }
-  }, []);
+    } catch (e) { toast.error(errMsg(e, '加载通道失败')); }
+  }, [workspaceId]);
 
-  useEffect(() => { fetchSlots(); }, [fetchSlots]);
+  useEffect(() => { setTestResults({}); fetchSlots(); }, [fetchSlots]);
 
   const handleAdd = async () => {
     if (!addForm.endpoint.trim()) { toast.error('请填写 API 端点 URL'); return; }
     setAdding(true);
     try {
-      await externalApiChannelApi.createSlot(addForm.label || '外部 API');
-      // 创建后立即更新配置
-      const res2 = await externalApiChannelApi.listSlots();
-      const newSlots: ExternalApiSlot[] = res2.data.data || [];
-      const created = newSlots.find(s => !slots.some(old => old.slotId === s.slotId));
-      if (created) {
-        await externalApiChannelApi.updateSlot(created.slotId, {
+      const created = await adminExtChannelApi.createSlot(workspaceId, addForm.label || '外部通道');
+      const slotId: string | undefined = created.data?.data?.slotId;
+      if (slotId) {
+        await adminExtChannelApi.updateSlot(workspaceId, slotId, {
           endpoint: addForm.endpoint,
           apiKey: addForm.apiKey || undefined,
           authHeader: addForm.authHeader || 'Authorization',
@@ -87,7 +81,7 @@ export default function ExternalApiSlotsSection({ initialPoolEnabled }: { initia
       await fetchSlots();
       setAddOpen(false);
       setAddForm(emptyForm);
-      toast.success('槽位已创建');
+      toast.success('通道已创建');
     } catch (e) { toast.error(errMsg(e, '创建失败')); }
     setAdding(false);
   };
@@ -108,7 +102,7 @@ export default function ExternalApiSlotsSection({ initialPoolEnabled }: { initia
         authHeader: editForm.authHeader || 'Authorization',
       };
       if (editForm.apiKey) payload.apiKey = editForm.apiKey;
-      await externalApiChannelApi.updateSlot(editTarget.slotId, payload);
+      await adminExtChannelApi.updateSlot(workspaceId, editTarget.slotId, payload);
       await fetchSlots();
       setEditTarget(null);
       toast.success('已保存');
@@ -117,23 +111,14 @@ export default function ExternalApiSlotsSection({ initialPoolEnabled }: { initia
   };
 
   const handleDelete = async (slotId: string, label: string) => {
-    if (!confirm(`确认删除槽位"${label || slotId}"？此操作不可逆。`)) return;
+    if (!confirm(`确认删除通道"${label || slotId}"？绑定该通道的会话将自动重新分配，此操作不可逆。`)) return;
     setBusyId(slotId);
     try {
-      await externalApiChannelApi.deleteSlot(slotId);
+      await adminExtChannelApi.deleteSlot(workspaceId, slotId);
       await fetchSlots();
-      toast.success('槽位已删除');
+      toast.success('通道已删除');
     } catch (e) { toast.error(errMsg(e, '删除失败')); }
     setBusyId('');
-  };
-
-  const handlePool = async () => {
-    setPoolSaving(true);
-    try {
-      await externalApiChannelApi.setPool(!poolEnabled);
-      setPoolEnabled(v => !v);
-    } catch (e) { toast.error(errMsg(e, '操作失败')); }
-    setPoolSaving(false);
   };
 
   const copyWebhook = (url: string) => {
@@ -143,7 +128,7 @@ export default function ExternalApiSlotsSection({ initialPoolEnabled }: { initia
   const handleTest = async (slotId: string) => {
     setTestingId(slotId);
     try {
-      const res = await externalApiChannelApi.testSlot(slotId);
+      const res = await adminExtChannelApi.testSlot(workspaceId, slotId);
       setTestResults(prev => ({ ...prev, [slotId]: res.data.data }));
       await fetchSlots(); // 测试成功后端会清 lastError
     } catch (e) { toast.error(errMsg(e, '测试失败')); }
@@ -151,57 +136,38 @@ export default function ExternalApiSlotsSection({ initialPoolEnabled }: { initia
   };
 
   const handleRotate = async (slotId: string, label: string) => {
-    if (!confirm(`确认轮换槽位"${label || slotId}"的 Webhook 密钥？旧 webhook URL 将立即失效，需要把新 URL 重新配置给第三方。`)) return;
+    if (!confirm(`确认轮换通道"${label || slotId}"的 Webhook 密钥？旧 webhook URL 将立即失效，需要把新 URL 重新配置给第三方。`)) return;
     setRotatingId(slotId);
     try {
-      await externalApiChannelApi.rotateSecret(slotId);
+      await adminExtChannelApi.rotateSecret(workspaceId, slotId);
       await fetchSlots();
       toast.success('密钥已轮换，请复制新的 Webhook URL');
     } catch (e) { toast.error(errMsg(e, '轮换失败')); }
     setRotatingId('');
   };
 
-  const webhookBase = `${process.env.NEXT_PUBLIC_API_URL || ''}/webhook/extapi/${currentWorkspace?._id || ''}`;
+  const webhookBase = `${process.env.NEXT_PUBLIC_API_URL || ''}/webhook/extapi/${workspaceId}`;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
-      {/* 标题栏 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center">
             <Globe className="w-5 h-5 text-violet-600" />
           </div>
           <div>
-            <h2 className="font-semibold text-gray-900">外部 API 渠道</h2>
-            <p className="text-xs text-gray-500">接入任意第三方消息 API，支持号池轮询与收件箱接待</p>
+            <h2 className="font-semibold text-gray-900">通道列表</h2>
+            <p className="text-xs text-gray-500">多个通道时系统自动轮询分摊，老客户固定由原通道接待</p>
           </div>
         </div>
         <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="w-3.5 h-3.5" /> 新增槽位
+          <Plus className="w-3.5 h-3.5" /> 新增通道
         </Button>
       </div>
 
-      {/* 号池开关 */}
-      {slots.length > 1 && (
-        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-          <div>
-            <p className="text-sm font-medium text-gray-800">号池轮询</p>
-            <p className="text-xs text-gray-500">群发和新会话接待时在已配置槽位间平均分摊</p>
-          </div>
-          <button
-            onClick={handlePool}
-            disabled={poolSaving}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${poolEnabled ? 'bg-violet-500' : 'bg-gray-300'}`}
-          >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${poolEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-          </button>
-        </div>
-      )}
-
-      {/* 槽位列表 */}
       {slots.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-200 py-8 text-center text-sm text-gray-400">
-          暂无槽位 — 点击「新增槽位」添加第一个外部 API
+          该商户暂无外部通道 — 点击「新增通道」接入第一个第三方 API
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -268,15 +234,15 @@ export default function ExternalApiSlotsSection({ initialPoolEnabled }: { initia
 
       {/* 接口约定说明 */}
       <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1">
-        <p className="font-semibold text-gray-700">外发接口约定（外部 API 需实现）</p>
-        <p>面板将 POST 以下 JSON 到您配置的端点，期望响应中返回 <code className="bg-gray-100 px-1 rounded">{`{ "messageId": "..." }`}</code>（用于后续状态回执匹配）：</p>
+        <p className="font-semibold text-gray-700">外发接口约定（第三方 API 需实现）</p>
+        <p>面板将 POST 以下 JSON 到配置的端点（认证头 <code className="bg-gray-100 px-1 rounded">Authorization: Bearer &lt;apiKey&gt;</code> 或自定义头），期望响应返回 <code className="bg-gray-100 px-1 rounded">{`{ "messageId": "..." }`}</code>（用于状态回执匹配）：</p>
         <pre className="bg-white border border-gray-200 rounded p-2 overflow-auto">{`{
   "to": "6012345678",      // 收件人号码
   "type": "text",          // text | image | video | audio | document
   "text": "消息内容",
   "media": { "url": "...", "caption": "..." }  // 仅媒体消息
 }`}</pre>
-        <p>入站消息请 POST 到您的槽位 Webhook URL（上方卡片中，已含 <code className="bg-gray-100 px-1 rounded">?secret=</code> 验签参数；也可改用 <code className="bg-gray-100 px-1 rounded">x-webhook-secret</code> 请求头携带，缺失或错误将返回 401）：</p>
+        <p>入站消息 POST 到通道的 Webhook URL（上方卡片中，已含 <code className="bg-gray-100 px-1 rounded">?secret=</code> 验签参数；也可改用 <code className="bg-gray-100 px-1 rounded">x-webhook-secret</code> 请求头，缺失或错误返回 401）：</p>
         <pre className="bg-white border border-gray-200 rounded p-2 overflow-auto">{`{
   "from": "6012345678",    // 发件人号码
   "type": "text",
@@ -291,15 +257,14 @@ export default function ExternalApiSlotsSection({ initialPoolEnabled }: { initia
 }`}</pre>
       </div>
 
-      {/* 新增槽位弹窗 */}
-      <Modal isOpen={addOpen} onClose={() => { setAddOpen(false); setAddForm(emptyForm); }} title="新增外部 API 槽位">
+      {/* 新增通道弹窗 */}
+      <Modal isOpen={addOpen} onClose={() => { setAddOpen(false); setAddForm(emptyForm); }} title="新增外部通道">
         <div className="space-y-4">
           <div className="space-y-3">
             <Input label="标签（可选）" value={addForm.label} onChange={e => setAddForm({ ...addForm, label: e.target.value })} placeholder="例：第三方 WA API" />
             <Input label="外发端点 URL *" value={addForm.endpoint} onChange={e => setAddForm({ ...addForm, endpoint: e.target.value })} placeholder="https://api.example.com/send" />
             <Input label="API 密钥" type="password" value={addForm.apiKey} onChange={e => setAddForm({ ...addForm, apiKey: e.target.value })} placeholder="可选" />
             <Input label="认证头字段名" value={addForm.authHeader} onChange={e => setAddForm({ ...addForm, authHeader: e.target.value })} placeholder="Authorization" />
-            <p className="text-xs text-gray-500">面板将以 <code className="bg-gray-100 px-1 rounded">{addForm.authHeader || 'Authorization'}: Bearer &lt;apiKey&gt;</code> 调用该端点，POST 标准消息体。</p>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => { setAddOpen(false); setAddForm(emptyForm); }}>取消</Button>
@@ -308,15 +273,14 @@ export default function ExternalApiSlotsSection({ initialPoolEnabled }: { initia
         </div>
       </Modal>
 
-      {/* 编辑槽位弹窗 */}
-      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title={`编辑槽位 — ${editTarget?.label || editTarget?.slotId}`}>
+      {/* 编辑通道弹窗 */}
+      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title={`编辑通道 — ${editTarget?.label || editTarget?.slotId}`}>
         <div className="space-y-4">
           <div className="space-y-3">
-            <Input label="标签（可选）" value={editForm.label} onChange={e => setEditForm({ ...editForm, label: e.target.value })} placeholder="例：第三方 WA API" />
+            <Input label="标签（可选）" value={editForm.label} onChange={e => setEditForm({ ...editForm, label: e.target.value })} />
             <Input label="外发端点 URL *" value={editForm.endpoint} onChange={e => setEditForm({ ...editForm, endpoint: e.target.value })} placeholder="https://api.example.com/send" />
             <Input label="API 密钥（不填则保持原密钥）" type="password" value={editForm.apiKey} onChange={e => setEditForm({ ...editForm, apiKey: e.target.value })} placeholder="••••" />
             <Input label="认证头字段名" value={editForm.authHeader} onChange={e => setEditForm({ ...editForm, authHeader: e.target.value })} placeholder="Authorization" />
-            <p className="text-xs text-gray-500">面板将以 <code className="bg-gray-100 px-1 rounded">{editForm.authHeader || 'Authorization'}: Bearer &lt;apiKey&gt;</code> 调用该端点，POST 标准消息体。</p>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setEditTarget(null)}>取消</Button>

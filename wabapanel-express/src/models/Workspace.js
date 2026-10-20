@@ -10,8 +10,8 @@ const workspaceSchema = new mongoose.Schema({
   }],
   whatsapp: {
     isConnected: { type: Boolean, default: false },
-    // 号池模式：多号在群发/新会话接待时轮询分配（见 services/waNumberPool.js）
-    poolEnabled: { type: Boolean, default: false },
+    // 号池：多号自动轮询分配（见 services/waNumberPool.js），无需开关——
+    // 池里只有主号时 pickNumber 恒返回主号，行为与单号完全一致
     poolCursor: { type: Number, default: 0 },
     connectionMethod: { type: String, enum: ['embedded', 'qr', 'manual', 'coexistence', ''], default: '' },
     wabaId: { type: String, default: '' },
@@ -47,7 +47,9 @@ const workspaceSchema = new mongoose.Schema({
     status: { type: String, default: 'disconnected' },
     phone: { type: String, default: '' },
     warmupStartedAt: { type: Date },
-    dailyLimit: { type: Number, default: 1000 },
+    // 0 = 自动预热曲线（dayCap）；>0 = 运营者自担风险的手动上限。
+    // 原默认 1000 导致预热从未生效（新号首日即可发千条），已改 0 并由启动 Fixup 回收存量
+    dailyLimit: { type: Number, default: 0 },
     sentToday: { type: Number, default: 0 },
     sentDate: { type: String, default: '' },
   },
@@ -70,11 +72,10 @@ const workspaceSchema = new mongoose.Schema({
     phone: { type: String, default: '' },
     enabled: { type: Boolean, default: true },
     warmupStartedAt: { type: Date },
-    dailyLimit: { type: Number, default: 1000 },
+    dailyLimit: { type: Number, default: 0 },
     sentToday: { type: Number, default: 0 },
     sentDate: { type: String, default: '' },
   }],
-  waQrPoolEnabled: { type: Boolean, default: false },
   waQrPoolCursor: { type: Number, default: 0 },
   tgPersonalSlots: [{
     slotId: { type: String, required: true },
@@ -85,11 +86,12 @@ const workspaceSchema = new mongoose.Schema({
     session: { type: String, default: '' },
     enabled: { type: Boolean, default: true },
   }],
-  tgPersonalPoolEnabled: { type: Boolean, default: false },
   tgPersonalPoolCursor: { type: Number, default: 0 },
-  // ===== 外部 API 占位渠道（2026-10-20）：对接任意第三方消息 API =====
-  // 每个槽位配置 endpoint + apiKey；会话绑定写在 conversation.waNumberId（'ext:<slotId>'）
-  externalApiSlots: [{
+  // ===== 外部 API 渠道（2026-10-20）：对接任意第三方消息 API =====
+  // 平台级配置（管理后台「外部通道」按商户维护），商户端以「专线通道」名义使用。
+  // select:false：商户端 GET /workspaces 整文档返回不得泄露 apiKey/webhookSecret，
+  // 需要读它的服务端代码显式 .select('+externalApiSlots')
+  externalApiSlots: { type: [{
     slotId: { type: String, required: true },
     label: { type: String, default: '' },
     endpoint: { type: String, default: '' },    // 外发消息 POST URL（保存/发送时过 SSRF 校验）
@@ -101,8 +103,7 @@ const workspaceSchema = new mongoose.Schema({
     lastError: { type: String, default: '' },
     lastSentAt: { type: Date },
     lastInboundAt: { type: Date },
-  }],
-  externalApiPoolEnabled: { type: Boolean, default: false },
+  }], select: false },
   externalApiPoolCursor: { type: Number, default: 0 },
   // Aliyun Chat App Message Service — Meta Premier BSP, official WhatsApp
   // channel reached through Alibaba Cloud instead of a direct Meta token.

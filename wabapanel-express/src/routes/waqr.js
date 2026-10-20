@@ -31,13 +31,8 @@ router.post('/sync', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// Set a custom daily send limit (0 = automatic warm-up schedule)
-router.post('/settings', async (req, res) => {
-  try {
-    const value = await waQr.setDailyLimit(req.workspace._id, req.body.dailyLimit);
-    res.json({ success: true, data: { dailyLimit: value } });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
+// 日限额商户端不可改（平台安全机制：0=自动预热曲线）。原 POST /settings 已移除——
+// 商户自行抬高限额=自行抬高封号风险；特殊需求由平台在 DB 层按号设置。
 
 // Send a free-form message to any number (no template needed)
 router.post('/send-new', async (req, res) => {
@@ -154,16 +149,13 @@ router.delete('/slots/:slotId', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// 槽位设置：label / dailyLimit / enabled。
-// default 槽只支持 dailyLimit（label 固定为主号、enabled 由连接状态管理）。
+// 槽位设置：label / enabled（dailyLimit 商户端不可改，见上）。
+// default 槽无可改项（label 固定为主号、enabled 由连接状态管理）。
 router.put('/slots/:slotId/settings', async (req, res) => {
   try {
     const slotId = req.params.slotId;
     if (!(await slotExists(req.workspace._id, slotId))) return res.status(404).json({ success: false, message: '槽位不存在' });
     const out = {};
-    if (req.body.dailyLimit !== undefined) {
-      out.dailyLimit = await waQr.setDailyLimit(req.workspace._id, req.body.dailyLimit, slotId);
-    }
     if (slotId !== 'default') {
       const Workspace = require('../models/Workspace');
       const $set = {};
@@ -177,14 +169,6 @@ router.put('/slots/:slotId/settings', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// 号池总开关（waQrPoolEnabled）
-router.put('/pool', async (req, res) => {
-  try {
-    const enabled = !!req.body.enabled;
-    const Workspace = require('../models/Workspace');
-    await Workspace.updateOne({ _id: req.workspace._id }, { $set: { waQrPoolEnabled: enabled } });
-    res.json({ success: true, message: enabled ? '号池已开启' : '号池已关闭', data: { enabled } });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
+// 号池总开关已移除：多号自动轮询，无需商户配置
 
 module.exports = router;

@@ -26,7 +26,7 @@ export default function QrCampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', preset: '', audienceType: 'all', segments: [] as string[], tags: [] as string[],   minInterval: 5, maxInterval: 15, senderNumberId: '', sendChannel: 'whatsapp_qr' });
+  const [form, setForm] = useState({ name: '', preset: '', audienceType: 'all', segments: [] as string[], tags: [] as string[],   minInterval: 5, maxInterval: 15, senderNumberId: 'pool', sendChannel: 'whatsapp_qr' });
   const [numbersText, setNumbersText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
@@ -62,14 +62,21 @@ export default function QrCampaignsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [campRes, presetRes, segRes, tagRes, slotRes] = await Promise.allSettled([
+      const [campRes, extCampRes, presetRes, segRes, tagRes, slotRes] = await Promise.allSettled([
         campaignApi.list({ type: 'preset', sendChannel: 'whatsapp_qr' }),
+        campaignApi.list({ type: 'preset', sendChannel: 'external_api' }),
         presetMessageApi.list(),
         segmentApi.list(),
         tagApi.list(),
         waqrApi.slots(),
       ]);
-      if (campRes.status === 'fulfilled') setCampaigns(campRes.value.data.data || []);
+      {
+        const qr = campRes.status === 'fulfilled' ? (campRes.value.data.data || []) : [];
+        // 后端 list 暂未识别 external_api 过滤参数（会返回全部），前端兜底二次过滤
+        const ext = (extCampRes.status === 'fulfilled' ? (extCampRes.value.data.data || []) : [])
+          .filter((c: Campaign & { sendChannel?: string }) => (c as { sendChannel?: string }).sendChannel === 'external_api');
+        setCampaigns([...qr, ...ext]);
+      }
       if (presetRes.status === 'fulfilled') setPresets(presetRes.value.data.data || []);
       if (segRes.status === 'fulfilled') setSegments(segRes.value.data.data || []);
       if (tagRes.status === 'fulfilled') setTags(tagRes.value.data.data || []);
@@ -107,7 +114,7 @@ export default function QrCampaignsPage() {
       toast.success(translateApiMessage(editId ? "WhatsApp 网络营销活动已更新" : "已创建 Web WhatsApp 活动"));
       setShowModal(false); setEditId(null);
       setCreateSchedAt(''); setCreateSchedRec('none');
-      setForm({ name: '', preset: '', audienceType: 'all', segments: [], tags: [],   minInterval: 5, maxInterval: 15, senderNumberId: '', sendChannel: 'whatsapp_qr' });
+      setForm({ name: '', preset: '', audienceType: 'all', segments: [], tags: [],   minInterval: 5, maxInterval: 15, senderNumberId: 'pool', sendChannel: 'whatsapp_qr' });
       fetchData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -214,20 +221,20 @@ export default function QrCampaignsPage() {
       <Modal isOpen={showModal} onClose={() => { setShowModal(false); setEditId(null); }} title={editId ? "编辑网络 WhatsApp 营销活动" : "创建网络 WhatsApp 活动"} size="lg">
         <div className="space-y-4">
           <Input label={"活动名称"} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <Select label={"发送渠道"} value={form.sendChannel} onChange={(e) => setForm({ ...form, sendChannel: e.target.value, senderNumberId: '' })}
+          <Select label={"发送渠道"} value={form.sendChannel} onChange={(e) => setForm({ ...form, sendChannel: e.target.value, senderNumberId: e.target.value === 'whatsapp_qr' ? 'pool' : '' })}
             options={[
               { value: 'whatsapp_qr', label: '网页版 WhatsApp (QR)' },
-              { value: 'external_api', label: '外部 API' },
+              { value: 'external_api', label: '专线通道' },
             ]} />
           <Select label={"预设模板"} value={form.preset} onChange={(e) => setForm({ ...form, preset: e.target.value })}
             options={[{ value: '', label: "选择预设模板" }, ...presets.map(p => ({ value: p._id, label: p.name }))]} />
           {presets.length === 0 && <p className="text-xs text-amber-600">首先在“预设模板”页面上创建一个模板。</p>}
-          {(currentWorkspace?.waQrPoolEnabled || qrSlots.some(s => !s.isDefault)) && (
+          {form.sendChannel === 'whatsapp_qr' && qrSlots.some(s => !s.isDefault) && (
             <Select label={"发送号码"} value={form.senderNumberId} onChange={(e) => setForm({ ...form, senderNumberId: e.target.value })}
               options={[
-                { value: '', label: '默认号（主号）' },
-                ...(currentWorkspace?.waQrPoolEnabled ? [{ value: 'pool', label: '号池轮询（已连接槽位平均分摊发送）' }] : []),
-                ...qrSlots.filter(s => !s.isDefault).map(s => ({ value: s.slotId, label: `${s.label || '槽位'}${s.phone ? ` (+${s.phone})` : ''}${s.status !== 'connected' ? ' — 未连接' : ''}` })),
+                { value: 'pool', label: '自动轮询（多号分摊，老客户固定原号）' },
+                { value: '', label: '仅默认号（主号）' },
+                ...qrSlots.filter(s => !s.isDefault).map(s => ({ value: s.slotId, label: `${s.label || '号码'}${s.phone ? ` (+${s.phone})` : ''}${s.status !== 'connected' ? ' — 未连接' : ''}` })),
               ]} />
           )}
           <Select label={"观众"} value={form.audienceType} onChange={(e) => setForm({ ...form, audienceType: e.target.value })}

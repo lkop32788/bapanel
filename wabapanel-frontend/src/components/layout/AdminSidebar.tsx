@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import useBranding from '@/lib/useBranding';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, User, Shield, Globe, Settings, Brain, Languages, ChevronDown, ChevronRight, Menu, X, LogOut, Store, Megaphone, Activity, ToggleRight, Handshake, UserCheck, IndianRupee, Banknote, ShieldCheck, BarChart3, CircleDollarSign } from 'lucide-react';
+import { LayoutDashboard, Users, User, Shield, Globe, Settings, Brain, Languages, ChevronDown, ChevronRight, Menu, X, LogOut, Store, Megaphone, Activity, ToggleRight, Handshake, UserCheck, IndianRupee, Banknote, ShieldCheck, BarChart3, CircleDollarSign, Cable } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { OmniNavIcon, OmniSidebarBrand } from '@/components/layout/OmniSidebar';
 import { useAuthStore } from '@/stores/authStore';
@@ -28,6 +28,7 @@ export const navItems: NavItem[] = [
   { label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin/dashboard' },
   { label: 'Vendors', icon: <Store className="w-5 h-5" />, href: '/admin/vendors' },
   { label: 'Saver Pricing', icon: <CircleDollarSign className="w-5 h-5" />, href: '/admin/saver-pricing' },
+  { label: 'External Channels', icon: <Cable className="w-5 h-5" />, href: '/admin/ext-channels' },
   { label: 'Feature Controls', icon: <ToggleRight className="w-5 h-5" />, href: '/admin/features' },
   { label: 'System Health', icon: <Activity className="w-5 h-5" />, href: '/admin/system' },
   { label: 'One Click Signup', icon: <FacebookIcon className="w-5 h-5 text-blue-600" />, href: '/admin/one-click-signup' },

@@ -242,6 +242,7 @@ function ChatPageInner() {
     telegram: { label: "电报机器人", href: '/client/channels' },
     telegram_personal: { label: "个人电报", href: '/client/channels' },
     email: { label: "电子邮件收件箱", href: '/client/channels' },
+    external_api: { label: "专线通道", href: '/client/channels' },
   };
   const notConnected = channelFilter !== 'all' && channelConn !== null && channelConn[channelFilter] === false;
   const [qrNewMsg, setQrNewMsg] = useState(false);
@@ -707,7 +708,7 @@ function ChatPageInner() {
   const [kkhsFilters, setKkhsFilters] = useState(false);
   const KKHS_CH: Array<[string, string, string]> = [
     ['whatsapp', 'WhatsApp', '#25D366'], ['whatsapp_qr', "WhatsApp 二维码", '#128C7E'], ['instagram', 'Instagram', '#E1306C'], ['facebook', 'Facebook', '#0866FF'],
-    ['telegram', "电报机器人", '#0088CC'], ['telegram_personal', "电报个人", '#229ED9'],  ['email', "邮箱", '#EA4335'],
+    ['telegram', "电报机器人", '#0088CC'], ['telegram_personal', "电报个人", '#229ED9'],  ['email', "邮箱", '#EA4335'], ['external_api', "专线通道", '#7C3AED'],
   ];
 
   const [notes, setNotes] = useState<{ _id: string; text: string; remindAt?: string; reminderSent?: boolean; contacted?: boolean; contactedRemark?: string; createdAt: string }[]>([]);
@@ -1749,7 +1750,7 @@ function ChatPageInner() {
     return lastInbound + 24 * 60 * 60 * 1000 <= windowTick;
   })();
   // Channels where free-form sends work (Pay / Preset / Invoice / Chat AI)
-  const isMsgChat = ['whatsapp', 'whatsapp_qr', 'telegram', 'telegram_personal', 'facebook', 'instagram'].includes(selectedChannel);
+  const isMsgChat = ['whatsapp', 'whatsapp_qr', 'telegram', 'telegram_personal', 'facebook', 'instagram', 'external_api'].includes(selectedChannel);
   // Website chats run the same AI auto-reply, so they get the per-chat AI switch too.
   const canToggleChatAi = isMsgChat;
 
@@ -1849,7 +1850,7 @@ function ChatPageInner() {
         ) : (
         <div className="p-4 border-b border-gray-200 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">{channelFilter === 'whatsapp' ? 'WhatsApp' : channelFilter === 'whatsapp_qr' ? "WhatsApp 二维码" : channelFilter === 'instagram' ? 'Instagram' : channelFilter === 'facebook' ? 'Facebook' : channelFilter === 'telegram' ? "电报机器人" : channelFilter === 'telegram_personal' ? "个人电报" : channelFilter === 'email' ? "邮箱" : "对话"}</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{channelFilter === 'whatsapp' ? 'WhatsApp' : channelFilter === 'whatsapp_qr' ? "WhatsApp 二维码" : channelFilter === 'instagram' ? 'Instagram' : channelFilter === 'facebook' ? 'Facebook' : channelFilter === 'telegram' ? "电报机器人" : channelFilter === 'telegram_personal' ? "个人电报" : channelFilter === 'email' ? "邮箱" : channelFilter === 'external_api' ? "专线通道" : "对话"}</h2>
             <div className="flex items-center gap-2">
               <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
                 {Math.max(convTotal, conversations.length)}
@@ -1995,7 +1996,7 @@ function ChatPageInner() {
                   <ContactAvatar conv={conv} size={32} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className={`text-sm font-medium truncate ${hasReminder(conv) ? 'text-red-600' : 'text-gray-900'}`}>{hasReminder(conv) && <Bell className="w-3 h-3 inline mr-1 text-red-500" />}{getContactName(conv)}{(conv as { pinnedAt?: string }).pinnedAt && <Pin className="w-3 h-3 inline ml-1 text-emerald-600 align-middle" fill="currentColor" />}{sentimentBadge(conv)}{sourceChip(conv)}{conv.status === 'closed' && <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-emerald-600 text-white align-middle font-medium">已解决</span>}{hasReminder(conv) && <span className="ml-1 text-[10px] text-red-500 font-normal">{new Date(reminderContacts[getContactId(conv)]).toLocaleString('zh-CN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}{(conv as { channel?: string }).channel === 'facebook' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-blue-100 text-blue-700 align-middle">FB</span> : null}{(conv as { channel?: string }).channel === 'instagram' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-pink-100 text-pink-700 align-middle">IG</span> : null}{(conv as { channel?: string }).channel === 'whatsapp_qr' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-green-100 text-green-700 align-middle">QR</span> : null}{(conv as { channel?: string }).channel === 'telegram' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-sky-100 text-sky-700 align-middle">TG</span> : null}{(conv as { channel?: string }).channel === 'telegram_personal' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-sky-100 text-sky-700 align-middle">TG-P</span> : null}{(conv as { channel?: string }).channel === 'email' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-orange-100 text-orange-700 align-middle">邮箱</span> : null}</p>
+                      <p className={`text-sm font-medium truncate ${hasReminder(conv) ? 'text-red-600' : 'text-gray-900'}`}>{hasReminder(conv) && <Bell className="w-3 h-3 inline mr-1 text-red-500" />}{getContactName(conv)}{(conv as { pinnedAt?: string }).pinnedAt && <Pin className="w-3 h-3 inline ml-1 text-emerald-600 align-middle" fill="currentColor" />}{sentimentBadge(conv)}{sourceChip(conv)}{conv.status === 'closed' && <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-emerald-600 text-white align-middle font-medium">已解决</span>}{hasReminder(conv) && <span className="ml-1 text-[10px] text-red-500 font-normal">{new Date(reminderContacts[getContactId(conv)]).toLocaleString('zh-CN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}{(conv as { channel?: string }).channel === 'facebook' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-blue-100 text-blue-700 align-middle">FB</span> : null}{(conv as { channel?: string }).channel === 'instagram' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-pink-100 text-pink-700 align-middle">IG</span> : null}{(conv as { channel?: string }).channel === 'whatsapp_qr' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-green-100 text-green-700 align-middle">QR</span> : null}{(conv as { channel?: string }).channel === 'telegram' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-sky-100 text-sky-700 align-middle">TG</span> : null}{(conv as { channel?: string }).channel === 'telegram_personal' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-sky-100 text-sky-700 align-middle">TG-P</span> : null}{(conv as { channel?: string }).channel === 'email' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-orange-100 text-orange-700 align-middle">邮箱</span> : null}{(conv as { channel?: string }).channel === 'external_api' ? <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-violet-100 text-violet-700 align-middle">专线</span> : null}</p>
                       <span className="text-xs text-gray-400 shrink-0 ml-1">{fmtListTime(conv.updatedAt)}</span>
                     </div>
                     <div className="flex items-center justify-between mt-0.5">

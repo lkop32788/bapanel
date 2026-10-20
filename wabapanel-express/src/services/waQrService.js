@@ -814,13 +814,6 @@ async function disconnect(workspaceId, slotId = 'default') {
   await purgeQrData(id, slotId);
 }
 
-// Set a custom daily send limit (0 = automatic warm-up schedule).
-async function setDailyLimit(workspaceId, limit, slotId = 'default') {
-  const value = Math.max(0, Math.min(2000, parseInt(limit, 10) || 0));
-  await updateSlotFields(workspaceId, slotId, { dailyLimit: value });
-  return value;
-}
-
 // Restart the socket without logging out. WhatsApp re-delivers messages
 // received while the server was offline, like reopening WhatsApp Web.
 async function syncSession(workspaceId, slotId = 'default') {
@@ -879,7 +872,7 @@ async function sendReaction(workspaceId, phone, targetId, emoji, fromMe, slotId 
 async function listSlots(workspaceId) {
   const Workspace = require('../models/Workspace');
   const id = String(workspaceId);
-  const ws = await Workspace.findById(id).select('waQr waQrSlots waQrPoolEnabled').lean();
+  const ws = await Workspace.findById(id).select('waQr waQrSlots').lean();
   const today = new Date().toISOString().slice(0, 10);
   const build = (slotId, doc, isDefault) => {
     const st = sessions.get(skey(id, slotId));
@@ -906,7 +899,7 @@ async function createSlot(workspaceId, label) {
   const slotId = 'n' + Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 4);
   await Workspace.updateOne(
     { _id: workspaceId },
-    { $push: { waQrSlots: { slotId, label: String(label || '').slice(0, 60), status: 'disconnected', phone: '', enabled: true, dailyLimit: 1000, sentToday: 0, sentDate: '' } } }
+    { $push: { waQrSlots: { slotId, label: String(label || '').slice(0, 60), status: 'disconnected', phone: '', enabled: true, dailyLimit: 0, sentToday: 0, sentDate: '' } } }
   );
   return { slotId };
 }
@@ -921,6 +914,11 @@ async function deleteSlot(workspaceId, slotId) {
   await Workspace.updateOne({ _id: id }, { $pull: { waQrSlots: { slotId } } });
   sessions.delete(skey(id, slotId));
   startInFlight.delete(skey(id, slotId));
+  // 清掉绑定该槽的会话（置空后下次发送自动重新取号），否则这些会话永远发不出
+  await require('../models/Conversation').updateMany(
+    { workspace: id, channel: 'whatsapp_qr', waNumberId: `qr:${slotId}` },
+    { $set: { waNumberId: '' } }
+  );
 }
 
 // 当前"可用"槽位列表：enabled + 运行时已连接 + 今日未达日限额（含 default）。
@@ -1014,7 +1012,7 @@ function _testSetState(workspaceId, slotId, patch) {
 }
 
 module.exports = {
-  startSession, sendMessage, sendReaction, subscribePresence, getStatus, disconnect, restoreAll, syncSession, setDailyLimit,
+  startSession, sendMessage, sendReaction, subscribePresence, getStatus, disconnect, restoreAll, syncSession,
   // 号池多槽位
   listSlots, createSlot, deleteSlot, usableSlots, pickPoolSlot, makeSlotSender,
   _testSetState,

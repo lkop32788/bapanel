@@ -154,14 +154,6 @@ router.delete('/slots/:slotId', async (req, res) => {
   }
 });
 
-// 号池开关：写 tgPersonalPoolEnabled
-router.put('/pool', async (req, res) => {
-  try {
-    const enabled = !!(req.body || {}).enabled;
-    const Workspace = require('../models/Workspace');
-    await Workspace.findByIdAndUpdate(req.workspace._id, { tgPersonalPoolEnabled: enabled });
-    res.json({ success: true, data: { enabled } });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
+// 号池开关已移除：多账号自动轮询，无需商户配置
 
 module.exports = router;

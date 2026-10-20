@@ -46,9 +46,9 @@ async function channelSend(workspace, conversation, phone, payload) {
   }
   if (conversation.channel === 'external_api') {
     const extSvc = require('./externalApiService');
-    // 粘住会话绑定的槽位；没绑定且开池时取号绑定
+    // 自动号池：粘住会话绑定的槽位；没绑定则轮询取号并绑定（单槽恒返回该槽）
     let slotId = (/^ext:(.+)$/.exec(conversation.waNumberId || '') || [])[1];
-    if (!slotId && workspace.externalApiPoolEnabled) {
+    if (!slotId) {
       slotId = await extSvc.pickPoolSlot(workspace._id);
       if (slotId) {
         await require('../models/Conversation').updateOne(
@@ -56,7 +56,7 @@ async function channelSend(workspace, conversation, phone, payload) {
         conversation.waNumberId = `ext:${slotId}`;
       }
     }
-    if (!slotId) throw new Error('外部 API 渠道：会话未绑定槽位且号池未启用');
+    if (!slotId) throw new Error('专线通道：没有可用通道（请联系平台配置）');
     const r = await extSvc.sendMessage(workspace._id, phone, payload, slotId);
     return { id: r.messageId ? `ext_${r.messageId}` : '' };
   }

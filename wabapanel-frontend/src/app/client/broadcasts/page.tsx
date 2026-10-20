@@ -396,7 +396,7 @@ export default function BroadcastsPage() {
               if (!keep) setVariables({});
             }}
               options={[
-                ...(currentWorkspace?.whatsapp?.poolEnabled ? [{ value: 'pool', label: '号池轮询（同一WABA号码平均分摊，会话粘住绑定号）' }] : []),
+                { value: 'pool', label: '自动轮询（多号分摊，老客户固定原号）' },
                 ...waNumbers.map(n => ({ value: n.id, label: n.label })),
               ]} />
           )}

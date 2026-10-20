@@ -12,7 +12,6 @@ import Link from 'next/link';
 import ChannelDiagnose, { DiagnosisList } from '@/components/ChannelDiagnose';
 import WaQrSlotsSection from '@/components/channels/WaQrSlotsSection';
 import TgPersonalSlotsSection from '@/components/channels/TgPersonalSlotsSection';
-import ExternalApiSlotsSection from '@/components/channels/ExternalApiSlotsSection';
 
 type MetaDiagnosis = {
   ok: boolean;
@@ -51,8 +50,6 @@ export default function ChannelsPage() {
   const [fbCode, setFbCode] = useState<{ code?: string; accessToken?: string }>({});
   const [igCfg, setIgCfg] = useState<{ appId?: string; configId?: string; oneClick?: boolean; needsAppId?: boolean; connected?: boolean; igAccountId?: string; profile?: { username?: string } | null } | null>(null);
   const [igBusy, setIgBusy] = useState(false);
-  const [waQrPoolEnabled, setWaQrPoolEnabled] = useState(false);
-  const [tgpPoolEnabled, setTgpPoolEnabled] = useState(false);
   const [metaDiag, setMetaDiag] = useState<MetaDiagnosis | null>(null);
   const [metaDiagBusy, setMetaDiagBusy] = useState(false);
   const [metaSyncBusy, setMetaSyncBusy] = useState(false);
@@ -272,8 +269,6 @@ export default function ChannelsPage() {
     workspaceApi.get(currentWorkspace._id).then(res => {
       const w = res.data.data;
       setWaConnected(!!w?.whatsapp?.isConnected);
-      setWaQrPoolEnabled(!!w?.waQrPoolEnabled);
-      setTgpPoolEnabled(!!w?.tgPersonalPoolEnabled);
       setWaPhone(w?.whatsapp?.phoneNumber || w?.whatsapp?.displayPhoneNumber || '');
       const mc = w?.metaChat;
       if (mc) setMetaChat({ pageId: mc.pageId || '', pageAccessToken: mc.pageAccessToken || '', igAccountId: mc.igAccountId || '', fbEnabled: !!mc.fbEnabled, igEnabled: !!mc.igEnabled });
@@ -535,7 +530,7 @@ export default function ChannelsPage() {
         )}
 
         <ChannelDiagnose channel="waqr" />
-        <WaQrSlotsSection initialPoolEnabled={waQrPoolEnabled} />
+        <WaQrSlotsSection />
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
           <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5"><ShieldAlert className="w-4 h-4" /> 确保安全 — 连接前请阅读</p>
           <ul className="text-xs text-amber-800 space-y-1 list-disc pl-4">
@@ -797,11 +792,8 @@ export default function ChannelsPage() {
           <p className="text-xs text-gray-500">聊天显示在 <b>个人电报收件箱</b>。您可以向 Telegram 联系人/聊天中的任何人发送消息，并且流程、关键字和 AI 自动回复均在此频道上运行。这使用了 Telegram 的官方 API — 没有被禁止的风险。</p>
         )}
         <ChannelDiagnose channel="tgpersonal" />
-        <TgPersonalSlotsSection initialPoolEnabled={tgpPoolEnabled} />
+        <TgPersonalSlotsSection />
       </div>
-
-      {/* External API channel placeholder */}
-      <ExternalApiSlotsSection initialPoolEnabled={!!(currentWorkspace as unknown as { externalApiPoolEnabled?: boolean })?.externalApiPoolEnabled} />
 
       {/* Email */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">

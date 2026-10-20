@@ -24,10 +24,6 @@ export interface Workspace {
   settings: WorkspaceSettings;
 
   timezone: string;
-  waQrPoolEnabled?: boolean; // 号池 v2：网页版 WhatsApp 多槽位轮询
-  tgPersonalPoolEnabled?: boolean; // 号池 v2：TG 个人号多账号轮询
-  externalApiSlots?: ExternalApiSlot[]; // 外部 API 占位渠道槽位列表
-  externalApiPoolEnabled?: boolean; // 外部 API 号池开关
   createdAt: string;
 }
 
@@ -77,7 +73,6 @@ export interface WorkspaceMember {
 }
 
 export interface WhatsAppConfig {
-  poolEnabled?: boolean; // 号池模式：多号轮询分配
   extraNumbers?: { phoneNumberId: string; phoneNumber: string; displayName: string; wabaId?: string }[];
   isConnected: boolean;
   connectionMethod: '' | 'embedded' | 'coexistence' | 'qr' | 'manual';

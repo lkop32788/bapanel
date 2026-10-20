@@ -95,6 +95,22 @@ setTimeout(async () => {
   } catch (e) { console.error('[Fixup] telegram secret fixup:', e.message); }
 }, 12000);
 
+// QR 日限额=1000 是旧 schema 默认值（从未被人主动选择），它把预热曲线整个短路了
+// ——新号首日即可发千条。回收成 0（=自动预热）；每次 boot 幂等重跑，商户端已无
+// 设置入口，平台确需手动上限时在 DB 设任意 ≠1000 的值即可。
+setTimeout(async () => {
+  try {
+    const Workspace = require('./models/Workspace');
+    const a = await Workspace.updateMany({ 'waQr.dailyLimit': 1000 }, { $set: { 'waQr.dailyLimit': 0 } });
+    const b = await Workspace.updateMany(
+      { 'waQrSlots.dailyLimit': 1000 },
+      { $set: { 'waQrSlots.$[s].dailyLimit': 0 } },
+      { arrayFilters: [{ 's.dailyLimit': 1000 }] }
+    );
+    if (a.modifiedCount || b.modifiedCount) console.log(`[Fixup] QR dailyLimit 1000→0（预热曲线生效）: 主号 ${a.modifiedCount} 个、附加槽 ${b.modifiedCount} 个工作区`);
+  } catch (e) { console.error('[Fixup] QR dailyLimit fixup:', e.message); }
+}, 15000);
+
 // Self-signup customers must appear on the admin Vendors page. Older versions
 // registered them with role 'user'; promote workspace owners to 'vendor'.
 require('mongoose').connection.once('open', async () => {
@@ -157,7 +173,7 @@ app.use('/api/conversations', require('./routes/conversations'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/waqr', require('./routes/waqr'));
 app.use('/api/tgpersonal', require('./routes/tgpersonal'));
-app.use('/api/extchannel', require('./routes/externalapi'));
+app.use('/api/admin/extchannel', require('./routes/externalapi'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 
 

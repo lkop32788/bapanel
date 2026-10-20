@@ -19,12 +19,10 @@ const qrSrc = (qr?: string | null) => (!qr ? '' : qr.startsWith('data:') ? qr : 
 
 type SlotStatus = { status: string; qr?: string; phone?: string; username?: string; error?: string };
 
-export default function TgPersonalSlotsSection({ initialPoolEnabled }: { initialPoolEnabled: boolean }) {
+export default function TgPersonalSlotsSection() {
   const [slots, setSlots] = useState<TgPersonalSlot[]>([]);
-  const [poolEnabled, setPoolEnabled] = useState(initialPoolEnabled);
-  const [poolSaving, setPoolSaving] = useState(false);
   const [busyId, setBusyId] = useState('');
-  // 添加槽位
+  // 添加账号
   const [addOpen, setAddOpen] = useState(false);
   const [addLabel, setAddLabel] = useState('');
   const [adding, setAdding] = useState(false);
@@ -36,12 +34,10 @@ export default function TgPersonalSlotsSection({ initialPoolEnabled }: { initial
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  // 槽位设置
+  // 账号设置
   const [settingsTarget, setSettingsTarget] = useState<TgPersonalSlot | null>(null);
   const [settingsForm, setSettingsForm] = useState({ label: '', enabled: true });
   const [settingsSaving, setSettingsSaving] = useState(false);
-
-  useEffect(() => { setPoolEnabled(initialPoolEnabled); }, [initialPoolEnabled]);
 
   const fetchSlots = useCallback(async () => {
     try {
@@ -73,27 +69,16 @@ export default function TgPersonalSlotsSection({ initialPoolEnabled }: { initial
     return () => { stop = true; clearInterval(t); };
   }, [loginId, fetchSlots]);
 
-  const togglePool = async () => {
-    const next = !poolEnabled;
-    setPoolSaving(true);
-    try {
-      await tgPersonalApi.setPool(next);
-      setPoolEnabled(next);
-      toast.success(translateApiMessage(next ? '号池模式已开启' : '号池模式已关闭'));
-    } catch (err) { toast.error(errMsg(err, '操作失败')); }
-    setPoolSaving(false);
-  };
-
   const createSlot = async () => {
     if (adding) return;
     setAdding(true);
     try {
       await tgPersonalApi.createSlot(addLabel.trim() || '新账号');
-      toast.success(translateApiMessage('槽位已创建，点击「登录」绑定 Telegram 账号'));
+      toast.success(translateApiMessage('账号已添加，点击「登录」完成绑定'));
       setAddOpen(false);
       setAddLabel('');
       fetchSlots();
-    } catch (err) { toast.error(errMsg(err, '创建槽位失败')); }
+    } catch (err) { toast.error(errMsg(err, '添加账号失败')); }
     setAdding(false);
   };
 
@@ -153,16 +138,16 @@ export default function TgPersonalSlotsSection({ initialPoolEnabled }: { initial
   };
 
   const disconnectSlot = async (s: TgPersonalSlot) => {
-    if (!confirm(`断开槽位「${s.label || s.phone || s.slotId}」的 Telegram 账号吗？`)) return;
+    if (!confirm(`断开账号「${s.label || s.phone || s.slotId}」吗？`)) return;
     setBusyId(s.slotId);
     try { await tgPersonalApi.slotDisconnect(s.slotId); toast.success(translateApiMessage('已断开连接')); fetchSlots(); } catch (err) { toast.error(errMsg(err, '操作失败')); }
     setBusyId('');
   };
 
   const removeSlot = async (s: TgPersonalSlot) => {
-    if (!confirm(`删除槽位「${s.label || s.phone || s.slotId}」？该账号将退出登录并从号池移除。`)) return;
+    if (!confirm(`删除账号「${s.label || s.phone || s.slotId}」？该账号将退出登录并停止使用。`)) return;
     setBusyId(s.slotId);
-    try { await tgPersonalApi.deleteSlot(s.slotId); toast.success(translateApiMessage('槽位已删除')); fetchSlots(); } catch (err) { toast.error(errMsg(err, '操作失败')); }
+    try { await tgPersonalApi.deleteSlot(s.slotId); toast.success(translateApiMessage('账号已删除')); fetchSlots(); } catch (err) { toast.error(errMsg(err, '操作失败')); }
     setBusyId('');
   };
 
@@ -176,7 +161,7 @@ export default function TgPersonalSlotsSection({ initialPoolEnabled }: { initial
     setSettingsSaving(true);
     try {
       await tgPersonalApi.updateSlotSettings(settingsTarget.slotId, { label: settingsForm.label.trim(), enabled: settingsForm.enabled });
-      toast.success(translateApiMessage('槽位设置已保存'));
+      toast.success(translateApiMessage('设置已保存'));
       setSettingsTarget(null);
       fetchSlots();
     } catch (err) { toast.error(errMsg(err, '保存失败')); }
@@ -187,18 +172,12 @@ export default function TgPersonalSlotsSection({ initialPoolEnabled }: { initial
 
   return (
     <div className="border-t border-gray-100 pt-4 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-gray-900">号池账号（多账号）</p>
-          <p className="text-xs text-gray-500">挂接多个 Telegram 个人账号，分摊发送量并供号池轮询取号</p>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer shrink-0">
-          <input type="checkbox" checked={poolEnabled} disabled={poolSaving} onChange={togglePool} className="w-4 h-4 accent-sky-600" />
-          号池模式
-        </label>
+      <div>
+        <p className="text-sm font-semibold text-gray-900">Telegram 账号</p>
+        <p className="text-xs text-gray-500">可连接多个 Telegram 个人账号，分摊发送量</p>
       </div>
       <p className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-2.5">
-        开启号池模式后：群发可选择「号池轮询」由已连接账号平均分摊发送；新会话会自动轮询取一个账号接待并粘住绑定（后续消息固定走同一账号）。
+        已连接多个账号时，系统自动轮流分配发送，老客户固定由原账号接待，无需任何设置。
       </p>
 
       {slots.length > 0 && (
@@ -207,7 +186,7 @@ export default function TgPersonalSlotsSection({ initialPoolEnabled }: { initial
             <div key={s.slotId} className="border border-gray-200 rounded-lg p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{s.label || '未命名槽位'}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{s.label || '未命名账号'}</p>
                   {s.isDefault && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 shrink-0">主号</span>}
                   {s.enabled === false && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">已停用</span>}
                 </div>
@@ -243,16 +222,16 @@ export default function TgPersonalSlotsSection({ initialPoolEnabled }: { initial
         </div>
       )}
 
-      <Button size="sm" variant="outline" icon={<Plus className="w-4 h-4" />} onClick={() => setAddOpen(true)}>添加账号槽位</Button>
+      <Button size="sm" variant="outline" icon={<Plus className="w-4 h-4" />} onClick={() => setAddOpen(true)}>添加账号</Button>
 
-      {/* 添加槽位 */}
-      <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title={'添加账号槽位'} size="sm">
+      {/* 添加账号 */}
+      <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title={'添加账号'} size="sm">
         <div className="space-y-4">
           <Input label={'名称/备注'} value={addLabel} onChange={(e) => setAddLabel(e.target.value)} placeholder={'例如：客服号 2'} />
-          <p className="text-xs text-gray-500">创建后在槽位卡片上点击「登录」，通过二维码或手机号+验证码绑定 Telegram 账号。</p>
+          <p className="text-xs text-gray-500">添加后在账号卡片上点击「登录」，通过二维码或手机号+验证码绑定 Telegram 账号。</p>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setAddOpen(false)}>取消</Button>
-            <Button size="sm" loading={adding} onClick={createSlot}>创建槽位</Button>
+            <Button size="sm" loading={adding} onClick={createSlot}>添加</Button>
           </div>
         </div>
       </Modal>
@@ -309,13 +288,13 @@ export default function TgPersonalSlotsSection({ initialPoolEnabled }: { initial
         </div>
       </Modal>
 
-      {/* 槽位设置 */}
-      <Modal isOpen={!!settingsTarget} onClose={() => setSettingsTarget(null)} title={'槽位设置'} size="sm">
+      {/* 账号设置 */}
+      <Modal isOpen={!!settingsTarget} onClose={() => setSettingsTarget(null)} title={'账号设置'} size="sm">
         <div className="space-y-4">
           <Input label={'名称/备注'} value={settingsForm.label} onChange={(e) => setSettingsForm({ ...settingsForm, label: e.target.value })} />
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" checked={settingsForm.enabled} onChange={(e) => setSettingsForm({ ...settingsForm, enabled: e.target.checked })} className="w-4 h-4 accent-sky-600" />
-            启用该槽位（停用后不参与号池轮询和群发）
+            启用该账号（停用后不再分配发送）
           </label>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setSettingsTarget(null)}>取消</Button>
