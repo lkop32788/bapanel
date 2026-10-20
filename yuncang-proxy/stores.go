@@ -394,6 +394,65 @@ func handleStoreExport(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ---------- 历史数据直接导入缓存 ----------
+
+func handleCacheImport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		apiErr(w, "method not allowed")
+		return
+	}
+	if err := r.ParseMultipartForm(256 << 20); err != nil {
+		apiErr(w, "表单解析失败")
+		return
+	}
+	kind := strings.TrimSpace(r.FormValue("kind"))
+	if kind == "" {
+		apiErr(w, "缺少 kind 参数")
+		return
+	}
+	// 校验 kind 是否在已知 taskTypes 里（取对应 input 类型）
+	def, ok := taskTypes[kind]
+	if !ok {
+		// kind 也可以直接是 cache 命名空间（如 wsOpen），兜底为 phone
+		def = typeDef{kind: kind, input: "phone"}
+	}
+	valid := r.FormValue("valid") != "false"
+
+	f, _, err := r.FormFile("file")
+	if err != nil {
+		apiErr(w, "缺少文件")
+		return
+	}
+	raw, _ := io.ReadAll(io.LimitReader(f, 256<<20))
+	f.Close()
+
+	values := parseValues(string(raw), def.input)
+	if len(values) == 0 {
+		apiErr(w, "文件里没有识别到有效内容")
+		return
+	}
+
+	// 确定写入 cache 的 kind：优先用 taskTypes 里的 kind 字段（命名空间），
+	// 未知 taskType 直接用传入的 kind 字符串
+	cacheKind := def.kind
+	if cacheKind == "" {
+		cacheKind = kind
+	}
+
+	rows := make(map[string]struct {
+		Valid bool
+		Extra string
+	}, len(values))
+	for _, v := range values {
+		rows[v] = struct {
+			Valid bool
+			Extra string
+		}{valid, ""}
+	}
+	cachePutMany(cacheKind, rows, time.Now().Unix())
+	writeJSON(w, map[string]any{"code": 0, "message": "success", "parsed": len(values), "upserted": len(values)})
+}
+
 // ---------- 设置 / 余额 ----------
 
 var trcAddrRe = regexp.MustCompile(`^T[1-9A-HJ-NP-Za-km-z]{33}$`)

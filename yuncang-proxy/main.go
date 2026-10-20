@@ -145,6 +145,7 @@ func main() {
 	mux.HandleFunc("/admin/api/settings", requireAdmin(handleSettings))
 	mux.HandleFunc("/admin/api/balance", requireAdmin(handleAdminBalance))
 	mux.HandleFunc("/admin/api/billing", requireAdmin(handleBilling))
+	mux.HandleFunc("/admin/api/cache/import", requireAdmin(handleCacheImport))
 
 	log.Printf("云仓中转管理 listening on %s:%s → %s (mongo, data: %s, admin: %v)", addr, port, upstream, dataDir, adminPass != "")
 	log.Fatal(http.ListenAndServe(addr+":"+port, mux))

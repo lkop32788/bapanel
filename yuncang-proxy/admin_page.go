@@ -45,7 +45,8 @@ a.exp:hover{text-decoration:underline}
 <button id="tabBtn0" class="on" onclick="showTab(0)">概览</button>
 <button id="tabBtn1" onclick="showTab(1)">云仓管理</button>
 <button id="tabBtn2" onclick="showTab(2)">消耗统计</button>
-<button id="tabBtn3" onclick="showTab(3)">设置</button>
+<button id="tabBtn3" onclick="showTab(3)">历史导入</button>
+<button id="tabBtn4" onclick="showTab(4)">设置</button>
 </div>
 
 <div id="tab0">
@@ -93,6 +94,35 @@ a.exp:hover{text-decoration:underline}
 </div>
 
 <div id="tab3" style="display:none">
+<div class="panel" style="max-width:700px">
+<h2>历史号码导入缓存</h2>
+<p class="gray" style="font-size:12px">将已有检测结果的号码直接写入缓存库，下次商户提交相同号码时直接命中，不再消耗积分。每次上传只需选好类型和结果，然后上传 txt/csv 文件（每行一个号码，支持带 + 或横线）。</p>
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px">
+  <div style="flex:1;min-width:180px">
+    <label style="display:block;font-size:13px;color:#374151;margin-bottom:4px">检测类型</label>
+    <select id="impType" style="width:100%"></select>
+  </div>
+  <div>
+    <label style="display:block;font-size:13px;color:#374151;margin-bottom:4px">结果</label>
+    <div style="display:flex;gap:0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;height:34px">
+      <button id="impV1" class="btn" onclick="setImpValid(true)" style="border:0;border-radius:0;background:#059669;color:#fff;padding:6px 18px;font-size:13px">✓ 有效</button>
+      <button id="impV0" class="btn" onclick="setImpValid(false)" style="border:0;border-radius:0;background:#fff;color:#dc2626;padding:6px 18px;font-size:13px">✗ 无效</button>
+    </div>
+  </div>
+  <div style="display:flex;align-items:flex-end">
+    <button class="btn pri" onclick="document.getElementById('impFile').click()">选择文件并导入</button>
+    <input type="file" id="impFile" accept=".txt,.csv" style="display:none">
+  </div>
+</div>
+<div id="impLog" style="margin-top:14px;font-size:13px;color:#6b7280;min-height:20px"></div>
+<div style="margin-top:14px">
+  <table style="width:100%"><thead><tr><th>时间</th><th>类型</th><th>结果</th><th class="r">识别</th><th class="r">写入</th></tr></thead>
+  <tbody id="impHistory"></tbody></table>
+</div>
+</div>
+</div>
+
+<div id="tab4" style="display:none">
 <div class="panel" style="max-width:520px">
 <h2>上游地址</h2>
 <p class="gray" style="font-size:12px">检测平台的接口地址，保存后立即生效（代理转发、云仓自动检测都用它）。留空则使用默认：<span id="upDefault" class="mono">—</span>。当前生效：<span id="upNow" class="mono">—</span></p>
@@ -154,7 +184,7 @@ var TYPE_GROUPS=[
 var TYPE_LABEL={};TYPE_GROUPS.forEach(function(g){g[1].forEach(function(t){TYPE_LABEL[t[0]]=t[1]})});
 var COUNTRY_NAME={};COUNTRIES.forEach(function(c){COUNTRY_NAME[c[0]]=c[1]});
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function showTab(i){for(var j=0;j<4;j++){document.getElementById('tab'+j).style.display=j===i?'':'none';document.getElementById('tabBtn'+j).className=j===i?'on':''}}
+function showTab(i){for(var j=0;j<5;j++){document.getElementById('tab'+j).style.display=j===i?'':'none';document.getElementById('tabBtn'+j).className=j===i?'on':''}}
 function fmt3(n){return Math.round((n||0)*1000)/1000}
 
 // --- 概览 ---
@@ -314,5 +344,45 @@ function testBalance(){
   });
 }
 
-fillSelects();loadStats();loadStores();loadSettings();loadBilling();
+// --- 历史导入 ---
+var impValid=true;
+function setImpValid(v){
+  impValid=v;
+  document.getElementById('impV1').style.background=v?'#059669':'#fff';
+  document.getElementById('impV1').style.color=v?'#fff':'#374151';
+  document.getElementById('impV0').style.background=v?'#fff':'#dc2626';
+  document.getElementById('impV0').style.color=v?'#dc2626':'#fff';
+}
+var impHistory=[];
+document.getElementById('impFile').addEventListener('change',function(){
+  var f=this.files[0];this.value='';
+  if(!f)return;
+  var kind=document.getElementById('impType').value;
+  if(!kind){alert('请先选择检测类型');return}
+  var log=document.getElementById('impLog');
+  log.textContent='正在上传 '+f.name+' …';
+  var fd=new FormData();fd.append('file',f);fd.append('kind',kind);fd.append('valid',impValid?'true':'false');
+  fetch('/admin/api/cache/import',{method:'POST',body:fd})
+    .then(function(r){return r.json()}).then(function(d){
+      if(d.code!==0){log.style.color='#dc2626';log.textContent='导入失败：'+(d.message||'');return}
+      log.style.color='#059669';
+      log.textContent='✓ 识别 '+d.parsed+' 条，写入缓存 '+d.upserted+' 条（'+(impValid?'有效':'无效')+'）';
+      var label=TYPE_LABEL[kind]||kind;
+      impHistory.unshift({time:new Date().toLocaleString('zh-CN'),label:label,valid:impValid,parsed:d.parsed,upserted:d.upserted});
+      if(impHistory.length>20)impHistory.pop();
+      document.getElementById('impHistory').innerHTML=impHistory.map(function(r){
+        return '<tr><td class="mono">'+r.time+'</td><td>'+esc(r.label)+'</td>'+
+          '<td class="'+(r.valid?'green':'redtxt')+'">'+(r.valid?'✓ 有效':'✗ 无效')+'</td>'+
+          '<td class="r">'+r.parsed+'</td><td class="r">'+r.upserted+'</td></tr>';
+      }).join('');
+    }).catch(function(e){log.style.color='#dc2626';log.textContent='请求失败：'+e.message});
+});
+function fillImpType(){
+  var sel=document.getElementById('impType');
+  sel.innerHTML=TYPE_GROUPS.map(function(g){
+    return '<optgroup label="'+g[0]+'">'+g[1].map(function(t){return '<option value="'+t[0]+'">'+t[1]+'</option>'}).join('')+'</optgroup>';
+  }).join('');
+}
+
+fillSelects();fillImpType();loadStats();loadStores();loadSettings();loadBilling();
 </script></body></html>`
