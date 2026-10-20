@@ -210,6 +210,15 @@ router.get('/settings/saver-balance', superAdminOnly, async (req, res) => {
   }
 });
 
+// Baileys 转换 API：测试工厂服务连接（健康检查）
+router.get('/settings/wa-factory-health', superAdminOnly, async (req, res) => {
+  try {
+    res.json({ success: true, data: await require('../services/waFactoryService').health() });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // AI Settings
 router.get('/ai-settings', admin.getAISettings);
 router.put('/ai-settings', admin.updateAISettings);

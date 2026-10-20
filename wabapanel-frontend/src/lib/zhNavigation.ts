@@ -78,7 +78,7 @@ export const zhNavigation: Record<string, string> = {
   "User Guide": "用户指南",
   "Vendors": "商户管理",
   "Saver Pricing": "计费单价",
-  "External Channels": "外部通道",
+  "Baileys API": "Baileys 转换 API",
   "Feature Controls": "功能开关",
   "Data Cleanup": "数据清理",
   "Accounting": "财务管理",

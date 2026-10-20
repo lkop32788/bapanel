@@ -248,6 +248,15 @@ const getSettings = async (req, res) => {
         enableOneClick: settings.instagram?.enableOneClick || false,
         enableManual: settings.instagram?.enableManual !== false,
       },
+      waFactory: {
+        enabled: !!settings.waFactory?.enabled,
+        baseUrl: settings.waFactory?.baseUrl || '',
+        defaultPlatform: settings.waFactory?.defaultPlatform || '0',
+        allowProxy: settings.waFactory?.allowProxy !== false,
+        timeoutMs: settings.waFactory?.timeoutMs || 35000,
+        // 只读：留空时实际生效的默认地址（YUNCANG_URL）
+        defaultBaseUrl: require('../services/waFactoryService').DEFAULT_URL,
+      },
       addons: settings.addons || {},
       email: {
         host: settings.smtp?.host || '',
@@ -421,6 +430,20 @@ const updateSettings = async (req, res) => {
           if (data.configId !== undefined) settings.instagram.configId = data.configId;
           if (data.enableOneClick !== undefined) settings.instagram.enableOneClick = data.enableOneClick;
           if (data.enableManual !== undefined) settings.instagram.enableManual = data.enableManual;
+        },
+        waFactory: () => {
+          if (!settings.waFactory) settings.waFactory = {};
+          if (data.enabled !== undefined) settings.waFactory.enabled = !!data.enabled;
+          if (data.baseUrl !== undefined) settings.waFactory.baseUrl = String(data.baseUrl || '').trim().replace(/\/+$/, '');
+          if (data.defaultPlatform !== undefined) {
+            const p = String(data.defaultPlatform);
+            settings.waFactory.defaultPlatform = ['0', '1', '10', '12'].includes(p) ? p : '0';
+          }
+          if (data.allowProxy !== undefined) settings.waFactory.allowProxy = !!data.allowProxy;
+          if (data.timeoutMs !== undefined) {
+            const n = parseInt(data.timeoutMs, 10);
+            settings.waFactory.timeoutMs = Number.isFinite(n) ? Math.min(120000, Math.max(5000, n)) : 35000;
+          }
         },
         addons: () => {
           if (!settings.addons) settings.addons = {};

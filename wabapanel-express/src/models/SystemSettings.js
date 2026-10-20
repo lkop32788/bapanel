@@ -36,6 +36,16 @@ const systemSettingsSchema = new mongoose.Schema({
     enableCoexistence: { type: Boolean, default: false },
   },
 
+  // Baileys 转换 API（六段凭证 → Baileys session 工厂，见 services/waFactoryService.js，
+  // 实际服务在 yuncang-proxy 的 /api/wa/*）。平台级配置，商户不可见、不可改。
+  waFactory: {
+    enabled: { type: Boolean, default: false },          // 是否开放六段凭证登录
+    baseUrl: { type: String, default: '' },              // 工厂服务地址，空=用 YUNCANG_URL（默认 127.0.0.1:5090）
+    defaultPlatform: { type: String, default: '0' },     // 0 Android / 1 iOS / 10 SMB安卓 / 12 SMB iOS
+    allowProxy: { type: Boolean, default: true },        // 是否允许随号附带代理
+    timeoutMs: { type: Number, default: 35000 },         // 单次登录超时(ms)
+  },
+
   // 省钱专家：号码状态检测外部 API（见 services/saverCheckService.js）
   saverApi: {
     baseUrl: { type: String, default: '' },
