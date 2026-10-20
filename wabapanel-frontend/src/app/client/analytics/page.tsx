@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
-import { StatCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { Send, CheckCheck, Eye, AlertCircle, MessageSquare, Users, Phone, Megaphone, TrendingUp, Download, Clock, Timer } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
@@ -73,6 +72,41 @@ const L = ({ href, children }: { href: string; children: React.ReactNode }) => (
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 const fmtHour = (h: number) => `${((h % 12) || 12)}${h < 12 ? 'am' : 'pm'}`;
 const fmtMins = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h ${Math.round(m % 60)}m` : `${m} min`);
+
+// 紧凑 KPI 磁贴（与 client/dashboard 同一视觉语言）：图标 + 数值 + 标签 +（可选）副文本
+const Kpi = ({ href, label, value, sub, icon, bg, warn }: {
+  href?: string; label: string; value: string | number; sub?: string; icon: React.ReactNode; bg: string; warn?: boolean;
+}) => {
+  const body = (
+    <Card className="!p-3.5 h-full">
+      <div className="flex items-center gap-2.5">
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>{icon}</div>
+        <div className="min-w-0">
+          <p className={`text-xl font-bold leading-tight ${warn ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
+          <p className="text-[11px] text-gray-500 truncate">{label}</p>
+          {sub && <p className="text-[11px] text-gray-400 truncate mt-0.5">{sub}</p>}
+        </div>
+      </div>
+    </Card>
+  );
+  return href ? <L href={href}>{body}</L> : body;
+};
+
+// 分区标题：细强调条 + 标签，给长页面建立层次（非装饰性 eyebrow）
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex items-center gap-2 pt-1">
+    <span className="w-1 h-4 rounded-full bg-emerald-500" />
+    <h2 className="text-sm font-semibold text-gray-700">{children}</h2>
+  </div>
+);
+
+// 图表卡标题（统一尺寸/间距，替代散落的 text-lg h3）
+const ChartTitle = ({ title, hint }: { title: string; hint?: string }) => (
+  <div className="mb-4">
+    <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+    {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
+  </div>
+);
 
 export default function AnalyticsPage() {
   const router = useRouter();
@@ -259,51 +293,31 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Message metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <L href="/client/chat"><StatCard title={"消息总数"} value={totalMessages.toLocaleString()} icon={<Send className="w-6 h-6" />} change={rangeLabel} color="emerald" /></L>
-        <L href="/client/chat"><StatCard title={"交货率"} value={`${deliveryRate}%`} icon={<CheckCheck className="w-6 h-6" />} change={`${(totalDelivered + totalRead).toLocaleString()} delivered`} color="blue" /></L>
-        <L href="/client/chat"><StatCard title={"读取率"} value={`${readRate}%`} icon={<Eye className="w-6 h-6" />} change={`${totalRead.toLocaleString()} read`} color="purple" /></L>
-        <L href="/client/chat"><StatCard title={"失败率"} value={`${failRate}%`} icon={<AlertCircle className="w-6 h-6" />} change={`${totalFailed.toLocaleString()} failed`} color="red" /></L>
+      {/* ① 消息与受众：核心健康指标一行看全 */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Kpi href="/client/chat" label="消息总数" value={totalMessages.toLocaleString()} icon={<Send className="w-4 h-4 text-emerald-600" />} bg="bg-emerald-50" />
+        <Kpi href="/client/chat" label="交货率" value={`${deliveryRate}%`} sub={`${(totalDelivered + totalRead).toLocaleString()} 已送达`} icon={<CheckCheck className="w-4 h-4 text-blue-600" />} bg="bg-blue-50" />
+        <Kpi href="/client/chat" label="读取率" value={`${readRate}%`} sub={`${totalRead.toLocaleString()} 已读`} icon={<Eye className="w-4 h-4 text-violet-600" />} bg="bg-violet-50" />
+        <Kpi href="/client/chat" label="失败率" value={`${failRate}%`} sub={`${totalFailed.toLocaleString()} 失败`} icon={<AlertCircle className="w-4 h-4 text-red-500" />} bg="bg-red-50" warn={totalFailed > 0} />
+        <Kpi href="/client/contacts" label="联系人" value={(data?.contacts || 0).toLocaleString()} sub={`+${data?.newContacts || 0} 新增`} icon={<Users className="w-4 h-4 text-indigo-600" />} bg="bg-indigo-50" />
+        <Kpi href="/client/chat" label="对话" value={(data?.conversations?.total || 0).toLocaleString()} sub={`${data?.conversations?.active || 0} 活跃`} icon={<MessageSquare className="w-4 h-4 text-teal-600" />} bg="bg-teal-50" />
       </div>
 
-      {/* Business metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <L href="/client/contacts"><StatCard title={"联系人"} value={(data?.contacts || 0).toLocaleString()} icon={<Users className="w-6 h-6" />} change={`+${data?.newContacts || 0} new`} color="blue" /></L>
-        <L href="/client/chat"><StatCard title={"对话"} value={(data?.conversations?.total || 0).toLocaleString()} icon={<MessageSquare className="w-6 h-6" />} change={`${data?.conversations?.active || 0} active`} color="emerald" /></L>
-        <L href="/client/ai-calling"><StatCard title={"人工智能呼叫"} value={(data?.aiCalls?.total || 0).toLocaleString()} icon={<Phone className="w-6 h-6" />} change={`${data?.aiCalls?.minutes || 0} minutes`} color="purple" /></L>
-        
+      {/* ② 响应与运营：服务质量 + 活动/AI 存量（取代原底部重复 summary 行） */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Kpi href="/client/chat" label="平均响应" value={fmtMins(data?.responseTime?.avgMinutes || 0)} icon={<Timer className="w-4 h-4 text-emerald-600" />} bg="bg-emerald-50" />
+        <Kpi href="/client/chat" label="中值响应" value={fmtMins(data?.responseTime?.medianMinutes || 0)} icon={<Clock className="w-4 h-4 text-blue-600" />} bg="bg-blue-50" />
+        <Kpi label="最佳发送时间" value={bestHour ? `${fmtHour(bestHour.hour)}${bestDay ? ` · ${WEEKDAYS[bestDay.day]}` : ''}` : '—'} icon={<TrendingUp className="w-4 h-4 text-violet-600" />} bg="bg-violet-50" />
+        <Kpi href="/client/ai-calling" label="AI 呼叫" value={(data?.aiCalls?.total || 0).toLocaleString()} sub={`${data?.aiCalls?.minutes || 0} 分钟 · ${data?.aiCalls?.completed || 0} 完成`} icon={<Phone className="w-4 h-4 text-indigo-600" />} bg="bg-indigo-50" />
+        <Kpi href="/client/broadcasts" label="活动总数" value={(c?.total || 0).toLocaleString()} sub={`${c?.running || 0} 进行中`} icon={<Megaphone className="w-4 h-4 text-purple-600" />} bg="bg-purple-50" />
+        <Kpi href="/client/broadcasts" label="活动已发消息" value={(c?.sentTotal || 0).toLocaleString()} icon={<Send className="w-4 h-4 text-teal-600" />} bg="bg-teal-50" />
       </div>
 
-      {/* Response time */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <L href="/client/chat"><Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center"><Timer className="w-5 h-5 text-emerald-600" /></div>
-            <div><p className="text-xs text-gray-500">平均响应时间</p><p className="text-xl font-bold text-gray-900">{fmtMins(data?.responseTime?.avgMinutes || 0)}</p></div>
-          </div>
-        </Card></L>
-        <L href="/client/chat"><Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><Clock className="w-5 h-5 text-blue-600" /></div>
-            <div><p className="text-xs text-gray-500">中值响应时间</p><p className="text-xl font-bold text-gray-900">{fmtMins(data?.responseTime?.medianMinutes || 0)}</p></div>
-          </div>
-        </Card></L>
-        <Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center"><TrendingUp className="w-5 h-5 text-purple-600" /></div>
-            <div>
-              <p className="text-xs text-gray-500">最佳发送时间</p>
-              <p className="text-xl font-bold text-gray-900">{bestHour ? `${fmtHour(bestHour.hour)}${bestDay ? ` · ${WEEKDAYS[bestDay.day]}` : ''}` : '—'}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
+      <SectionLabel>消息趋势</SectionLabel>
       {chartData.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">留言量</h3>
+            <ChartTitle title="消息量" hint="每日发送与接收趋势" />
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
@@ -325,7 +339,7 @@ export default function AnalyticsPage() {
             </div>
           </Card>
           <Card>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">每日细目</h3>
+            <ChartTitle title="每日明细" hint="发送 / 接收逐日对比" />
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
@@ -350,11 +364,10 @@ export default function AnalyticsPage() {
         </Card>
       )}
 
-      {/* Best time to send */}
+      <SectionLabel>客户活跃时段</SectionLabel>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">按小时划分的客户回复 (IST)</h3>
-          <p className="text-xs text-gray-400 mb-4">收到最多回复的时间 — 发送的最佳时间</p>
+          <ChartTitle title="按小时的客户回复" hint="收到回复最多的时段 — 群发的最佳时间" />
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={hourlyData}>
@@ -368,8 +381,7 @@ export default function AnalyticsPage() {
           </div>
         </Card>
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">客户每日回复</h3>
-          <p className="text-xs text-gray-400 mb-4">您的客户在一周中哪几天最活跃</p>
+          <ChartTitle title="按星期的客户回复" hint="客户在一周中哪几天最活跃" />
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weekdayData}>
@@ -384,10 +396,10 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* Message type breakdown + top customers */}
+      <SectionLabel>构成与客户</SectionLabel>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">出站消息类型</h3>
+          <ChartTitle title="出站消息类型" hint="按来源拆分已发出的消息" />
           <div className="h-80">
             {typeData.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -403,7 +415,7 @@ export default function AnalyticsPage() {
           </div>
         </Card>
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">顶级客户</h3>
+          <ChartTitle title="高频客户" hint="互动消息最多的联系人" />
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -434,10 +446,10 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* Campaign comparison table */}
+      <SectionLabel>活动表现</SectionLabel>
       <Card>
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">活动表现</h3>
+          <h3 className="text-base font-semibold text-gray-900">各营销活动投递对比</h3>
           <div className="flex items-center gap-2">
             <select value={campStatus} onChange={e => { setCampStatus(e.target.value); setShowAllCamps(false); }}
               className="px-2 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 bg-white">
@@ -497,9 +509,10 @@ export default function AnalyticsPage() {
         )}
       </Card>
 
+      <SectionLabel>增长与渠道</SectionLabel>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">联系增长</h3>
+          <ChartTitle title="联系人增长" />
           <div className="h-64">
             {contactData.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -516,7 +529,7 @@ export default function AnalyticsPage() {
         </Card>
 
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">人工智能呼叫</h3>
+          <ChartTitle title="AI 呼叫" hint="每日通话量与通话分钟" />
           <div className="h-64">
             {callData.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -535,7 +548,7 @@ export default function AnalyticsPage() {
         </Card>
 
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">活动（按状态）</h3>
+          <ChartTitle title="活动（按状态）" />
           <div className="h-64">
             {campaignPie.length ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -552,30 +565,12 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {data?.role === 'owner' && <AgentPerformanceTable rows={data.agentPerformance} />}
-
-      {/* Summary row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <L href="/client/broadcasts"><Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center"><Megaphone className="w-5 h-5 text-purple-600" /></div>
-            <div><p className="text-xs text-gray-500">已发送活动消息</p><p className="text-xl font-bold text-gray-900">{c?.sentTotal || 0}</p></div>
-          </div>
-        </Card></L>
-        <L href="/client/broadcasts"><Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center"><TrendingUp className="w-5 h-5 text-emerald-600" /></div>
-            <div><p className="text-xs text-gray-500">活动总数</p><p className="text-xl font-bold text-gray-900">{c?.total || 0}</p></div>
-          </div>
-        </Card></L>
-        <L href="/client/ai-calling"><Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><Phone className="w-5 h-5 text-blue-600" /></div>
-            <div><p className="text-xs text-gray-500">人工智能通话已完成</p><p className="text-xl font-bold text-gray-900">{data?.aiCalls?.completed || 0}</p></div>
-          </div>
-        </Card></L>
-        
-      </div>
+      {data?.role === 'owner' && (
+        <>
+          <SectionLabel>客服绩效</SectionLabel>
+          <AgentPerformanceTable rows={data.agentPerformance} />
+        </>
+      )}
     </div>
   );
 }
