@@ -55,31 +55,50 @@ type WaFactoryResp struct {
 
 // ─────────────────────────────────────────────
 // Baileys creds.json 结构
+// Baileys 用 BufferJSON：每个二进制字段序列化成 {type:"Buffer",data:"<base64>"}；
+// advSecretKey 例外（initAuthCreds 里就是裸 base64 字符串）。公钥存 32 字节裸
+// （Baileys Curve.generateKeyPair 去掉了版本字节），与 X25519 输出一致。
+// 登录 vs 二维码只看 creds.me：有 me.id → generateLoginNode 以已配对设备登录。
 // ─────────────────────────────────────────────
 
-type BaileysCreds struct {
-	NoiseKey               KeyPair `json:"noiseKey"`
-	PairingEphemeralKeyPair KeyPair `json:"pairingEphemeralKeyPair"`
-	SignedIdentityKey      KeyPair `json:"signedIdentityKey"`
-	SignedPreKey           PreKey  `json:"signedPreKey"`
-	RegistrationID         int     `json:"registrationId"`
-	AdvSecretKey           string  `json:"advSecretKey"`
-	NextPreKeyID           int     `json:"nextPreKeyId"`
-	FirstUnuploadedPreKeyID int     `json:"firstUnuploadedPreKeyId"`
-	AccountSettings        struct {
-		UnarchiveChats bool `json:"unarchiveChats"`
-	} `json:"accountSettings"`
+type bufJSON struct {
+	Type string `json:"type"`
+	Data string `json:"data"`
 }
 
+func buf(b []byte) bufJSON { return bufJSON{Type: "Buffer", Data: b64enc(b)} }
+
 type KeyPair struct {
-	Private string `json:"private"`
-	Public  string `json:"public"`
+	Private bufJSON `json:"private"`
+	Public  bufJSON `json:"public"`
 }
 
 type PreKey struct {
 	KeyID     int     `json:"keyId"`
 	KeyPair  KeyPair `json:"keyPair"`
-	Signature string  `json:"signature"`
+	Signature bufJSON `json:"signature"`
+}
+
+type meInfo struct {
+	ID string `json:"id"`
+}
+
+type BaileysCreds struct {
+	NoiseKey                KeyPair  `json:"noiseKey"`
+	PairingEphemeralKeyPair KeyPair  `json:"pairingEphemeralKeyPair"`
+	SignedIdentityKey       KeyPair  `json:"signedIdentityKey"`
+	SignedPreKey            PreKey   `json:"signedPreKey"`
+	RegistrationID          int      `json:"registrationId"`
+	AdvSecretKey            string   `json:"advSecretKey"`
+	ProcessedHistoryMessages []any   `json:"processedHistoryMessages"`
+	NextPreKeyID            int      `json:"nextPreKeyId"`
+	FirstUnuploadedPreKeyID int      `json:"firstUnuploadedPreKeyId"`
+	AccountSyncCounter      int      `json:"accountSyncCounter"`
+	AccountSettings         struct {
+		UnarchiveChats bool `json:"unarchiveChats"`
+	} `json:"accountSettings"`
+	Registered bool    `json:"registered"`
+	Me         *meInfo `json:"me,omitempty"`
 }
 
 // ─────────────────────────────────────────────
@@ -291,39 +310,61 @@ func seg6Login(phone, noisePrivB64, identityPrivB64, hashB64, platform, proxyURL
 // 不要自行 ECDH 反推（私钥对、公钥错会导致 Baileys 握手失败）。
 // ─────────────────────────────────────────────
 
-func deviceToBaileysCreds(dev *store.Device) *BaileysCreds {
-	noisePub := dev.NoiseKey.Pub[:]
-	identPub := dev.IdentityKey.Pub[:]
-	signedPreKeyPub := dev.SignedPreKey.Pub[:]
-
+// meID 非空时 creds.me.id=meID 且 registered=true（Baileys 以已配对设备登录）；
+// 为空时产出未注册 creds（convert 预览用，Baileys 会走二维码）。
+func deviceToBaileysCreds(dev *store.Device, meID string) *BaileysCreds {
 	var sigBytes []byte
 	if dev.SignedPreKey.Signature != nil {
 		sigBytes = dev.SignedPreKey.Signature[:]
 	}
 
+	// pairingEphemeralKeyPair 配对后不再用，给个合法随机对占位
+	eph := keys.NewKeyPair()
+
 	c := &BaileysCreds{
 		NoiseKey: KeyPair{
-			Private: b64enc(dev.NoiseKey.Priv[:]),
-			Public:  b64enc(noisePub),
+			Private: buf(dev.NoiseKey.Priv[:]),
+			Public:  buf(dev.NoiseKey.Pub[:]),
+		},
+		PairingEphemeralKeyPair: KeyPair{
+			Private: buf(eph.Priv[:]),
+			Public:  buf(eph.Pub[:]),
 		},
 		SignedIdentityKey: KeyPair{
-			Private: b64enc(dev.IdentityKey.Priv[:]),
-			Public:  b64enc(identPub),
+			Private: buf(dev.IdentityKey.Priv[:]),
+			Public:  buf(dev.IdentityKey.Pub[:]),
 		},
 		SignedPreKey: PreKey{
 			KeyID: int(dev.SignedPreKey.KeyID),
 			KeyPair: KeyPair{
-				Private: b64enc(dev.SignedPreKey.KeyPair.Priv[:]),
-				Public:  b64enc(signedPreKeyPub),
+				Private: buf(dev.SignedPreKey.KeyPair.Priv[:]),
+				Public:  buf(dev.SignedPreKey.Pub[:]),
 			},
-			Signature: b64enc(sigBytes),
+			Signature: buf(sigBytes),
 		},
-		RegistrationID: int(dev.RegistrationID),
-		AdvSecretKey:  b64enc(dev.AdvSecretKey),
-		NextPreKeyID: 100, FirstUnuploadedPreKeyID: 100,
+		RegistrationID:          int(dev.RegistrationID),
+		AdvSecretKey:            b64enc(dev.AdvSecretKey),
+		ProcessedHistoryMessages: []any{},
+		// 从 100 起避免与原设备已上传的低位 preKeyId 冲突
+		NextPreKeyID:            100,
+		FirstUnuploadedPreKeyID: 100,
+		AccountSyncCounter:      0,
 	}
 	c.AccountSettings.UnarchiveChats = true
+	if meID != "" {
+		c.Me = &meInfo{ID: meID}
+		c.Registered = true
+	}
 	return c
+}
+
+// baileysMeID 从登录后的 device JID 构造 Baileys me.id：
+// 固定 <手机号>:<设备号>@s.whatsapp.net（剥离 agent，保证 Baileys jidDecode 拿到纯数字 user）
+func baileysMeID(dev *store.Device) string {
+	if dev.ID == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s:%d@s.whatsapp.net", dev.ID.User, dev.ID.Device)
 }
 
 // ─────────────────────────────────────────────
@@ -375,7 +416,7 @@ func handleSeg6Login(w http.ResponseWriter, req *Seg6Request) {
 		return
 	}
 
-	creds := deviceToBaileysCreds(dev)
+	creds := deviceToBaileysCreds(dev, baileysMeID(dev))
 	credsJSON, _ := json.Marshal(creds)
 
 	fmt.Printf("[WAF] 登录成功: %s -> %s\n", phone, jid)
@@ -432,7 +473,7 @@ func handleWAFConvert(w http.ResponseWriter, r *http.Request) {
 	dev.AdvSecretKey = advKey
 	jidObj := types.NewJID(phoneDigits.String(), types.DefaultUserServer); dev.ID = &jidObj
 
-	creds := deviceToBaileysCreds(dev)
+	creds := deviceToBaileysCreds(dev, "") // 预览：无 me，Baileys 会走二维码
 	credsJSON, _ := json.Marshal(creds)
 
 	writeJSONWA(w, map[string]any{

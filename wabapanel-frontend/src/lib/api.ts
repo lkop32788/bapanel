@@ -138,6 +138,7 @@ export const waqrApi = {
   disconnectSlot: (slotId: string) => api.post(`/waqr/slots/${slotId}/disconnect`, {}),
   deleteSlot: (slotId: string) => api.delete(`/waqr/slots/${slotId}`),
   updateSlotSettings: (slotId: string, data: { label?: string; dailyLimit?: number; enabled?: boolean }) => api.put(`/waqr/slots/${slotId}/settings`, data),
+  importSeg6: (data: { raw: string; platform?: string; label?: string }) => api.post('/waqr/slots/import-seg6', data),
 };
 
 export const workspaceApi = {

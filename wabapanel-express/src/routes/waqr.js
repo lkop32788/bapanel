@@ -107,6 +107,51 @@ router.post('/slots', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// 解析六段凭证：JSON {phone,noisePriv,identityPriv,hash} 或逗号格式
+// phone,noisePub,noisePriv,identPub,identPriv,hash（可带 |proxy|finger 尾部，忽略）
+function parseSeg6(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return null;
+  if (raw[0] === '{') {
+    try {
+      const o = JSON.parse(raw);
+      if (o.phone && o.noisePriv && o.identityPriv && o.hash) {
+        return { phone: o.phone, noisePriv: o.noisePriv, identityPriv: o.identityPriv, hash: o.hash, platform: o.platform, proxy: o.proxy };
+      }
+    } catch { /* 下面按逗号解析 */ }
+    return null;
+  }
+  const head = raw.split('|')[0];                 // 去掉 |proxy|finger 尾部
+  const proxy = raw.split('|')[1] || '';
+  const segs = head.split(',').map((s) => s.trim());
+  if (segs.length >= 6) {
+    return { phone: segs[0], noisePriv: segs[2], identityPriv: segs[4], hash: segs[5], proxy };
+  }
+  return null;
+}
+
+// 六段凭证登录导入：经工厂服务转成 Baileys 会话后作为普通号进池
+// body: { raw, platform?, label? } 或直接 { phone, noisePriv, identityPriv, hash, platform?, label? }
+router.post('/slots/import-seg6', async (req, res) => {
+  try {
+    const b = req.body || {};
+    let cred = (b.phone && b.noisePriv && b.identityPriv && b.hash)
+      ? { phone: b.phone, noisePriv: b.noisePriv, identityPriv: b.identityPriv, hash: b.hash, platform: b.platform, proxy: b.proxy }
+      : parseSeg6(b.raw);
+    if (!cred) return res.status(400).json({ success: false, message: '凭据格式无法识别（需 phone/noisePriv/identityPriv/hash 或逗号六段）' });
+    if (b.platform) cred.platform = b.platform;
+
+    const waFactory = require('../services/waFactoryService');
+    const data = await waFactory.seg6Login(cred); // { jid, phone, credsB64 } —— 未启用/失败会抛错
+    const { slotId } = await waQr.importCredsSession(req.workspace._id, {
+      credsB64: data.credsB64, phone: data.phone, label: b.label,
+    });
+    res.json({ success: true, message: '登录成功，正在连接', data: { slotId, jid: data.jid, phone: data.phone } });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // 指定槽位连接（等价旧 /connect）
 router.post('/slots/:slotId/connect', async (req, res) => {
   try {

@@ -304,7 +304,7 @@
   "fixQrWarmup_20261020": "QR 预热修复：dailyLimit schema 默认与 createSlot 硬编码 1000 使预热曲线(25→1000)从未生效，新号首日可发千条。默认改 0（=dayCap 曲线），server.js 启动 Fixup 幂等回收存量 1000→0；商户端日限额编辑入口全部下线。删槽残留绑定修复：QR/TG/外部 deleteSlot 清 Conversation.waNumberId，否则绑定已删槽的会话永远发送失败。",
   "featureNumberPoolUnify_20261020": "号池统一：消灭 QR/TG 的'主号子文档(waQr/tgPersonal) vs 附加号数组(waQrSlots/tgPersonalSlots)'二元结构。所有号码都是数组普通成员，slotId='default' 只是其中一个(由子文档迁移来)，可删可改名、与别的号完全平等。后端：启动 once('open') 幂等迁移子文档→数组(保留旧子文档可回滚，在 restoreAll 前完成)；waQrService/tgUserService 全部去 slotId==='default' 分支，统一 arrayFilters+ensureSlot；checkAndCountSend 改 $inc 原子计数；authDirFor 对 default 仍映射旧 wa_sessions/<id>/ 目录(纯路径兼容)；TG apiId/apiHash 留在 tgPersonal.* 作工作区级共用凭据；rotationLinks.pickQrNumber 取代表号、channelDiagnose 读 getStatus。前端：号码/账号卡片删 isDefault 特殊化(主号徽标/操作屏蔽)，每卡平等；channels 页删遗留单号卡片改纯统一网格。commit fc1a233，迁移冒烟 17/17。",
   "featureBaileysFactory_20261020": {
-    "note": "自研功能「Baileys 转换 API」：六段凭证(phone/noisePriv/identityPriv/hash)经工厂服务登录校验后转成 Baileys creds.json，写入 wa_sessions 即当普通扫码号进号池。工厂服务在 yuncang-proxy(Go+whatsmeow)：GET /api/wa/health、POST /api/wa/seg6-login、POST /api/wa/seg6-convert（后两者 loopbackOnly）。本次完成平台级 admin 设置页；商户侧上传入口待做。平台配置存 SystemSettings.waFactory；工厂地址默认走 YUNCANG_URL(127.0.0.1:5090)。非供应商代码，补丁覆盖后需重新应用",
+    "note": "自研功能「Baileys 转换 API」：六段凭证(phone/noisePriv/identityPriv/hash)经工厂服务登录校验后转成 Baileys creds.json，写入 wa_sessions 即当普通扫码号进号池。工厂服务在 yuncang-proxy(Go+whatsmeow)：GET /api/wa/health、POST /api/wa/seg6-login、POST /api/wa/seg6-convert（后两者 loopbackOnly）。平台级 admin 设置页 + 商户侧六段凭证登录入口均已完成。平台配置存 SystemSettings.waFactory；工厂地址默认走 YUNCANG_URL(127.0.0.1:5090)。非供应商代码，补丁覆盖后需重新应用",
     "adminPageRepurposed": "admin/ext-channels 由「外部通道/专线通道」按商户管理页改为「Baileys 转换 API」设置页（用户要求整页改）。专线通道后端(externalApiService/extApiCampaign/externalApiInbound)与商户侧未动；ExtChannelManager 组件变为未被引用(保留备用)。侧边栏 label External Channels→Baileys API；zhNavigation 映射 'Baileys API'→'Baileys 转换 API'",
     "backend": {
       "models/SystemSettings.js": "新增 waFactory 组：enabled/baseUrl(空=YUNCANG_URL)/defaultPlatform(0/1/10/12)/allowProxy/timeoutMs",
@@ -317,6 +317,18 @@
       "lib/api.ts": "adminApi.testWaFactory() → GET /admin/settings/wa-factory-health",
       "components/layout/AdminSidebar.tsx": "label External Channels→Baileys API",
       "lib/zhNavigation.ts": "'External Channels':'外部通道' → 'Baileys API':'Baileys 转换 API'"
+    },
+    "merchantEntry": {
+      "backend": {
+        "services/waQrService.js": "新增 importCredsSession(wsId,{credsB64,phone,label})：解码 Baileys creds→写 wa_sessions/<wsId>__<slotId>/creds.json→推 waQrSlots 号位(status connecting)→startSession 连接。已导出",
+        "routes/waqr.js": "新增 POST /waqr/slots/import-seg6：parseSeg6 解析(JSON 或逗号六段 phone,noisePub,noisePriv,identPub,identPriv,hash，可带|proxy)→waFactoryService.seg6Login→importCredsSession。中间件沿用 protect+workspaceAccess+requireFeature('whatsappQr')"
+      },
+      "frontend": {
+        "components/channels/WaQrSlotsSection.tsx": "WhatsApp 号码区加「六段凭证登录」按钮+Modal(textarea 粘贴凭证/平台选择/备注/导入并连接)，复用 fetchSlots 导入后号码即现",
+        "lib/api.ts": "waqrApi.importSeg6({raw,platform,label}) → POST /waqr/slots/import-seg6"
+      },
+      "baileysCredsFormat": "工厂输出改为真正 Baileys 格式：密钥 BufferJSON {type:'Buffer',data:b64}、advSecretKey 裸字符串、公钥 32B 裸(与 Curve.generateKeyPair 去版本字节一致)、补齐 initAuthCreds 字段、带 me.id(<phone>:<device>@s.whatsapp.net)+registered:true(Baileys socket.js:157 仅凭 creds.me 决定登录 vs 二维码)。已用 Baileys BufferJSON.reviver round-trip 验证兼容",
+      "verified": "parseSeg6→seg6Login→Go 工厂全链路通；失效测试号返回 403 logged-out(流程正确)。waFactory.enabled 默认关，需运营者在 admin/ext-channels 开启"
     }
   }
 }
