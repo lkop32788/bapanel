@@ -159,17 +159,25 @@ function groupPrefixes(prefixes) {
   if (prefixLen <= 4) {
     return { prefixLen, groups: [...prefixes].sort().map(p => ({ key: p, count: 1 })) };
   }
+  // 范围不大时把每个 4 位子组下的具体七位号段也带上，前端可勾选到具体号段（整省几万个就只给分组）
+  const withItems = prefixes.length <= 5000;
   const top = new Map();
   for (const p of prefixes) {
     const k3 = p.slice(0, 3), k4 = p.slice(0, 4);
     let g = top.get(k3);
     if (!g) { g = { count: 0, sub: new Map() }; top.set(k3, g); }
     g.count++;
-    g.sub.set(k4, (g.sub.get(k4) || 0) + 1);
+    let s = g.sub.get(k4);
+    if (!s) { s = { count: 0, items: [] }; g.sub.set(k4, s); }
+    s.count++;
+    if (withItems) s.items.push(p);
   }
-  const groups = [...top.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([key, g]) => ({
+  const byKey = ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0);
+  const groups = [...top.entries()].sort(byKey).map(([key, g]) => ({
     key, count: g.count,
-    sub: [...g.sub.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, c]) => ({ key: k, count: c })),
+    sub: [...g.sub.entries()].sort(byKey).map(([k, s]) => ({
+      key: k, count: s.count, ...(withItems ? { items: s.items.sort() } : {}),
+    })),
   }));
   return { prefixLen, groups };
 }
