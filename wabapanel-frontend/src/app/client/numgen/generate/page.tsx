@@ -1,12 +1,13 @@
 'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Hash, ListOrdered, Shuffle, Wand2, AlertCircle } from 'lucide-react';
+import { Hash, ListOrdered, Shuffle, Wand2, AlertCircle, Lightbulb } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { numgenApi } from '@/lib/api';
 import { COUNTRIES, COUNTRY_GROUPS, LOCAL_LEN_HINT } from '@/lib/countries';
+import { getMobilePrefixHints, type MobilePrefixHints } from '@/lib/mobilePrefixes';
 
 const MAX_SEQ = 5000000;
 const MAX_RAND = 1000000;
@@ -29,6 +30,30 @@ export default function NumGenGeneratePage() {
 
   const country = COUNTRIES.find(c => c.code === countryCode) || COUNTRIES[0];
   const prefixes = useMemo(() => splitPrefixes(prefixText), [prefixText]);
+
+  // 真实号段提示：仅面板展开时按当前国家离线推算（同步计算几十毫秒，延后一帧让「计算中」先渲染）
+  const [hintOpen, setHintOpen] = useState(false);
+  const [hintLoading, setHintLoading] = useState(false);
+  const [hints, setHints] = useState<MobilePrefixHints | null>(null);
+  useEffect(() => {
+    if (!hintOpen) return;
+    setHintLoading(true);
+    setHints(null);
+    const t = setTimeout(() => {
+      setHints(getMobilePrefixHints(country.code, country.dial));
+      setHintLoading(false);
+    }, 30);
+    return () => clearTimeout(t);
+  }, [hintOpen, country.code, country.dial]);
+
+  const togglePrefix = (p: string) => {
+    if (prefixes.includes(p)) {
+      setPrefixText(prefixes.filter(x => x !== p).join(', '));
+      return;
+    }
+    if (prefixes.length >= MAX_PREFIXES) { toast.error(`最多 ${MAX_PREFIXES} 个前缀`); return; }
+    setPrefixText([...prefixes, p].join(', '));
+  };
 
   // 校验与容量：容量 = Σ 10^(位数 − 前缀长)
   const prefixError = useMemo(() => {
@@ -98,12 +123,55 @@ export default function NumGenGeneratePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">号段前缀</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">号段前缀</label>
+              <button type="button" onClick={() => setHintOpen(v => !v)}
+                className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors ${hintOpen ? 'bg-amber-50 text-amber-700' : 'text-amber-600 hover:bg-amber-50'}`}>
+                <Lightbulb className="w-3.5 h-3.5" />真实号段提示
+              </button>
+            </div>
             <input value={prefixText} onChange={e => setPrefixText(e.target.value)} placeholder="例如：12, 13, 16（多个用逗号或空格分隔，最多 6 个）"
               className={`${inputCls} ${prefixText && prefixError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`} />
             <p className={`mt-1 text-xs ${prefixText && prefixError ? 'text-red-500' : 'text-gray-400'}`}>
               {prefixText && prefixError ? prefixError : '国家码后面的开头几位，不含国家码和 +；填多个前缀会平均分配生成'}
             </p>
+            {hintOpen && (
+              <div className="mt-2 rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3 text-sm space-y-2.5">
+                <p className="text-xs text-gray-500">
+                  依据 Google libphonenumber 规则库离线推算，<b className="text-gray-700">{country.name}</b> 常见手机号段，点击加入前缀
+                </p>
+                {hintLoading || !hints ? (
+                  <p className="text-xs text-gray-400">计算中…</p>
+                ) : hints.prefixes.length === 0 ? (
+                  <p className="text-xs text-gray-400">该国家暂无规则数据，请按运营商号段手动填写</p>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap gap-1.5">
+                      {hints.prefixes.map(h => {
+                        const on = prefixes.includes(h.prefix);
+                        return (
+                          <button key={h.prefix} type="button" title={h.example} onClick={() => togglePrefix(h.prefix)}
+                            className={`rounded-lg px-2.5 py-1 font-mono text-xs border transition-colors ${on
+                              ? 'bg-emerald-600 border-emerald-600 text-white'
+                              : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-700'}`}>
+                            {h.prefix}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {hints.exampleLen > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span>推荐位数 <b className="text-gray-800">{hints.exampleLen} 位</b>（示例 {hints.example}）</span>
+                        {localLen !== hints.exampleLen && (
+                          <button type="button" onClick={() => setLocalLen(hints.exampleLen)}
+                            className="rounded-md border border-emerald-200 bg-white px-2 py-0.5 text-emerald-700 hover:bg-emerald-50">采用</button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

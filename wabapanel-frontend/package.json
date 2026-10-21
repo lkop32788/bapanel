@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "axios": "^1.18.1",
+    "libphonenumber-js": "1.11.x",
     "lucide-react": "^1.21.0",
     "next": "^16.3.2",
     "react": "^19.2.8",

@@ -173,7 +173,8 @@
       "frontend": {
         "src/lib/countries.ts(新增)": "COUNTRIES 公共国家表（从 SaverStatusCheck 抽出，2026-10-21 扩到 89 国按 9 个地区分组：东南亚/东亚/南亚/中东/欧洲/北美/中南美/非洲/大洋洲）+ COUNTRY_GROUPS/COUNTRY_MAP + LOCAL_LEN_HINT 各国位数提示；省钱专家两处下拉和号码生成下拉都改 optgroup 分组显示。yuncang-proxy/admin_page.go 的 COUNTRIES 是同一份数据（手工同步）",
         "src/lib/api.ts": "numgenApi {create,list,exportTxt(blob),remove}",
-        "src/app/client/numgen/generate/page.tsx(新增)": "表单：名称/国家/前缀/位数/顺序随机切换/数量，实时容量+示例号码+上限校验超限禁用，成功跳列表",
+        "src/app/client/numgen/generate/page.tsx(新增)": "表单：名称/国家/前缀/位数/顺序随机切换/数量，实时容量+示例号码+上限校验超限禁用，成功跳列表。「真实号段提示」按钮（Lightbulb）：展开面板列出该国有效手机号段 chips（点击加入/移除前缀）+ 推荐位数一键采用",
+        "src/lib/mobilePrefixes.ts(新增)": "getMobilePrefixHints(code,dial)：基于 libphonenumber-js/mobile（新增依赖 1.11.x，离线）推算真实手机号段——取示例号位数，枚举 2 位前缀（无效再细化 3 位）用多组填充补齐后 isValid 且类型 MOBILE/FIXED_LINE_OR_MOBILE 判有效，测试位数用示例位数 ±1（否则 MY 10 位的 011 号段漏掉），按国家缓存、最多 200 条",
         "src/app/client/numgen/list/page.tsx(新增)": "搜索+去生成、表格（名称/国家/号段/位数/方式/数量/示例/时间/下载·删除）、分页、空状态",
         "src/components/layout/ClientSidebar.tsx": "Saver Expert 后插入「Number Generator」分组（Hash/ListOrdered 图标）",
         "src/lib/zhNavigation.ts": "Number Generator=号码生成、Custom Segment Generate=自定义号段生成、Generated Lists=生成列表"
