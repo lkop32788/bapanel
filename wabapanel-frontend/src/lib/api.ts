@@ -364,6 +364,8 @@ export const numgenApi = {
   regionPrefixes: (params: { country: string; region: string; city?: string; isp?: string; selected?: string }) =>
     api.get('/numgen/batches/regions/prefixes', { params }),
   exportTxt: (id: string) => api.get(`/numgen/batches/${id}/export`, { responseType: 'blob', timeout: 600000 }),
+  // 把生成批次直接加入省钱专家检测（服务端按批次参数重生成号码建检测任务）
+  check: (id: string, data: { taskType: string }) => api.post(`/numgen/batches/${id}/check`, data, { timeout: 600000 }),
   remove: (id: string) => api.delete(`/numgen/batches/${id}`),
 };
 

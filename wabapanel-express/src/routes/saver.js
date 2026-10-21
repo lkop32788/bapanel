@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { protect, workspaceAccess, denyAgent } = require('../middleware/auth');
 const SaverCheckTask = require('../models/SaverCheckTask');
-const { processTask } = require('../services/saverCheckService');
+const { createCheckTask } = require('../services/saverCheckService');
 const { TASK_TYPES, normalizeValue } = require('../services/saverTaskTypes');
 const billing = require('../services/saverBillingService');
 const SaverCheckItem = require('../models/SaverCheckItem');
@@ -94,59 +94,14 @@ router.post('/checks', maybeFile, async (req, res) => {
       return res.status(400).json({ success: false, message: `号码太少：去重后 ${values.length} 条，单次最低 2000 条` });
     }
 
-    // 计量收费：按提交条数预扣，余额不足拒绝
-    const cfg = await billing.getBillingConfig();
-    let cost = 0, unitPrice = 0, chargeLedgerId = null;
-    if (cfg.enabled) {
-      unitPrice = billing.priceFor(cfg, taskType);
-      cost = billing.round3(unitPrice * values.length);
-      if (cost > 0) {
-        const charged = await billing.charge(req.workspace._id, cost, `检测 ${values.length} 条 × ${unitPrice}`);
-        if (!charged) {
-          return res.status(402).json({ success: false, message: `余额不足：本次需 ￥${cost}，请先到充值中心充值` });
-        }
-        chargeLedgerId = charged.ledgerId;
-      }
-    }
-
-    // SEC-PAY3：已预扣费后建任务/写明细失败必须退款（钱扣了任务没了）
-    let task;
-    try {
-      task = await SaverCheckTask.create({
-        workspace: req.workspace._id,
-        createdBy: req.user._id,
-        channel,
-        taskType,
-        fileName: String(body.fileName || '').slice(0, 200),
-        country,
-        total: values.length,
-        cost,
-        unitPrice,
-      });
-      // 明细拆独立集合（内嵌 500 万条会爆 Mongo 16MB 文档上限），原生分批插入避免逐条 cast
-      for (let i = 0; i < values.length; i += 5000) {
-        const docs = values.slice(i, i + 5000)
-          .map(p => ({ task: task._id, phone: p, status: 'unknown', detail: '' }));
-        await SaverCheckItem.collection.insertMany(docs, { ordered: false });
-      }
-    } catch (createErr) {
-      if (task) {
-        await SaverCheckItem.deleteMany({ task: task._id }).catch(() => {});
-        await SaverCheckTask.deleteOne({ _id: task._id }).catch(() => {});
-      }
-      if (cost > 0) {
-        await billing.refund(req.workspace._id, cost, null, '任务创建失败自动退款').catch((e) => console.error('[saver] create-refund:', e.message));
-      }
-      throw createErr;
-    }
-    if (chargeLedgerId) {
-      require('../models/SaverLedger').updateOne(
-        { _id: chargeLedgerId }, { $set: { task: task._id } }).catch(() => {});
-    }
-    setImmediate(() => processTask(task._id).catch(err => console.error('[saver] processTask:', err.message)));
-    const { results: _r, ...lean } = task.toObject();
+    // 计费预扣 → 建任务 → 明细入库 → 异步开跑（与号码生成「一键送检」共用）
+    const lean = await createCheckTask({
+      workspaceId: req.workspace._id, userId: req.user._id, channel, taskType, country,
+      fileName: body.fileName, total: values.length, values,
+    });
     res.status(201).json({ success: true, data: lean });
   } catch (error) {
+    if (error.status === 402) return res.status(402).json({ success: false, message: error.message });
     res.status(500).json({ success: false, message: error.message });
   }
 });

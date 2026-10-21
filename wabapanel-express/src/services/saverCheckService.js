@@ -239,4 +239,65 @@ async function resumeAll() {
 }
 setTimeout(resumeAll, 15000);
 
-module.exports = { processTask, getBalance };
+// 创建检测任务：计费预扣 → 建任务 → 明细分批入库 → 异步开跑。
+// values 可为数组或任意可迭代/generator（按批 5000 插入，不整体物化）；total 由调用方给出用于计费。
+// 余额不足抛 { status: 402 } 的 Error；建任务/写明细失败删任务+退款后抛错（SEC-PAY3）。
+async function createCheckTask({ workspaceId, userId, channel, taskType, country, fileName, total, values }) {
+  const billing = require('./saverBillingService');
+  const cfg = await billing.getBillingConfig();
+  let cost = 0, unitPrice = 0, chargeLedgerId = null;
+  if (cfg.enabled) {
+    unitPrice = billing.priceFor(cfg, taskType);
+    cost = billing.round3(unitPrice * total);
+    if (cost > 0) {
+      const charged = await billing.charge(workspaceId, cost, `检测 ${total} 条 × ${unitPrice}`);
+      if (!charged) {
+        throw Object.assign(new Error(`余额不足：本次需 ￥${cost}，请先到充值中心充值`), { status: 402 });
+      }
+      chargeLedgerId = charged.ledgerId;
+    }
+  }
+
+  let task;
+  try {
+    task = await SaverCheckTask.create({
+      workspace: workspaceId,
+      createdBy: userId,
+      channel,
+      taskType,
+      fileName: String(fileName || '').slice(0, 200),
+      country,
+      total,
+      cost,
+      unitPrice,
+    });
+    // 明细拆独立集合（内嵌 500 万条会爆 Mongo 16MB 文档上限），原生分批插入避免逐条 cast
+    let docs = [];
+    for (const p of values) {
+      docs.push({ task: task._id, phone: p, status: 'unknown', detail: '' });
+      if (docs.length >= 5000) {
+        await SaverCheckItem.collection.insertMany(docs, { ordered: false });
+        docs = [];
+      }
+    }
+    if (docs.length) await SaverCheckItem.collection.insertMany(docs, { ordered: false });
+  } catch (createErr) {
+    if (task) {
+      await SaverCheckItem.deleteMany({ task: task._id }).catch(() => {});
+      await SaverCheckTask.deleteOne({ _id: task._id }).catch(() => {});
+    }
+    if (cost > 0) {
+      await billing.refund(workspaceId, cost, null, '任务创建失败自动退款').catch((e) => console.error('[saver] create-refund:', e.message));
+    }
+    throw createErr;
+  }
+  if (chargeLedgerId) {
+    require('../models/SaverLedger').updateOne(
+      { _id: chargeLedgerId }, { $set: { task: task._id } }).catch(() => {});
+  }
+  setImmediate(() => processTask(task._id).catch(err => console.error('[saver] processTask:', err.message)));
+  const { results: _r, ...lean } = task.toObject();
+  return lean;
+}
+
+module.exports = { processTask, getBalance, createCheckTask };

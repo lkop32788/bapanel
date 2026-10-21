@@ -1,11 +1,24 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Hash, ListOrdered, Download, Trash2, RefreshCw, Search, RotateCcw, Plus } from 'lucide-react';
+import { Hash, ListOrdered, Download, Trash2, RefreshCw, Search, RotateCcw, Plus, ScanSearch, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { numgenApi } from '@/lib/api';
+import Modal from '@/components/ui/Modal';
+import { numgenApi, saverCheckApi } from '@/lib/api';
+import { SAVER_GROUPS } from '@/lib/saverTypes';
+
+// 送检限制与省钱专家一致
+const CHECK_MIN = 2000;
+const CHECK_MAX = 5000000;
+// 只有按号码检测的类型才能接收生成的号码（邮箱/用户名类排除）
+const PHONE_GROUPS = SAVER_GROUPS
+  .map(g => ({ slug: g.slug, name: g.name, types: g.types.filter(t => t.input === 'phone') }))
+  .filter(g => g.types.length > 0);
+const DEFAULT_TASK_TYPE = PHONE_GROUPS.find(g => g.slug === 'ws')?.types[0]?.value || PHONE_GROUPS[0]?.types[0]?.value || '';
+const groupSlugOf = (taskType: string) => PHONE_GROUPS.find(g => g.types.some(t => t.value === taskType))?.slug || 'ws';
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 interface GenBatch {
   _id: string;
@@ -46,6 +59,44 @@ export default function NumGenListPage() {
   const [nameInput, setNameInput] = useState('');
   const [query, setQuery] = useState('');
   const [busyId, setBusyId] = useState('');
+
+  // 加入检测弹窗
+  interface WalletInfo { enabled: boolean; balance?: number; priceDefault?: number; priceOverrides?: Record<string, number> }
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [checkTarget, setCheckTarget] = useState<GenBatch | null>(null);
+  const [checkType, setCheckType] = useState(DEFAULT_TASK_TYPE);
+  const [checking, setChecking] = useState(false);
+  useEffect(() => {
+    saverCheckApi.wallet().then(r => setWallet(r.data.data || { enabled: false })).catch(() => {});
+  }, []);
+  const openCheck = (b: GenBatch) => { setCheckType(DEFAULT_TASK_TYPE); setCheckTarget(b); };
+  const checkCount = checkTarget?.count || 0;
+  const checkCountOk = checkCount >= CHECK_MIN && checkCount <= CHECK_MAX;
+  const checkUnitPrice = wallet?.enabled ? (wallet.priceOverrides?.[checkType] ?? wallet.priceDefault ?? 0) : 0;
+  const checkCost = round3(checkUnitPrice * checkCount);
+  const checkInsufficient = !!wallet?.enabled && checkCost > (wallet.balance || 0);
+  const submitCheck = async () => {
+    if (!checkTarget || checking || !checkCountOk || !checkType) return;
+    setChecking(true);
+    const target = checkTarget;
+    const slug = groupSlugOf(checkType);
+    try {
+      await numgenApi.check(target._id, { taskType: checkType });
+      setCheckTarget(null);
+      toast.success(t => (
+        <span className="flex items-center gap-3">
+          已加入检测
+          <button onClick={() => { toast.dismiss(t.id); router.push(`/client/saver/${slug}`); }}
+            className="text-emerald-600 font-semibold hover:underline">去查看</button>
+        </span>
+      ), { duration: 6000 });
+      saverCheckApi.wallet().then(r => setWallet(r.data.data || { enabled: false })).catch(() => {});
+    } catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || '加入检测失败，请稍后重试');
+    }
+    setChecking(false);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -182,6 +233,10 @@ export default function NumGenListPage() {
                         className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 hover:underline text-xs font-medium disabled:opacity-50">
                         {busyId === b._id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}下载
                       </button>
+                      <button onClick={() => openCheck(b)}
+                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
+                        <ScanSearch className="w-3.5 h-3.5" />检测
+                      </button>
                       <button onClick={() => remove(b)}
                         className="inline-flex items-center gap-1 text-gray-400 hover:text-red-500 text-xs">
                         <Trash2 className="w-3.5 h-3.5" />删除
@@ -209,6 +264,59 @@ export default function NumGenListPage() {
           </div>
         </div>
       </Card>
+
+      {/* 加入检测：把这批号码直接送进省钱专家 */}
+      <Modal isOpen={!!checkTarget} onClose={() => { if (!checking) setCheckTarget(null); }} title="加入检测" size="md" guard={false}>
+        {checkTarget && (
+          <div className="space-y-4">
+            <div className="rounded-xl bg-gray-50 px-4 py-3 text-sm space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 shrink-0">批次</span>
+                <span className="font-medium text-gray-900 truncate">{checkTarget.name || batchNo(checkTarget._id)}</span>
+              </div>
+              <div className="flex items-center gap-4 text-gray-600">
+                <span>国家：{checkTarget.country?.name || '—'}{checkTarget.country?.dial ? ` +${checkTarget.country.dial}` : ''}</span>
+                <span>数量：<b className="text-gray-900">{checkCount.toLocaleString()}</b> 条</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">检测类型</label>
+              <select value={checkType} onChange={e => setCheckType(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                {PHONE_GROUPS.map(g => (
+                  <optgroup key={g.slug} label={g.name}>
+                    {g.types.map(t => <option key={t.value} value={t.value}>{t.name}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-400">提交后在省钱专家对应平台页查看进度和结果</p>
+            </div>
+
+            {!checkCountOk && (
+              <p className="text-xs text-red-500 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {checkCount < CHECK_MIN
+                  ? `条数不足：检测单次最低 ${CHECK_MIN.toLocaleString()} 条，这批只有 ${checkCount.toLocaleString()} 条`
+                  : `超出上限：检测单次最多 ${CHECK_MAX.toLocaleString()} 条`}
+              </p>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-1">
+              {wallet?.enabled && (
+                <span className="text-sm text-gray-500 mr-auto">
+                  预计扣费 <span className={`font-semibold ${checkInsufficient ? 'text-red-500' : 'text-emerald-600'}`}>￥{checkCost}</span>
+                  <span className="text-xs text-gray-400 ml-1">（余额 ￥{round3(wallet.balance || 0)}）</span>
+                </span>
+              )}
+              <Button variant="ghost" onClick={() => setCheckTarget(null)} disabled={checking}>取消</Button>
+              <Button onClick={submitCheck} loading={checking} disabled={!checkCountOk || !checkType || checking}>
+                加入检测
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

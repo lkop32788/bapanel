@@ -1,6 +1,8 @@
 const router = require('express').Router();
-const { protect, workspaceAccess } = require('../middleware/auth');
+const { protect, workspaceAccess, denyAgent } = require('../middleware/auth');
 const NumberGenBatch = require('../models/NumberGenBatch');
+const { TASK_TYPES } = require('../services/saverTaskTypes');
+const { createCheckTask } = require('../services/saverCheckService');
 const { capacityOf, generate, preview } = require('../services/numberGenService');
 const { getRegions, resolvePrefixes, groupPrefixes, filterBySelected } = require('../services/regionPrefixService');
 
@@ -197,6 +199,39 @@ router.delete('/batches/:id', async (req, res) => {
     if (!r) return res.status(404).json({ success: false, message: '批次不存在' });
     res.json({ success: true, message: '已删除' });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/numgen/batches/:id/check — 把生成批次一键送检到省钱专家（按参数重新生成号码直接入检测明细，不经文件）
+// 涉及扣商家钱包，客服不可用（与 /api/saver 一致）
+const CHECK_MIN = 2000;
+const CHECK_MAX = 5000000;
+router.post('/batches/:id/check', denyAgent, async (req, res) => {
+  try {
+    const batch = await NumberGenBatch.findOne({ _id: req.params.id, workspace: req.workspace._id }).lean();
+    if (!batch) return res.status(404).json({ success: false, message: '批次不存在' });
+    const taskType = String(req.body?.taskType || '');
+    const def = TASK_TYPES[taskType];
+    if (!def) return res.status(400).json({ success: false, message: '无效的检测类型' });
+    if (def.input !== 'phone') return res.status(400).json({ success: false, message: '该检测类型不适用于号码' });
+    if (batch.count < CHECK_MIN || batch.count > CHECK_MAX) {
+      return res.status(400).json({ success: false, message: `检测要求单次 ${CHECK_MIN.toLocaleString('zh-CN')}～${(CHECK_MAX / 10000)} 万条，本批次 ${batch.count.toLocaleString('zh-CN')} 条` });
+    }
+    const country = { name: batch.country?.name || '', dial: batch.country?.dial || '', code: batch.country?.code || '' };
+    if (def.country && !/^[A-Z]{2}$/.test(country.code)) {
+      return res.status(400).json({ success: false, message: '该批次没有国家信息，无法检测' });
+    }
+    const lean = await createCheckTask({
+      workspaceId: req.workspace._id, userId: req.user._id,
+      channel: def.channel, taskType, country,
+      fileName: String(batch.name || '').slice(0, 200),
+      total: batch.count,
+      values: generate(batch), // 按批次参数确定性重生成，号码天然唯一
+    });
+    res.status(201).json({ success: true, data: lean });
+  } catch (error) {
+    if (error.status === 402) return res.status(402).json({ success: false, message: error.message });
     res.status(500).json({ success: false, message: error.message });
   }
 });
