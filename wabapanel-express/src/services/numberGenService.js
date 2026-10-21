@@ -41,12 +41,24 @@ function* generate(batch) {
 
   const rand = mulberry32(seed);
   const total = caps.reduce((a, b) => a + b, 0);
+  // 按容量加权选前缀：地区模式前缀可达数万个，线性扫描会卡死，等长时等概率取下标，否则累计容量二分
+  const uniform = caps.every(c => c === caps[0]);
+  const cum = [];
+  let acc = 0;
+  for (const c of caps) { acc += c; cum.push(acc); }
+  const pickPrefix = () => {
+    if (uniform) return Math.min(caps.length - 1, Math.floor(rand() * caps.length));
+    const r = rand() * total;
+    let lo = 0, hi = cum.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (r < cum[mid]) hi = mid; else lo = mid + 1;
+    }
+    return lo;
+  };
   const seen = new Set();
   while (produced < count) {
-    // 按容量加权选前缀
-    let r = rand() * total;
-    let i = 0;
-    while (i < caps.length - 1 && r >= caps[i]) { r -= caps[i]; i++; }
+    const i = pickPrefix();
     const suffix = Math.floor(rand() * caps[i]);
     const key = i + ':' + suffix;
     if (seen.has(key)) continue;

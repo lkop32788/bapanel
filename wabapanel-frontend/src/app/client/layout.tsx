@@ -1,6 +1,5 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import ClientSidebar from '@/components/layout/ClientSidebar';
 import Header from '@/components/layout/Header';
@@ -89,7 +88,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <CallProvider>
       <NotificationProvider />
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
       <div className="flex h-screen bg-gray-50">
         <ClientSidebar />
         <div className="flex-1 flex flex-col overflow-hidden">

@@ -2,13 +2,25 @@ const router = require('express').Router();
 const { protect, workspaceAccess } = require('../middleware/auth');
 const NumberGenBatch = require('../models/NumberGenBatch');
 const { capacityOf, generate, preview } = require('../services/numberGenService');
+const { getRegions, resolvePrefixes, groupPrefixes, filterBySelected } = require('../services/regionPrefixService');
+
+const parseSelected = (v) => (Array.isArray(v) ? v : String(v || '').split(','))
+  .map(s => String(s || '').trim()).filter(s => /^\d{1,12}$/.test(s)).slice(0, 1000);
 
 router.use(protect, workspaceAccess);
 
 const MAX_SEQUENTIAL = 5000000;
 const MAX_RANDOM = 1000000;
+const MAX_REGION_PREFIXES = 100000; // 最大的省（广东）约 5.6 万个七位号段，整省可选
 
-const withExtras = (b, n) => ({ ...b, capacity: capacityOf(b.prefixes, b.localLen), preview: preview(b, n) });
+// 列表/创建响应：地区模式前缀可达数万个，只回前 6 个 + 总数
+const withExtras = (b, n) => ({
+  ...b,
+  capacity: capacityOf(b.prefixes, b.localLen),
+  preview: preview(b, n),
+  prefixes: b.prefixes.slice(0, 6),
+  prefixCount: b.prefixes.length,
+});
 
 // POST /api/numgen/batches — 新建生成批次（只存参数，号码按需重新生成）
 router.post('/batches', async (req, res) => {
@@ -19,18 +31,42 @@ router.post('/batches', async (req, res) => {
     if (!/^[A-Z]{2}$/.test(code) || !/^\d{1,4}$/.test(dial)) {
       return res.status(400).json({ success: false, message: '请选择国家' });
     }
-    const localLen = Number(body.localLen);
-    if (!Number.isInteger(localLen) || localLen < 5 || localLen > 15) {
-      return res.status(400).json({ success: false, message: '号码位数需为 5～15 之间的整数' });
-    }
-    const rawPrefixes = Array.isArray(body.prefixes) ? body.prefixes : [];
-    const prefixes = [...new Set(rawPrefixes.map(p => String(p || '').trim()).filter(Boolean))];
-    if (prefixes.length === 0 || prefixes.length > 6) {
-      return res.status(400).json({ success: false, message: '号段前缀需填 1～6 个' });
-    }
-    for (const p of prefixes) {
-      if (!/^\d{1,12}$/.test(p)) return res.status(400).json({ success: false, message: `号段前缀「${p}」只能是数字` });
-      if (p.length >= localLen) return res.status(400).json({ success: false, message: `号段前缀「${p}」长度需小于号码位数 ${localLen}` });
+    // 两种来源：按州/省（服务端从号段库解析前缀，忽略手填）/ 手填前缀
+    const regionIn = body.region && typeof body.region === 'object' && String(body.region.name || '').trim() ? body.region : null;
+    let prefixes, localLen, region = null;
+    if (regionIn) {
+      region = {
+        name: String(regionIn.name).trim().slice(0, 50),
+        city: String(regionIn.city || '').trim().slice(0, 50),
+        isp: String(regionIn.isp || '').trim().slice(0, 20),
+        selected: parseSelected(regionIn.selected),
+      };
+      const info = getRegions(code);
+      if (!info.supported) return res.status(400).json({ success: false, message: '该国家不支持按州/省生成' });
+      prefixes = resolvePrefixes(code, { region: region.name, city: region.city, isp: region.isp });
+      if (prefixes.length === 0) return res.status(400).json({ success: false, message: '该地区没有号段数据' });
+      if (region.selected.length) {
+        prefixes = filterBySelected(prefixes, region.selected);
+        if (prefixes.length === 0) return res.status(400).json({ success: false, message: '所选号段为空，请至少选一个号段' });
+      }
+      if (prefixes.length > MAX_REGION_PREFIXES) {
+        return res.status(400).json({ success: false, message: `该地区号段 ${prefixes.length.toLocaleString('zh-CN')} 个，超过 ${(MAX_REGION_PREFIXES / 10000)} 万上限，请按市/运营商缩小范围` });
+      }
+      localLen = info.localLen;
+    } else {
+      localLen = Number(body.localLen);
+      if (!Number.isInteger(localLen) || localLen < 5 || localLen > 15) {
+        return res.status(400).json({ success: false, message: '号码位数需为 5～15 之间的整数' });
+      }
+      const rawPrefixes = Array.isArray(body.prefixes) ? body.prefixes : [];
+      prefixes = [...new Set(rawPrefixes.map(p => String(p || '').trim()).filter(Boolean))];
+      if (prefixes.length === 0 || prefixes.length > 6) {
+        return res.status(400).json({ success: false, message: '号段前缀需填 1～6 个' });
+      }
+      for (const p of prefixes) {
+        if (!/^\d{1,12}$/.test(p)) return res.status(400).json({ success: false, message: `号段前缀「${p}」只能是数字` });
+        if (p.length >= localLen) return res.status(400).json({ success: false, message: `号段前缀「${p}」长度需小于号码位数 ${localLen}` });
+      }
     }
     const mode = body.mode === 'random' ? 'random' : body.mode === 'sequential' ? 'sequential' : '';
     if (!mode) return res.status(400).json({ success: false, message: '生成方式无效' });
@@ -48,13 +84,17 @@ router.post('/batches', async (req, res) => {
       if (count > half) return res.status(400).json({ success: false, message: `随机模式最多生成号段容量的一半（${half.toLocaleString('zh-CN')} 个），更多请用顺序模式` });
     }
     const countryName = String(body.countryName || '').slice(0, 50);
-    const name = (String(body.name || '').trim() || `${countryName || code}-${prefixes.join('/')}-${count}`).slice(0, 100);
+    const defaultName = region
+      ? `${countryName || code}-${region.name}${region.city ? '-' + region.city : ''}${region.isp ? '-' + region.isp : ''}-${count}`
+      : `${countryName || code}-${prefixes.join('/')}-${count}`;
+    const name = (String(body.name || '').trim() || defaultName).slice(0, 100);
     const batch = await NumberGenBatch.create({
       workspace: req.workspace._id,
       createdBy: req.user._id,
       name,
       country: { name: countryName, dial, code },
       prefixes,
+      ...(region ? { region } : {}),
       localLen,
       mode,
       count,
@@ -85,6 +125,43 @@ router.get('/batches', async (req, res) => {
       data: rows.map(b => withExtras(b, 3)),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 },
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/numgen/batches/regions?country=XX — 该国可选的州/省（及市/运营商）。必须排在 /batches/:id 之前
+router.get('/batches/regions', (req, res) => {
+  try {
+    const code = String(req.query.country || '').toUpperCase();
+    res.json({ success: true, data: /^[A-Z]{2}$/.test(code) ? getRegions(code) : { supported: false } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/numgen/batches/regions/prefixes?country=&region=&city=&isp= — 地区号段数量/容量/样例（不返回全量）
+router.get('/batches/regions/prefixes', (req, res) => {
+  try {
+    const code = String(req.query.country || '').toUpperCase();
+    const info = getRegions(code);
+    if (!info.supported) return res.status(400).json({ success: false, message: '该国家不支持按州/省生成' });
+    const all = resolvePrefixes(code, {
+      region: String(req.query.region || ''), city: String(req.query.city || ''), isp: String(req.query.isp || ''),
+    });
+    // groups 基于全量（供商户挑选），count/capacity/sample 基于 selected 筛选后
+    const prefixes = filterBySelected(all, parseSelected(req.query.selected));
+    const { prefixLen, groups } = groupPrefixes(all);
+    res.json({ success: true, data: {
+      count: prefixes.length,
+      total: all.length,
+      localLen: info.localLen,
+      capacity: capacityOf(prefixes, info.localLen),
+      sample: prefixes.slice(0, 10),
+      overLimit: prefixes.length > MAX_REGION_PREFIXES,
+      prefixLen,
+      groups,
+    } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

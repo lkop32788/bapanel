@@ -12,6 +12,8 @@ interface GenBatch {
   name?: string;
   country?: { name?: string; dial?: string; code?: string };
   prefixes: string[];
+  prefixCount?: number;
+  region?: { name?: string; city?: string; isp?: string; selected?: string[] };
   localLen: number;
   mode: 'sequential' | 'random';
   count: number;
@@ -146,7 +148,23 @@ export default function NumGenListPage() {
                   <td className={`${td} pl-4 font-mono text-xs text-gray-500`}>{batchNo(b._id)}</td>
                   <td className={`${td} font-medium text-gray-900 max-w-40 truncate`} title={b.name}>{b.name || '—'}</td>
                   <td className={`${td} text-gray-600`}>{b.country?.name || '—'}{b.country?.dial ? ` +${b.country.dial}` : ''}</td>
-                  <td className={`${td} font-mono text-gray-700`}>{(b.prefixes || []).join('、')}</td>
+                  <td className={`${td} text-gray-700`}>
+                    {b.region?.name ? (
+                      <div>
+                        <div className="text-gray-800">{b.region.name}{b.region.city ? ` ${b.region.city}` : ''}{b.region.isp ? ` · ${b.region.isp}` : ''}</div>
+                        <div className="text-xs text-gray-400">
+                          {b.region.selected?.length
+                            ? `已选 ${(b.prefixCount ?? (b.prefixes || []).length).toLocaleString()} 个号段（${b.region.selected.slice(0, 6).join('、')}${b.region.selected.length > 6 ? ' 等' : ''}）`
+                            : `${(b.prefixCount ?? (b.prefixes || []).length).toLocaleString()} 个号段`}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="font-mono">
+                        {(b.prefixes || []).join('、')}
+                        {(b.prefixCount || 0) > (b.prefixes || []).length ? <span className="font-sans text-xs text-gray-400"> 等 {(b.prefixCount || 0).toLocaleString()} 个</span> : null}
+                      </span>
+                    )}
+                  </td>
                   <td className={`${td} text-right text-gray-600`}>{b.localLen}</td>
                   <td className={td}>
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${b.mode === 'random' ? 'bg-violet-50 text-violet-600' : 'bg-blue-50 text-blue-600'}`}>

@@ -7,6 +7,14 @@ import examples from 'libphonenumber-js/mobile/examples';
 export interface PrefixHint { prefix: string; example: string }
 export interface MobilePrefixHints { exampleLen: number; example: string; prefixes: PrefixHint[] }
 
+// 该国手机号本地位数（不含国家码），取规则库示例号长度；未知返回 0。用于选国家后自动填「号码位数」
+export function getMobileExampleLen(code: string): number {
+  try {
+    const ex = getExampleNumber(code as CountryCode, examples);
+    return ex ? String(ex.nationalNumber).length : 0;
+  } catch { return 0; }
+}
+
 const MAX_HINTS = 200;
 const FILLERS = ['0', '5', '1', '7'];
 const CYCLE = '1234567890';

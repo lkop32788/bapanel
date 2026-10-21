@@ -11,6 +11,13 @@ const numberGenBatchSchema = new mongoose.Schema({
     code: { type: String, default: '' },
   },
   prefixes: { type: [String], default: [] },
+  // 按州/省生成时记录来源（前缀由服务端按地区号段库解析，可达数万个）
+  region: {
+    name: { type: String, default: '' },
+    city: { type: String, default: '' },
+    isp: { type: String, default: '' },
+    selected: { type: [String], default: [] }, // 商户挑选的号段开头（如 134 / 1381），空=全部
+  },
   localLen: { type: Number, required: true },
   mode: { type: String, enum: ['sequential', 'random'], required: true },
   count: { type: Number, required: true },

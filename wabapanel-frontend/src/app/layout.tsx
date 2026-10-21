@@ -82,8 +82,6 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [ogImage],
     },
     robots: { index: true, follow: true },
-    manifest: `${API_BASE}/public/manifest.webmanifest`,
-    appleWebApp: { capable: true, statusBarStyle: 'default', title: brandName },
     icons: { icon: favicon, shortcut: favicon, apple: appleIcon },
   };
 }
@@ -183,7 +181,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         <SeoHead />
         <SiteTheme initial={siteTheme} />
-        <PwaProvider apiBase={API_BASE} />
+        <PwaProvider />
         <I18nProvider><SiteContentProvider content={siteContent} bizName={bizName} settings={settingsRes?.data || null}>{children}</SiteContentProvider></I18nProvider>
         <CustomCodeInjector code={customCode} />
         <Toaster position="top-right" toastOptions={{ duration: 3000 }} />

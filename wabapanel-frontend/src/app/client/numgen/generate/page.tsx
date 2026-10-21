@@ -1,22 +1,28 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Hash, ListOrdered, Shuffle, Wand2, AlertCircle, Lightbulb } from 'lucide-react';
+import { Hash, ListOrdered, Shuffle, Wand2, AlertCircle, Lightbulb, MapPin, PencilLine, ChevronDown, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { numgenApi } from '@/lib/api';
 import { COUNTRIES, COUNTRY_GROUPS, LOCAL_LEN_HINT } from '@/lib/countries';
-import { getMobilePrefixHints, type MobilePrefixHints } from '@/lib/mobilePrefixes';
+import { getMobilePrefixHints, getMobileExampleLen, type MobilePrefixHints } from '@/lib/mobilePrefixes';
 
 const MAX_SEQ = 5000000;
 const MAX_RAND = 1000000;
 const MAX_PREFIXES = 6;
+const ISP_OPTIONS = ['移动', '联通', '电信', '广电'];
+
+interface RegionInfo { supported: boolean; localLen?: number; hasCity?: boolean; hasIsp?: boolean; regions: { name: string; cities?: string[] }[] }
+interface PrefixGroup { key: string; count: number; sub?: { key: string; count: number }[] }
+interface RegionStats { count: number; localLen: number; capacity: number; sample: string[]; prefixLen?: number; groups?: PrefixGroup[] }
 
 const splitPrefixes = (text: string) =>
   Array.from(new Set(text.split(/[\s,，;；]+/).map(s => s.trim()).filter(Boolean)));
 
-const inputCls = 'w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500';
+const inputCls = 'w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed';
+const errMsg = (e: unknown) => (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
 
 export default function NumGenGeneratePage() {
   const router = useRouter();
@@ -24,12 +30,130 @@ export default function NumGenGeneratePage() {
   const [countryCode, setCountryCode] = useState('MY');
   const [prefixText, setPrefixText] = useState('');
   const [localLen, setLocalLen] = useState(10);
+  // 选国家后自动填该国手机号位数（中国 11、美国 10、马来西亚 9…），仍可手改；地区模式随后会按数据集覆盖并锁定
+  useEffect(() => {
+    const n = getMobileExampleLen(countryCode);
+    if (n) setLocalLen(n);
+  }, [countryCode]);
   const [mode, setMode] = useState<'sequential' | 'random'>('sequential');
   const [count, setCount] = useState(10000);
   const [submitting, setSubmitting] = useState(false);
 
   const country = COUNTRIES.find(c => c.code === countryCode) || COUNTRIES[0];
   const prefixes = useMemo(() => splitPrefixes(prefixText), [prefixText]);
+
+  // 号段来源：手动填 / 按州省（仅后端有地区号段库的国家可选）
+  const [source, setSource] = useState<'manual' | 'region'>('manual');
+  const [regionInfo, setRegionInfo] = useState<RegionInfo | null>(null);
+  const [regionLoading, setRegionLoading] = useState(false);
+  const [regionName, setRegionName] = useState('');
+  const [cityName, setCityName] = useState('');
+  const [ispName, setIspName] = useState('');
+  const [stats, setStats] = useState<RegionStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState('');
+  const isRegion = source === 'region' && !!regionInfo?.supported;
+  // 商户在范围内挑选的具体号段：key 为 3 位（整组）或 4 位（部分）；范围变化时重置为全选
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // 切换国家：回到手动模式并重置地区选择，再查该国是否支持按州省
+    setSource('manual');
+    setRegionInfo(null);
+    setRegionName('');
+    setCityName('');
+    setIspName('');
+    setStats(null);
+    setStatsError('');
+    let stale = false;
+    setRegionLoading(true);
+    numgenApi.regions(country.code)
+      .then(res => { if (!stale) setRegionInfo(res.data.data || { supported: false, regions: [] }); })
+      .catch(() => { if (!stale) setRegionInfo({ supported: false, regions: [] }); })
+      .finally(() => { if (!stale) setRegionLoading(false); });
+    return () => { stale = true; };
+  }, [country.code]);
+
+  useEffect(() => {
+    if (!isRegion || !regionName) { setStats(null); setStatsError(''); return; }
+    let stale = false;
+    setStatsLoading(true);
+    setStatsError('');
+    numgenApi.regionPrefixes({
+      country: country.code, region: regionName,
+      ...(cityName ? { city: cityName } : {}), ...(ispName ? { isp: ispName } : {}),
+    })
+      .then(res => {
+        if (stale) return;
+        const d = res.data.data as RegionStats;
+        setStats(d);
+        if (d?.localLen) setLocalLen(d.localLen);
+        setSelected(new Set((d?.groups || []).map(g => g.key)));
+        setOpenGroups(new Set());
+      })
+      .catch(e => { if (!stale) { setStats(null); setStatsError(errMsg(e) || '获取号段失败，请稍后重试'); } })
+      .finally(() => { if (!stale) setStatsLoading(false); });
+    return () => { stale = true; };
+  }, [isRegion, country.code, regionName, cityName, ispName]);
+
+  const cities = useMemo(() => regionInfo?.regions?.find(r => r.name === regionName)?.cities || [], [regionInfo, regionName]);
+
+  // 号段挑选：已选数量/容量本地计算，不必每次点击都请求
+  const groups = useMemo(() => stats?.groups || [], [stats]);
+  const allSelected = groups.length > 0 && groups.every(g => selected.has(g.key));
+  const selectedCount = useMemo(() => {
+    let n = 0;
+    for (const g of groups) {
+      if (selected.has(g.key)) { n += g.count; continue; }
+      for (const s of g.sub || []) if (selected.has(s.key)) n += s.count;
+    }
+    return n;
+  }, [groups, selected]);
+  const prefixLen = stats?.prefixLen || (groups[0]?.key.length ?? 0);
+  const selectedCapacity = stats ? selectedCount * Math.pow(10, Math.max(0, stats.localLen - prefixLen)) : 0;
+  const groupState = (g: PrefixGroup): 'all' | 'part' | 'none' => {
+    if (selected.has(g.key)) return 'all';
+    return (g.sub || []).some(s => selected.has(s.key)) ? 'part' : 'none';
+  };
+  const toggleGroup = (g: PrefixGroup) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (groupState(g) !== 'none') {
+        next.delete(g.key);
+        for (const s of g.sub || []) next.delete(s.key);
+      } else {
+        next.add(g.key);
+      }
+      return next;
+    });
+  };
+  const toggleSub = (g: PrefixGroup, subKey: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      const subs = g.sub || [];
+      if (next.has(g.key)) {
+        next.delete(g.key);
+        for (const s of subs) if (s.key !== subKey) next.add(s.key);
+      } else if (next.has(subKey)) {
+        next.delete(subKey);
+      } else {
+        next.add(subKey);
+        if (subs.every(s => next.has(s.key))) {
+          for (const s of subs) next.delete(s.key);
+          next.add(g.key);
+        }
+      }
+      return next;
+    });
+  };
+  const selectAll = () => setSelected(new Set(groups.map(g => g.key)));
+  const selectNone = () => setSelected(new Set());
+  const toggleOpen = (key: string) => setOpenGroups(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
 
   // 真实号段提示：仅面板展开时按当前国家离线推算（同步计算几十毫秒，延后一帧让「计算中」先渲染）
   const [hintOpen, setHintOpen] = useState(false);
@@ -55,24 +179,39 @@ export default function NumGenGeneratePage() {
     setPrefixText([...prefixes, p].join(', '));
   };
 
-  // 校验与容量：容量 = Σ 10^(位数 − 前缀长)
+  // 校验与容量：手动模式 容量 = Σ 10^(位数 − 前缀长)；地区模式用接口返回的容量
   const prefixError = useMemo(() => {
+    if (isRegion) {
+      if (!regionName) return '请选择州/省';
+      if (statsLoading) return '正在获取号段…';
+      if (statsError) return statsError;
+      if (!stats || stats.count === 0) return '该范围没有可用号段';
+      if (groups.length > 0 && selectedCount === 0) return '请至少选一个号段';
+      return '';
+    }
     if (prefixes.length === 0) return '请输入号段前缀';
     if (prefixes.length > MAX_PREFIXES) return `最多 ${MAX_PREFIXES} 个前缀`;
     if (prefixes.some(p => !/^\d+$/.test(p))) return '前缀只能是数字（不含国家码和 +）';
     if (prefixes.some(p => p.length >= localLen)) return '前缀位数必须小于号码位数';
     return '';
-  }, [prefixes, localLen]);
-  const lenError = !Number.isInteger(localLen) || localLen < 5 || localLen > 15 ? '号码位数需在 5～15 之间' : '';
-  const capacity = useMemo(() => prefixError || lenError ? 0
-    : prefixes.reduce((sum, p) => sum + Math.pow(10, localLen - p.length), 0), [prefixes, localLen, prefixError, lenError]);
+  }, [isRegion, regionName, statsLoading, statsError, stats, prefixes, localLen, groups.length, selectedCount]);
+  const lenError = isRegion ? '' : (!Number.isInteger(localLen) || localLen < 5 || localLen > 15 ? '号码位数需在 5～15 之间' : '');
+  const capacity = useMemo(() => {
+    if (prefixError || lenError) return 0;
+    if (isRegion) return groups.length > 0 ? selectedCapacity : (stats?.capacity || 0);
+    return prefixes.reduce((sum, p) => sum + Math.pow(10, localLen - p.length), 0);
+  }, [isRegion, stats, groups.length, selectedCapacity, prefixes, localLen, prefixError, lenError]);
   const limit = mode === 'sequential' ? Math.min(MAX_SEQ, capacity) : Math.min(MAX_RAND, Math.floor(capacity / 2));
   const countError = !Number.isInteger(count) || count < 1 ? '生成数量至少 1 个'
     : capacity > 0 && count > limit ? `超出上限：${mode === 'sequential' ? '顺序模式最多' : '随机模式最多'} ${limit.toLocaleString()} 个` : '';
   const canSubmit = !prefixError && !lenError && !countError && !submitting;
 
-  const samplePrefix = prefixes[0] && /^\d+$/.test(prefixes[0]) ? prefixes[0] : '12';
-  const sample = `+${country.dial} ${samplePrefix}${'x'.repeat(Math.max(0, localLen - samplePrefix.length))}`;
+  const samplePrefix = isRegion
+    ? (stats?.sample?.[0] || '')
+    : (prefixes[0] && /^\d+$/.test(prefixes[0]) ? prefixes[0] : '12');
+  const sample = samplePrefix
+    ? `+${country.dial} ${samplePrefix}${'x'.repeat(Math.max(0, localLen - samplePrefix.length))}`
+    : '选好地区后显示';
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -81,16 +220,26 @@ export default function NumGenGeneratePage() {
       await numgenApi.create({
         name: name.trim() || undefined,
         countryCode: country.code, countryName: country.name, countryDial: country.dial,
-        prefixes, localLen, mode, count,
+        mode, count,
+        ...(isRegion
+          ? { region: {
+              name: regionName,
+              ...(cityName ? { city: cityName } : {}),
+              ...(ispName ? { isp: ispName } : {}),
+              // 全选不传，让后端用该范围全部号段
+              ...(groups.length > 0 && !allSelected ? { selected: Array.from(selected) } : {}),
+            } }
+          : { prefixes, localLen }),
       });
       toast.success('生成完成，已加入生成列表');
       router.push('/client/numgen/list');
     } catch (e) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || '生成失败，请稍后重试');
+      toast.error(errMsg(e) || '生成失败，请稍后重试');
       setSubmitting(false);
     }
   };
+
+  const selectRegion = (v: string) => { setRegionName(v); setCityName(''); };
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -122,66 +271,194 @@ export default function NumGenGeneratePage() {
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">号段前缀</label>
-              <button type="button" onClick={() => setHintOpen(v => !v)}
-                className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors ${hintOpen ? 'bg-amber-50 text-amber-700' : 'text-amber-600 hover:bg-amber-50'}`}>
-                <Lightbulb className="w-3.5 h-3.5" />真实号段提示
-              </button>
+          {(regionLoading || regionInfo?.supported) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">号段来源</label>
+              {regionLoading ? (
+                <p className="text-xs text-gray-400">正在检查该国家是否支持按州/省生成…</p>
+              ) : (
+                <>
+                  <div className="inline-flex rounded-xl border border-gray-200 overflow-hidden">
+                    <button type="button" onClick={() => setSource('manual')}
+                      className={`flex items-center gap-1.5 px-4 py-2 text-sm transition-colors ${!isRegion ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                      <PencilLine className="w-4 h-4" />手动填号段
+                    </button>
+                    <button type="button" onClick={() => setSource('region')}
+                      className={`flex items-center gap-1.5 px-4 py-2 text-sm transition-colors border-l border-gray-200 ${isRegion ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                      <MapPin className="w-4 h-4" />按州/省
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-xs text-gray-400">
+                    {isRegion ? `选好地区后自动使用${country.name}该地区的真实号段，无需手动填写` : '自己填写号段前缀，或切换为按州/省自动选号段'}
+                  </p>
+                </>
+              )}
             </div>
-            <input value={prefixText} onChange={e => setPrefixText(e.target.value)} placeholder="例如：12, 13, 16（多个用逗号或空格分隔，最多 6 个）"
-              className={`${inputCls} ${prefixText && prefixError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`} />
-            <p className={`mt-1 text-xs ${prefixText && prefixError ? 'text-red-500' : 'text-gray-400'}`}>
-              {prefixText && prefixError ? prefixError : '国家码后面的开头几位，不含国家码和 +；填多个前缀会平均分配生成'}
-            </p>
-            {hintOpen && (
-              <div className="mt-2 rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3 text-sm space-y-2.5">
-                <p className="text-xs text-gray-500">
-                  依据 Google libphonenumber 规则库离线推算，<b className="text-gray-700">{country.name}</b> 常见手机号段，点击加入前缀
-                </p>
-                {hintLoading || !hints ? (
-                  <p className="text-xs text-gray-400">计算中…</p>
-                ) : hints.prefixes.length === 0 ? (
-                  <p className="text-xs text-gray-400">该国家暂无规则数据，请按运营商号段手动填写</p>
-                ) : (
-                  <>
-                    <div className="flex flex-wrap gap-1.5">
-                      {hints.prefixes.map(h => {
-                        const on = prefixes.includes(h.prefix);
-                        return (
-                          <button key={h.prefix} type="button" title={h.example} onClick={() => togglePrefix(h.prefix)}
-                            className={`rounded-lg px-2.5 py-1 font-mono text-xs border transition-colors ${on
-                              ? 'bg-emerald-600 border-emerald-600 text-white'
-                              : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-700'}`}>
-                            {h.prefix}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {hints.exampleLen > 0 && (
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span>推荐位数 <b className="text-gray-800">{hints.exampleLen} 位</b>（示例 {hints.example}）</span>
-                        {localLen !== hints.exampleLen && (
-                          <button type="button" onClick={() => setLocalLen(hints.exampleLen)}
-                            className="rounded-md border border-emerald-200 bg-white px-2 py-0.5 text-emerald-700 hover:bg-emerald-50">采用</button>
-                        )}
-                      </div>
-                    )}
-                  </>
+          )}
+
+          {isRegion ? (
+            <div>
+              <div className={`grid grid-cols-1 gap-4 ${regionInfo?.hasCity && regionInfo?.hasIsp ? 'md:grid-cols-3' : regionInfo?.hasCity || regionInfo?.hasIsp ? 'md:grid-cols-2' : ''}`}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">州/省</label>
+                  <select value={regionName} onChange={e => selectRegion(e.target.value)} className={inputCls}>
+                    <option value="">请选择州/省</option>
+                    {(regionInfo?.regions || []).map(r => <option key={r.name} value={r.name}>{r.name}</option>)}
+                  </select>
+                </div>
+                {regionInfo?.hasCity && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">城市</label>
+                    <select value={cityName} onChange={e => setCityName(e.target.value)} disabled={!regionName} className={inputCls}>
+                      <option value="">全部城市</option>
+                      {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                )}
+                {regionInfo?.hasIsp && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">运营商</label>
+                    <select value={ispName} onChange={e => setIspName(e.target.value)} className={inputCls}>
+                      <option value="">全部运营商</option>
+                      {ISP_OPTIONS.map(i => <option key={i} value={i}>{i}</option>)}
+                    </select>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+              <p className={`mt-1.5 text-xs ${statsError ? 'text-red-500' : 'text-gray-400'}`}>
+                {!regionName ? '先选择州/省，号段和位数会自动确定'
+                  : statsLoading ? '正在获取该地区号段…'
+                  : statsError ? statsError
+                  : stats ? (stats.count > 0
+                    ? <>该范围 <b className="text-gray-700">{stats.count.toLocaleString()}</b> 个号段，可生成 <b className="text-gray-700">{stats.capacity.toLocaleString()}</b> 个号码
+                      {stats.sample?.length ? <>，示例前缀 <span className="font-mono text-gray-600">{stats.sample.slice(0, 5).join('、')}</span></> : null}</>
+                    : '该范围没有可用号段，换个地区或运营商试试')
+                  : ''}
+              </p>
+
+              {stats && groups.length > 0 && !statsLoading && (
+                <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3 space-y-2.5">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="text-sm text-gray-700">
+                      可选号段：已选 <b className={selectedCount > 0 ? 'text-emerald-600' : 'text-red-500'}>{selectedCount.toLocaleString()}</b> / 共 {stats.count.toLocaleString()} 个
+                      <span className="text-gray-400"> · 可生成 {selectedCapacity.toLocaleString()} 个号码</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button type="button" onClick={selectAll} disabled={allSelected}
+                        className="rounded-md border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">全选</button>
+                      <button type="button" onClick={selectNone} disabled={selected.size === 0}
+                        className="rounded-md border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">全不选</button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">点击号段切换选中；带箭头的可展开挑选更细的号段</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {groups.map(g => {
+                      const st = groupState(g);
+                      const hasSub = !!g.sub?.length;
+                      const open = openGroups.has(g.key);
+                      return (
+                        <div key={g.key} className={hasSub && open ? 'basis-full' : ''}>
+                          <div className={`inline-flex items-stretch rounded-lg border text-xs font-mono overflow-hidden transition-colors ${st === 'all'
+                            ? 'bg-emerald-600 border-emerald-600 text-white'
+                            : st === 'part'
+                              ? 'bg-emerald-50 border-emerald-400 border-dashed text-emerald-700'
+                              : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-700'}`}>
+                            <button type="button" onClick={() => toggleGroup(g)} className="px-2.5 py-1 flex items-center gap-1">
+                              <span>{g.key}</span>
+                              {hasSub && <span className={`font-sans ${st === 'all' ? 'text-emerald-100' : 'text-gray-400'}`}>{g.count.toLocaleString()}</span>}
+                              {st === 'part' && <span className="font-sans text-[10px]">部分</span>}
+                            </button>
+                            {hasSub && (
+                              <button type="button" onClick={() => toggleOpen(g.key)} title={open ? '收起' : '展开挑选'}
+                                className={`px-1.5 border-l flex items-center ${st === 'all' ? 'border-emerald-500 hover:bg-emerald-700' : 'border-gray-200 hover:bg-gray-100'}`}>
+                                {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                              </button>
+                            )}
+                          </div>
+                          {hasSub && open && (
+                            <div className="mt-1.5 mb-1 ml-2 pl-3 border-l-2 border-emerald-100 flex flex-wrap gap-1.5">
+                              {g.sub!.map(s => {
+                                const on = selected.has(g.key) || selected.has(s.key);
+                                return (
+                                  <button key={s.key} type="button" onClick={() => toggleSub(g, s.key)}
+                                    className={`rounded-md border px-2 py-0.5 text-xs font-mono transition-colors ${on
+                                      ? 'bg-emerald-600 border-emerald-600 text-white'
+                                      : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-700'}`}>
+                                    {s.key}<span className={`font-sans ml-1 ${on ? 'text-emerald-100' : 'text-gray-400'}`}>{s.count.toLocaleString()}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">号段前缀</label>
+                <button type="button" onClick={() => setHintOpen(v => !v)}
+                  className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors ${hintOpen ? 'bg-amber-50 text-amber-700' : 'text-amber-600 hover:bg-amber-50'}`}>
+                  <Lightbulb className="w-3.5 h-3.5" />真实号段提示
+                </button>
+              </div>
+              <input value={prefixText} onChange={e => setPrefixText(e.target.value)} placeholder="例如：12, 13, 16（多个用逗号或空格分隔，最多 6 个）"
+                className={`${inputCls} ${prefixText && prefixError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`} />
+              <p className={`mt-1 text-xs ${prefixText && prefixError ? 'text-red-500' : 'text-gray-400'}`}>
+                {prefixText && prefixError ? prefixError : '国家码后面的开头几位，不含国家码和 +；填多个前缀会平均分配生成'}
+              </p>
+              {hintOpen && (
+                <div className="mt-2 rounded-xl border border-amber-100 bg-amber-50/40 px-4 py-3 text-sm space-y-2.5">
+                  <p className="text-xs text-gray-500">
+                    依据 Google libphonenumber 规则库离线推算，<b className="text-gray-700">{country.name}</b> 常见手机号段，点击加入前缀
+                  </p>
+                  {hintLoading || !hints ? (
+                    <p className="text-xs text-gray-400">计算中…</p>
+                  ) : hints.prefixes.length === 0 ? (
+                    <p className="text-xs text-gray-400">该国家暂无规则数据，请按运营商号段手动填写</p>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap gap-1.5">
+                        {hints.prefixes.map(h => {
+                          const on = prefixes.includes(h.prefix);
+                          return (
+                            <button key={h.prefix} type="button" title={h.example} onClick={() => togglePrefix(h.prefix)}
+                              className={`rounded-lg px-2.5 py-1 font-mono text-xs border transition-colors ${on
+                                ? 'bg-emerald-600 border-emerald-600 text-white'
+                                : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-700'}`}>
+                              {h.prefix}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {hints.exampleLen > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span>推荐位数 <b className="text-gray-800">{hints.exampleLen} 位</b>（示例 {hints.example}）</span>
+                          {localLen !== hints.exampleLen && (
+                            <button type="button" onClick={() => setLocalLen(hints.exampleLen)}
+                              className="rounded-md border border-emerald-200 bg-white px-2 py-0.5 text-emerald-700 hover:bg-emerald-50">采用</button>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">号码位数（不含国家码）</label>
-              <input type="number" min={5} max={15} value={localLen}
+              <input type="number" min={5} max={15} value={localLen} disabled={isRegion}
                 onChange={e => setLocalLen(parseInt(e.target.value, 10) || 0)}
                 className={`${inputCls} ${lenError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`} />
               <p className={`mt-1 text-xs ${lenError ? 'text-red-500' : 'text-gray-400'}`}>
-                {lenError || `${country.name}手机号通常 ${LOCAL_LEN_HINT[country.code] || '8～11 位'}`}
+                {lenError || (isRegion ? '按所选地区自动确定' : `${country.name}手机号通常 ${LOCAL_LEN_HINT[country.code] || '8～11 位'}`)}
               </p>
             </div>
             <div>
@@ -217,13 +494,13 @@ export default function NumGenGeneratePage() {
           <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3 text-sm space-y-1">
             <div className="flex items-center gap-2 text-gray-600">
               <span className="text-gray-400 w-16 shrink-0">示例号码</span>
-              <span className="font-mono text-gray-900">{sample}</span>
+              <span className={samplePrefix ? 'font-mono text-gray-900' : 'text-gray-400'}>{sample}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600">
               <span className="text-gray-400 w-16 shrink-0">号段容量</span>
               {capacity > 0
-                ? <span>该号段可生成 <b className="text-gray-900">{capacity.toLocaleString()}</b> 个号码</span>
-                : <span className="text-gray-400">填好前缀和位数后显示</span>}
+                ? <span>{isRegion ? (groups.length > 0 && !allSelected ? '已选号段' : '该地区') : '该号段'}可生成 <b className="text-gray-900">{capacity.toLocaleString()}</b> 个号码</span>
+                : <span className="text-gray-400">{isRegion ? '选好地区后显示' : '填好前缀和位数后显示'}</span>}
             </div>
             {capacity > 0 && count > 0 && !countError && (
               <div className="flex items-center gap-2 text-gray-600">

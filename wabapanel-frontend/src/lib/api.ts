@@ -352,11 +352,17 @@ export const saverCheckApi = {
 
 // 号码生成：自定义号段批量生成 + 生成列表
 export const numgenApi = {
+  // 传 region 时 prefixes/localLen 由后端按地区号段库决定
   create: (data: {
     name?: string; countryCode: string; countryName: string; countryDial: string;
-    prefixes: string[]; localLen: number; mode: 'sequential' | 'random'; count: number;
+    prefixes?: string[]; localLen?: number; mode: 'sequential' | 'random'; count: number;
+    region?: { name: string; city?: string; isp?: string; selected?: string[] };
   }) => api.post('/numgen/batches', data, { timeout: 120000 }),
   list: (params: { page?: number; limit?: number; name?: string }) => api.get('/numgen/batches', { params }),
+  regions: (country: string) => api.get('/numgen/batches/regions', { params: { country } }),
+  // selected：逗号分隔的 3/4 位号段 key，只影响 count/capacity/sample；groups 永远是该范围全量分组
+  regionPrefixes: (params: { country: string; region: string; city?: string; isp?: string; selected?: string }) =>
+    api.get('/numgen/batches/regions/prefixes', { params }),
   exportTxt: (id: string) => api.get(`/numgen/batches/${id}/export`, { responseType: 'blob', timeout: 600000 }),
   remove: (id: string) => api.delete(`/numgen/batches/${id}`),
 };
