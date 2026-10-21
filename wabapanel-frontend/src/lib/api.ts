@@ -334,7 +334,8 @@ export const rotationLinkApi = {
 // 省钱专家：号码状态批量检测
 export const saverCheckApi = {
   // multipart：file 原始 txt + channel/taskType/fileName/countryCode/countryName/countryDial
-  create: (data: FormData) => api.post('/saver/checks', data, { timeout: 600000 }),
+  // 必须显式 multipart 头：实例默认 application/json 会让 axios 把 FormData 序列化成 JSON，后端收不到文件和国家字段
+  create: (data: FormData) => api.post('/saver/checks', data, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 600000 }),
   exportResult: (id: string) => api.get(`/saver/checks/${id}/export`, { responseType: 'blob', timeout: 600000 }),
   wallet: () => api.get('/saver/wallet'),
   walletLedger: (params: { page?: number; limit?: number }) => api.get('/saver/wallet/ledger', { params }),
@@ -347,6 +348,17 @@ export const saverCheckApi = {
     api.get('/saver/checks', { params }),
   get: (id: string) => api.get(`/saver/checks/${id}`),
   remove: (id: string) => api.delete(`/saver/checks/${id}`),
+};
+
+// 号码生成：自定义号段批量生成 + 生成列表
+export const numgenApi = {
+  create: (data: {
+    name?: string; countryCode: string; countryName: string; countryDial: string;
+    prefixes: string[]; localLen: number; mode: 'sequential' | 'random'; count: number;
+  }) => api.post('/numgen/batches', data, { timeout: 120000 }),
+  list: (params: { page?: number; limit?: number; name?: string }) => api.get('/numgen/batches', { params }),
+  exportTxt: (id: string) => api.get(`/numgen/batches/${id}/export`, { responseType: 'blob', timeout: 600000 }),
+  remove: (id: string) => api.delete(`/numgen/batches/${id}`),
 };
 
 // Appointments

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import useBranding from '@/lib/useBranding';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, LayoutDashboard, BarChart3, Users, Tags, Layers, FileText, Send, Zap, ShoppingBag, Share2, FormInput, Phone, UserPlus, Settings, ChevronDown, ChevronRight, Menu, X, LogOut, Database, MessageCircle, ImageIcon, Wrench, Brain, Plug, PiggyBank, QrCode, Bot, Cloud, Coins } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, BarChart3, Users, Tags, Layers, FileText, Send, Zap, ShoppingBag, Share2, FormInput, Phone, UserPlus, Settings, ChevronDown, ChevronRight, Menu, X, LogOut, Database, MessageCircle, ImageIcon, Wrench, Brain, Plug, PiggyBank, QrCode, Bot, Cloud, Coins, Hash, ListOrdered } from 'lucide-react';
 import { FaWhatsapp, FaInstagram, FaFacebook, FaTelegram, FaEnvelope } from 'react-icons/fa';
 import { OmniNavIcon, OmniSidebarBrand } from '@/components/layout/OmniSidebar';
 import { useAuthStore } from '@/stores/authStore';
@@ -67,6 +67,14 @@ export const navItems: NavItem[] = [
         href: `/client/saver/${g.slug}`,
         icon: <g.Icon className={`w-4 h-4 ${g.color}`} />,
       })),
+    ],
+  },
+  {
+    label: 'Number Generator',
+    icon: <Hash className="w-5 h-5" />,
+    children: [
+      { label: 'Custom Segment Generate', href: '/client/numgen/generate', icon: <Hash className="w-4 h-4" /> },
+      { label: 'Generated Lists', href: '/client/numgen/list', icon: <ListOrdered className="w-4 h-4" /> },
     ],
   },
   {

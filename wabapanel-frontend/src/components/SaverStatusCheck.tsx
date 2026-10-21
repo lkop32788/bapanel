@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { saverCheckApi } from '@/lib/api';
 import { SAVER_GROUP_MAP, saverChannelOf, type SaverTypeDef } from '@/lib/saverTypes';
+import { COUNTRIES, COUNTRY_GROUPS } from '@/lib/countries';
 
 interface CheckTask {
   _id: string;
@@ -27,25 +28,6 @@ interface CheckTask {
 // 上传限制：与后端一致（后端以自己解析去重后的条数为准计费，这里仅前置校验）
 const MIN_NUMBERS = 2000;
 const MAX_NUMBERS = 5000000;
-
-const COUNTRIES: { name: string; dial: string; code: string }[] = [
-  { name: '马来西亚', dial: '60', code: 'MY' },
-  { name: '新加坡', dial: '65', code: 'SG' },
-  { name: '印度尼西亚', dial: '62', code: 'ID' },
-  { name: '泰国', dial: '66', code: 'TH' },
-  { name: '越南', dial: '84', code: 'VN' },
-  { name: '菲律宾', dial: '63', code: 'PH' },
-  { name: '柬埔寨', dial: '855', code: 'KH' },
-  { name: '缅甸', dial: '95', code: 'MM' },
-  { name: '中国大陆', dial: '86', code: 'CN' },
-  { name: '中国香港', dial: '852', code: 'HK' },
-  { name: '中国台湾', dial: '886', code: 'TW' },
-  { name: '印度', dial: '91', code: 'IN' },
-  { name: '阿联酋', dial: '971', code: 'AE' },
-  { name: '美国', dial: '1', code: 'US' },
-  { name: '英国', dial: '44', code: 'GB' },
-  { name: '巴西', dial: '55', code: 'BR' },
-];
 
 const TASK_STATUS: Record<CheckTask['status'], { label: string; cls: string }> = {
   pending: { label: '排队中', cls: 'bg-gray-100 text-gray-500' },
@@ -310,7 +292,11 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
               <select value={countryInput} onChange={e => setCountryInput(e.target.value)}
                 className="w-40 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 <option value="">全部国家</option>
-                {COUNTRIES.map(c => <option key={c.code} value={c.name}>{c.name}</option>)}
+                {COUNTRY_GROUPS.map(g => (
+                  <optgroup key={g.region} label={g.region}>
+                    {g.countries.map(c => <option key={c.code} value={c.name}>{c.name}</option>)}
+                  </optgroup>
+                ))}
               </select>
             </div>
           )}
@@ -469,7 +455,11 @@ export default function SaverStatusCheck({ groupSlug }: { groupSlug: string }) {
                 <select value={countryCode} onChange={e => setCountryCode(e.target.value)}
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                   <option value="">请选择国家</option>
-                  {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name} +{c.dial}</option>)}
+                  {COUNTRY_GROUPS.map(g => (
+                    <optgroup key={g.region} label={g.region}>
+                      {g.countries.map(c => <option key={c.code} value={c.code}>{c.name} +{c.dial}</option>)}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
             )}

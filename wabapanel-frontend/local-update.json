@@ -159,7 +159,25 @@
       "src/lib/api.ts": "saverCheckApi",
       "src/app/admin/settings/page.tsx": "系统偏好设置新增「省钱专家」tab：接口地址 + API Token + 测试连接（查余额）",
       "src/lib/saverTypes.tsx(新增)": "检测类型目录：19 个平台分组（slug/图标），组内 ~52 种类型（tab名/全名/input/country/hint）",
-      "src/app/client/saver/[type]/page.tsx(新增)": "动态路由：每个平台分组一页（/client/saver/ws 等），组内类型用页内 tab 切换"
+      "src/app/client/saver/[type]/page.tsx(新增)": "动态路由：每个平台分组一页（/client/saver/ws 等），组内类型用页内 tab 切换",
+      "api.ts saverCheckApi.create_20261021": "FormData 提交必须显式 headers Content-Type multipart/form-data（实例默认 application/json 会让 axios 1.x 把 FormData 转 JSON，后端走旧分支报「请选择客户号码国家」）"
+    },
+    "featureNumberGen_20261021": {
+      "note": "自研功能「号码生成」：侧边栏「省钱专家」正下方同级分组（自定义号段生成 / 生成列表）。按国家+号段前缀(≤6个)+号码位数(5～15)+顺序/随机+数量生成号码（国家码+前缀+零填充后缀，不带+）。设计：批次只存参数+随机种子，**不落库明细**，下载时按参数确定性重新生成并流式输出（零 DB 膨胀；同批次任何时候重生成结果一致）。上限：顺序 ≤min(500万,容量)、随机 ≤min(100万,容量/2)。不计费、不加 denyAgent。非供应商代码，补丁覆盖后需重新应用",
+      "backend": {
+        "models/NumberGenBatch.js(新增)": "workspace/createdBy/name/country{name,dial,code}/prefixes[]/localLen/mode(sequential|random)/count/seed，索引 {workspace,createdAt}",
+        "services/numberGenService.js(新增)": "capacityOf(Σ10^(位数-前缀长))、generate 同步 generator（顺序：多前缀 round-robin 零填充、容量用尽跳过；随机：mulberry32(seed) 按容量加权选前缀 + Set 去重）、preview",
+        "routes/numgen.js(新增)": "POST /api/numgen/batches（全量校验+容量上限，默认名 国家-前缀/前缀-数量）、GET /batches 分页+name 搜索+preview(3)+capacity、GET /batches/:id/export 流式 txt（64KB 缓冲+drain 背压）、DELETE /batches/:id；全部按 workspace 过滤",
+        "server.js": "挂载 /api/numgen"
+      },
+      "frontend": {
+        "src/lib/countries.ts(新增)": "COUNTRIES 公共国家表（从 SaverStatusCheck 抽出，2026-10-21 扩到 89 国按 9 个地区分组：东南亚/东亚/南亚/中东/欧洲/北美/中南美/非洲/大洋洲）+ COUNTRY_GROUPS/COUNTRY_MAP + LOCAL_LEN_HINT 各国位数提示；省钱专家两处下拉和号码生成下拉都改 optgroup 分组显示。yuncang-proxy/admin_page.go 的 COUNTRIES 是同一份数据（手工同步）",
+        "src/lib/api.ts": "numgenApi {create,list,exportTxt(blob),remove}",
+        "src/app/client/numgen/generate/page.tsx(新增)": "表单：名称/国家/前缀/位数/顺序随机切换/数量，实时容量+示例号码+上限校验超限禁用，成功跳列表",
+        "src/app/client/numgen/list/page.tsx(新增)": "搜索+去生成、表格（名称/国家/号段/位数/方式/数量/示例/时间/下载·删除）、分页、空状态",
+        "src/components/layout/ClientSidebar.tsx": "Saver Expert 后插入「Number Generator」分组（Hash/ListOrdered 图标）",
+        "src/lib/zhNavigation.ts": "Number Generator=号码生成、Custom Segment Generate=自定义号段生成、Generated Lists=生成列表"
+      }
     },
     "yuncangProxy": {
       "note": "独立 Go 缓存代理「云仓中转管理」yuncang-proxy/（透明模仿 th333 接口），面板 saverApi.baseUrl 指向 http://127.0.0.1:5090；命中缓存的号码不再提交上游。th333 有 IP 白名单，服务器出口 IP 43.160.215.105 需加白",
